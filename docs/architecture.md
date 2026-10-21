@@ -12,6 +12,8 @@ JobCompass is a Next.js application backed by PostgreSQL. Prisma handles databas
 
 **Tracking:** Saved notes, application stages and timeline events are private records. Opening an employer application URL never marks an application submitted. The user records outcomes manually.
 
+**Optional AI:** `AI_MODE` controls an independent personal-key studio. A server-side policy gates both the UI and API. Provider adapters receive request-local keys and fixed endpoints, never owner credentials. Structured responses are checked against the source résumé/job before workspace-scoped `AiReview` snapshots and reports are stored. Text/keyword checks are separate heuristics. See [personal AI](personal-ai.md).
+
 ## Account isolation
 
 Authenticated request handlers enter a workspace context using the session user's ID. The scoped Prisma client filters private operations and assigns ownership on creation. Workspace IDs are immutable during updates. Composite foreign keys prevent a child record from linking to another account's job, application, run or profile version.
@@ -33,4 +35,4 @@ Authentication tables and the public catalogue use an explicitly unscoped client
 
 ## Current limits
 
-The curated catalogue is weighted toward technology employers, with worldwide roles across departments. It is not the entire worldwide job market. Refreshes are polling, not real-time employer webhooks; source delays and GitHub schedule delays affect discovery latency. Missing provider values remain unknown. AI and companion tools remain disabled. See [discovery operations](discovery.md), [README.md](../README.md) and [SECURITY.md](../SECURITY.md).
+The curated catalogue is weighted toward technology employers, with worldwide roles across departments. It is not the entire worldwide job market. Refreshes are polling, not real-time employer webhooks; source delays and GitHub schedule delays affect discovery latency. Missing provider values remain unknown. Personal-key AI is optional; legacy gateway and companion tools remain disabled. See [discovery operations](discovery.md), [README.md](../README.md) and [SECURITY.md](../SECURITY.md).

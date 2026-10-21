@@ -1,7 +1,7 @@
 import { DOMParser } from "@xmldom/xmldom";
-import pdf from "pdf-parse/lib/pdf-parse.js";
+import { extractText, getDocumentProxy } from "unpdf";
 import JSZip from "jszip";
-import { AppError, plainText } from "./contracts";
+import { AppError } from "./contracts";
 export async function extractCv(buffer: Buffer, name: string) {
   if (buffer.length > 5 * 1024 * 1024) throw new AppError("cv_too_large");
   try {
@@ -9,9 +9,19 @@ export async function extractCv(buffer: Buffer, name: string) {
     if (
       name.toLowerCase().endsWith(".pdf") &&
       buffer.subarray(0, 5).toString() === "%PDF-"
-    )
-      text = (await pdf(buffer)).text;
-    else if (
+    ) {
+      const document = await getDocumentProxy(new Uint8Array(buffer), {
+        disableFontFace: true,
+        useSystemFonts: false,
+        useWorkerFetch: false,
+      });
+      try {
+        if (document.numPages > 40) throw new AppError("cv_too_many_pages");
+        text = (await extractText(document, { mergePages: true })).text;
+      } finally {
+        await document.loadingTask.destroy();
+      }
+    } else if (
       name.toLowerCase().endsWith(".docx") &&
       buffer[0] === 80 &&
       buffer[1] === 75
@@ -38,7 +48,9 @@ export async function extractCv(buffer: Buffer, name: string) {
         .map((p) => p.textContent)
         .join("\n");
     } else throw new AppError("unsupported_cv");
-    text = plainText(text).slice(0, 80000);
+    // Extracted PDF/DOCX content is already plain text. Preserve literal angle
+    // brackets and symbols; rendering uses text nodes, never HTML insertion.
+    text = text.replace(/\0/g, "").replace(/\r\n/g, "\n").slice(0, 80000);
     if (!text.trim()) throw new AppError("cv_no_text");
     return text;
   } catch (e) {

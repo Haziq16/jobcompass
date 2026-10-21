@@ -165,8 +165,8 @@ export default function ProfileEditor() {
               <div>
                 <h2>Your experience</h2>
                 <p>
-                  Optional résumé text for deterministic skill matching. No AI
-                  processing.
+                  Optional résumé text for matching and your own review. Saving
+                  here does not send it to an AI provider.
                 </p>
               </div>
             </div>

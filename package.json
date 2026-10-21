@@ -1,6 +1,6 @@
 {
   "name": "jobcompass",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "A personal job-search workspace with company-board discovery and private application tracking.",
   "engines": {
@@ -22,16 +22,19 @@
     "extension:id": "node scripts/companion-key.mjs"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.85",
+    "@ai-sdk/google": "4.0.102",
+    "@ai-sdk/openai": "4.0.99",
     "@prisma/client": "6.19.0",
     "@xmldom/xmldom": "0.9.12",
-    "ai": "7.0.146",
+    "ai": "7.0.148",
     "better-auth": "1.7.11",
     "jszip": "3.10.1",
     "lucide-react": "0.577.0",
     "next": "16.4.2",
-    "pdf-parse": "1.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "unpdf": "1.9.1",
     "zod": "4.3.6"
   },
   "devDependencies": {

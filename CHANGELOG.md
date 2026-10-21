@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0 — 2026-10-21
+
+- Added an optional personal-key AI studio with off, owner-only and signed-in BYOK access modes.
+- Added OpenAI, Google Gemini, Anthropic and OpenRouter adapters with explicit model selection and no shared-key fallback.
+- Added PDF/DOCX text preview, transparent text/keyword checks and evidence-linked job requirement reviews.
+- Added extractive tailored résumé outlines, private review history, deletion and export support.
+- Kept keys in tab memory and request-local server state; added replay protection, attempt limits and no automatic retries.
+- Added source-quote validation and conservative checks for keyword and numeric-experience contradictions.
+- Documented GitHub research, accuracy limits, deployment controls and provider data flow.
+- Added simulated provider transport tests and owner/non-owner browser coverage without spending live API credits.
+
 ## 1.1.0 — 2026-10-21
 
 - Added a shared worldwide catalogue across 64 verified Greenhouse, Lever and Ashby company boards.

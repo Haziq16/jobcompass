@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePersonalAi } from "../workspace/PersonalAiContext";
 import {
   Bookmark,
   ArrowUpRight,
@@ -30,6 +32,7 @@ export default function JobDetail({
   }) => Promise<void>;
   onTrack: (data: Omit<AppData, "events">) => Promise<void>;
 }) {
+  const { enabled: ai } = usePersonalAi();
   const [tab, setTab] = useState("Overview");
   const [notes, setNotes] = useState(j.saved?.notes || "");
   const [tags, setTags] = useState(j.saved?.tags.join(", ") || "");
@@ -153,6 +156,11 @@ export default function JobDetail({
       </div>
       <p className="detail-salary">{salary(j)}</p>
       <div className="detail-actions">
+        {ai && (
+          <Link href={`/assistant?source=workspace&jobId=${j.id}`}>
+            Review with AI
+          </Link>
+        )}
         {links[0] && !demo ? (
           <a
             className="primary"

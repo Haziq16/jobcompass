@@ -281,6 +281,27 @@ model ResumeAsset {
   @@index([workspaceId])
 }
 
+model AiReview {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  requestKey String
+  fingerprint String
+  provider String
+  model String
+  jobSnapshot Json
+  resumeSnapshot String
+  state String @default("pending")
+  error String?
+  report Json?
+  checks Json
+  inputTokens Int?
+  outputTokens Int?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  @@unique([workspaceId,requestKey])
+  @@unique([workspaceId,id])
+  @@index([workspaceId,createdAt])
+}
 model AiGeneration {
   workspaceId String @default("local")
   id String @id @default(cuid())

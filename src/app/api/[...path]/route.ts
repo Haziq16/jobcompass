@@ -314,6 +314,7 @@ async function handler(
             await tx.$executeRaw`SELECT pg_advisory_xact_lock(640913)`;
             await tx.applicationAttempt.deleteMany();
             await tx.aiGeneration.deleteMany();
+            await tx.aiReview.deleteMany();
             await tx.profileVersion.deleteMany();
             await tx.resumeAsset.deleteMany();
             await tx.profile.deleteMany();
@@ -420,6 +421,7 @@ async function handler(
         generations: await db.aiGeneration.findMany({
           include: { drafts: true },
         }),
+        aiReviews: await db.aiReview.findMany(),
         attempts: await db.applicationAttempt.findMany({
           select: {
             id: true,

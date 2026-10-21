@@ -1,4 +1,4 @@
-/* global document, innerWidth, getComputedStyle */
+/* global document, innerWidth, getComputedStyle, localStorage, sessionStorage */
 import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
 import { spawn, execFileSync } from "node:child_process";
@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { chromium } from "playwright-core";
 import { setTimeout as delay } from "node:timers/promises";
+import JSZip from "jszip";
 const origin = "http://127.0.0.1:3000";
 const source = new URL(process.env.DATABASE_URL);
 if (!["localhost", "127.0.0.1"].includes(source.hostname))
@@ -39,6 +40,8 @@ const env = {
   APP_URL: origin,
   PUBLIC_SIGNUP: "true",
   ENABLE_AI: "false",
+  AI_MODE: "owner",
+  OWNER_EMAIL: "alex@release.example",
   JOBCOMPASS_TEST: "false",
   BETTER_AUTH_SECRET:
     "local-browser-release-secret-with-more-than-32-characters",
@@ -53,7 +56,7 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: source.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE TABLE "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
+  'TRUNCATE TABLE "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
 );
 const catalogNow = new Date();
 await db.catalogBoard.createMany({
@@ -121,7 +124,9 @@ for (let start = 0; start < 3005; start += 200)
         remote: i % 3 === 0,
         employmentType: "Full-time",
         description:
-          "Work with a thoughtful team to build useful products. This is fictional browser-verification data.",
+          i === 0
+            ? "Build Kotlin services using PostgreSQL and Docker. Work with a thoughtful team to design reliable APIs and collaborate on product development. Kotlin experience is required. This is fictional browser-verification data."
+            : "Work with a thoughtful team to build useful products. Collaborate with colleagues across design, engineering and customer teams to improve product experiences. This is fictional browser-verification data.",
         publishedAt: new Date(catalogNow.valueOf() - i * 3600_000),
         sourceUrl: `https://example.test/jobs/${i}`,
         applyUrl: `https://example.test/jobs/${i}`,
@@ -135,7 +140,14 @@ mkdirSync("test-results", { recursive: true });
 const log = createWriteStream("test-results/release-server.log");
 const server = spawn(
   process.execPath,
-  ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1"],
+  [
+    "--import",
+    new URL("./ai-browser-fixture.mjs", import.meta.url).href,
+    "node_modules/next/dist/bin/next",
+    "start",
+    "--hostname",
+    "127.0.0.1",
+  ],
   { env, stdio: ["ignore", "pipe", "pipe"] },
 );
 server.stdout.pipe(log);
@@ -400,7 +412,157 @@ try {
     ).status(),
     403,
   );
-  check("AI and shared paid discovery are disabled server-side");
+  check("Legacy shared-key AI and paid discovery remain disabled server-side");
+  assert.equal(
+    await second.getByRole("link", { name: "AI studio", exact: true }).count(),
+    0,
+  );
+  assert.equal(
+    (await second.request.get(origin + "/api/ai").then((r) => r.json()))
+      .enabled,
+    false,
+  );
+  assert.equal(
+    (
+      await second.request.post(origin + "/api/ai/reviews", {
+        headers: { origin },
+        data: {},
+      })
+    ).status(),
+    403,
+  );
+  check("Owner AI preview is hidden and refused for the second account");
+  await page.getByRole("link", { name: "AI studio", exact: true }).click();
+  await page.getByRole("heading", { name: "AI studio", exact: true }).waitFor();
+  let providerRequests = 0;
+  page.on("request", (r) => {
+    if (
+      r.url().includes("/api/ai/models") ||
+      (r.url().includes("/api/ai/reviews") && r.method() === "POST")
+    )
+      providerRequests++;
+  });
+  await page
+    .getByLabel("Your API key", { exact: true })
+    .fill("fixture-browser-provider-key-123456");
+  assert.equal(providerRequests, 0);
+  assert.equal(
+    await page.evaluate(
+      () =>
+        Object.values(localStorage).some((v) =>
+          v.includes("fixture-browser-provider-key"),
+        ) ||
+        Object.values(sessionStorage).some((v) =>
+          v.includes("fixture-browser-provider-key"),
+        ),
+    ),
+    false,
+  );
+  await page.getByRole("button", { name: "Load models", exact: true }).click();
+  await page
+    .locator('datalist option[value="fixture-model"]')
+    .waitFor({ state: "attached" });
+  await page.getByLabel("Model ID", { exact: true }).fill("fixture-model");
+  await page
+    .getByLabel("Job to review", { exact: true })
+    .selectOption(
+      createHash("sha256").update("catalog-fixture-0").digest("hex"),
+    );
+  const zip = new JSZip();
+  zip.file("[Content_Types].xml", "<Types/>");
+  const resumeLines = [
+    "Alex Morgan",
+    "alex@release.example",
+    "EXPERIENCE",
+    "Built Kotlin services with PostgreSQL and Docker at Example Studio, 2021–2025.",
+    "EDUCATION",
+    "BSc Computer Science, Example University, 2020.",
+    "SKILLS",
+    "Kotlin, PostgreSQL, Docker",
+  ];
+  zip.file(
+    "word/document.xml",
+    `<w:document xmlns:w="urn:test">${resumeLines.map((line) => `<w:p><w:r><w:t>${line}</w:t></w:r></w:p>`).join("")}</w:document>`,
+  );
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "fixture-resume.docx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    buffer: await zip.generateAsync({ type: "nodebuffer" }),
+  });
+  await page.waitForFunction(() =>
+    document.querySelector("textarea")?.value.includes("Built Kotlin"),
+  );
+  assert.equal(providerRequests, 1);
+  await page.screenshot({ path: "test-results/ai-studio-desktop.png" });
+  await page
+    .getByLabel(
+      "I have checked this résumé text for missing content, reading order and accuracy.",
+      { exact: true },
+    )
+    .check();
+  await page
+    .getByLabel(
+      "I agree to send these inputs to the selected provider and use my API allowance for this request.",
+      { exact: true },
+    )
+    .check();
+  await page
+    .getByRole("button", { name: "Run AI review", exact: true })
+    .click();
+  await page
+    .getByText("Quotes were checked against the submitted text.", {
+      exact: false,
+    })
+    .waitFor();
+  assert.equal(providerRequests, 2);
+  const review = await db.aiReview.findFirstOrThrow({
+    where: { workspaceId: user.id },
+  });
+  assert.equal(review.state, "succeeded");
+  assert.ok(!JSON.stringify(review).includes("fixture-browser-provider-key"));
+  assert.equal(
+    (
+      await second.request.get(origin + `/api/ai/reviews/${review.id}`)
+    ).status(),
+    403,
+  );
+  await page.screenshot({ path: "test-results/ai-review-desktop.png" });
+  await page
+    .getByRole("button", { name: "Tailored evidence outline", exact: true })
+    .click();
+  const downloaded = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download text outline", exact: true })
+    .click();
+  const file = await downloaded;
+  await file.saveAs("test-results/ai-evidence-outline.txt");
+  assert.ok(
+    readFileSync("test-results/ai-evidence-outline.txt", "utf8").includes(
+      "Built Kotlin",
+    ),
+  );
+  await page.reload();
+  await page.getByLabel("Your API key", { exact: true }).waitFor();
+  assert.equal(
+    await page.getByLabel("Your API key", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(await db.aiReview.count({ where: { workspaceId: user.id } }), 1);
+  check(
+    "AI model list, DOCX extraction, grounded provider fixture, private history and text download work end-to-end",
+  );
+  check(
+    "Keys remain out of browser storage and database, clear on refresh, and do not trigger automatic generation",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.screenshot({ path: "test-results/ai-studio-mobile.png" });
+  check("AI studio remains usable without horizontal overflow on mobile");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(origin + "/discover");
   await page
@@ -448,6 +610,10 @@ try {
   assert.ok(!typography.family.includes("Georgia"));
   assert.ok(typography.size >= 28);
   check("Workspace headings use readable sans-serif typography");
+  await page.getByRole("link", { name: "AI studio", exact: true }).click();
+  await page
+    .getByLabel("Your API key", { exact: true })
+    .fill("fixture-browser-provider-key-123456");
   await page.getByRole("button", { name: /Sign out/ }).click();
   await page.waitForURL("**/sign-in");
   await page
@@ -459,10 +625,18 @@ try {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL("**/discover");
   check("Sign-out and returning-account sign-in work");
+  await page.getByRole("link", { name: "AI studio", exact: true }).click();
+  assert.equal(
+    await page.getByLabel("Your API key", { exact: true }).inputValue(),
+    "",
+  );
+  check(
+    "Signing out clears the in-memory provider key before the next account session",
+  );
   assert.deepEqual(errors, []);
   assert.equal(await db.apiRequestLedger.count(), 0);
   assert.equal(await db.aiGeneration.count(), 0);
-  check("No browser errors, paid-provider units or AI calls");
+  check("No browser errors, paid-provider units or live AI calls");
   writeFileSync(
     "test-results/release-browser.json",
     JSON.stringify(

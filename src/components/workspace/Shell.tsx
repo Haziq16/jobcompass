@@ -12,8 +12,10 @@ import {
   Sun,
   Moon,
   Radio,
+  Sparkles,
 } from "lucide-react";
 import { SignOut } from "../AccountControls";
+import { usePersonalAi } from "./PersonalAiContext";
 const navigation = [
   ["/discover", "Discover", Radio],
   ["/jobs", "My jobs", Search],
@@ -32,6 +34,7 @@ export default function Shell({
   name?: string;
 }) {
   const pathname = usePathname();
+  const { enabled: ai } = usePersonalAi();
   const [dark, setDark] = useState(false);
   useEffect(() => {
     const value = localStorage.getItem("jobcompass-theme") === "dark";
@@ -64,6 +67,17 @@ export default function Shell({
               {label}
             </Link>
           ))}
+          {ai && (
+            <Link
+              href="/assistant"
+              aria-current={
+                pathname.startsWith("/assistant") ? "page" : undefined
+              }
+            >
+              <Sparkles size={18} />
+              AI studio
+            </Link>
+          )}
         </nav>
         <div className="upgrade-sidebar-note">
           <Compass />
@@ -90,7 +104,9 @@ export default function Shell({
             Your workspace <span className="muted">/</span>{" "}
             <strong>
               {navigation.find(([url]) => pathname.startsWith(url))?.[1] ||
-                "Application"}
+                (pathname.startsWith("/assistant")
+                  ? "AI studio"
+                  : "Application")}
             </strong>
           </span>
           <div>

@@ -2,7 +2,10 @@
 import { useState } from "react";
 import { ChangePassword } from "../AccountControls";
 import { api, useResource } from "./client";
+import Link from "next/link";
+import { usePersonalAi } from "./PersonalAiContext";
 export default function Preferences() {
+  const { enabled: ai } = usePersonalAi();
   const session = useResource<{ user?: { name: string; email: string } }>(
     "auth/get-session",
   );
@@ -75,11 +78,22 @@ export default function Preferences() {
           </div>
           {message && <p role="status">{message}</p>}
         </section>
+        {ai && (
+          <section className="upgrade-panel">
+            <h2>Your optional AI tools</h2>
+            <p>
+              Use your own provider key for résumé and job reviews. Keys stay in
+              tab memory and are cleared on refresh or sign-out.
+            </p>
+            <Link href="/assistant">Open AI studio</Link>
+          </section>
+        )}
         <section className="upgrade-panel release-note">
           <h2>Focused on the essentials</h2>
           <p>
             Discovery, shortlisting and application tracking are available now.
-            AI tools and assisted form filling are planned for a future release.
+            Assisted form filling remains disabled. You record application
+            outcomes yourself.
           </p>
         </section>
       </div>

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { api, useResource } from "./client";
 import DirectDiscovery from "./DirectDiscovery";
+import { usePersonalAi } from "./PersonalAiContext";
 
 type Listing = {
   id: string;
@@ -73,6 +74,7 @@ function CatalogDetail({
   saving: boolean;
   error: string;
 }) {
+  const { enabled: ai } = usePersonalAi();
   const ref = useRef<HTMLDialogElement>(null);
   const detail = useResource<{ description: string | null; active: boolean }>(
     `catalog/${job.id}`,
@@ -114,6 +116,11 @@ function CatalogDetail({
           `Source checked ${new Date(job.board.lastSuccessAt).toLocaleString()}`}
       </p>
       <div className="catalog-detail-actions">
+        {ai && (
+          <Link href={`/assistant?source=catalog&jobId=${job.id}`}>
+            Review with AI
+          </Link>
+        )}
         <a
           className="primary catalog-apply"
           href={job.applyUrl}

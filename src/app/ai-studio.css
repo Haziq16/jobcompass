@@ -1,0 +1,580 @@
+#ai-studio {
+  max-width: 1440px;
+  margin: auto;
+}
+#ai-studio .ai-feedback {
+  position: sticky;
+  top: 10px;
+  z-index: 10;
+  margin-bottom: 16px;
+  box-shadow: 0 3px 14px #182d3510;
+}
+#ai-studio .ai-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+#ai-studio .ai-heading h1 {
+  margin: 6px 0 10px;
+}
+#ai-studio .ai-heading p:last-child {
+  color: var(--release-muted);
+  margin: 0;
+}
+#ai-studio .ai-private-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--release-line);
+  background: var(--release-surface);
+  padding: 8px 12px;
+  border-radius: 24px;
+  font-size: 12px;
+  white-space: nowrap;
+  margin-top: 8px;
+}
+#ai-studio .ai-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 285px;
+  gap: 24px;
+  align-items: start;
+}
+#ai-studio .ai-inputs,
+#ai-studio .ai-sidebar {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+#ai-studio .ai-panel,
+#ai-studio .ai-report {
+  padding: 26px;
+  border: 1px solid var(--release-line);
+  border-radius: 12px;
+  background: var(--release-surface);
+  min-width: 0;
+}
+#ai-studio h2 {
+  font-size: 19px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 12px;
+  line-height: 1.35;
+}
+#ai-studio h3 {
+  font-size: 16px;
+  margin: 18px 0 10px;
+}
+#ai-studio p {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--release-muted);
+  margin: 0 0 16px;
+}
+#ai-studio .ai-section-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+#ai-studio .ai-section-top a {
+  font-size: 12px;
+  color: var(--release-accent);
+  white-space: nowrap;
+}
+#ai-studio .ai-small-badge {
+  font-size: 10px;
+  color: var(--release-accent);
+  border-radius: 4px;
+  background: var(--release-bg);
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+#ai-studio label {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-weight: 550;
+  gap: 6px;
+  color: var(--release-ink);
+  min-width: 0;
+}
+#ai-studio input:not([type="checkbox"]):not([type="file"]),
+#ai-studio select,
+#ai-studio textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--release-line);
+  border-radius: 7px;
+  padding: 11px 12px;
+  background: var(--release-bg);
+  color: var(--release-ink);
+  font-size: 13px;
+  box-shadow: none;
+}
+#ai-studio textarea {
+  resize: vertical;
+  line-height: 1.65;
+  min-height: 230px;
+}
+#ai-studio button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 13px;
+  border: 1px solid var(--release-line);
+  border-radius: 7px;
+  background: var(--release-bg);
+  color: var(--release-ink);
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+#ai-studio button.primary {
+  background: #24735b;
+  color: #fff;
+  border-color: #24735b;
+  padding: 12px 18px;
+  font-weight: 600;
+}
+#ai-studio button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+#ai-studio .ai-provider-fields {
+  display: grid;
+  grid-template-columns: 1fr 1.8fr;
+  gap: 14px;
+  margin: 18px 0 15px;
+}
+#ai-studio .ai-model-field {
+  display: flex;
+  gap: 9px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+#ai-studio .ai-model-field label {
+  flex: 1 1 210px;
+}
+#ai-studio .ai-model-field button {
+  min-height: 43px;
+}
+#ai-studio .ai-fine-print {
+  font-size: 11px;
+  margin: 9px 0 0;
+}
+#ai-studio .ai-job-search {
+  display: grid;
+  grid-template-columns: 1fr 1.7fr;
+  gap: 14px;
+  margin: 18px 0;
+}
+#ai-studio .ai-job-search form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+#ai-studio .ai-job-search form label {
+  flex: 1;
+  min-width: 0;
+}
+#ai-studio .ai-job-search button {
+  height: 42px;
+}
+#ai-studio .ai-job-preview {
+  border-top: 1px solid var(--release-line);
+  margin-top: 18px;
+  padding-top: 15px;
+}
+#ai-studio summary {
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--release-accent);
+}
+#ai-studio pre {
+  font-family: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.8;
+  padding: 18px;
+  border: 1px solid var(--release-line);
+  border-radius: 7px;
+  background: var(--release-bg);
+  max-height: 600px;
+  overflow: auto;
+  margin-top: 12px;
+}
+#ai-studio .ai-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 18px 0 15px;
+}
+#ai-studio .ai-upload-button {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--release-line);
+  border-radius: 7px;
+  padding: 10px 13px;
+  cursor: pointer;
+  background: var(--release-bg);
+  font-size: 12px;
+  position: relative;
+}
+#ai-studio .ai-upload-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+#ai-studio .ai-upload-button:focus-within {
+  outline: 3px solid #8fcbb8;
+  outline-offset: 3px;
+}
+#ai-studio .ai-upload > span {
+  font-size: 11px;
+  color: var(--release-muted);
+}
+#ai-studio .ai-character-count {
+  text-align: right;
+  font-size: 11px;
+  margin-top: 5px;
+}
+#ai-studio .ai-text-checks {
+  border-top: 1px solid var(--release-line);
+  margin-top: 20px;
+  padding-top: 2px;
+}
+#ai-studio .ai-text-checks h3 {
+  margin: 16px 0 5px;
+}
+#ai-studio .ai-text-checks > p {
+  font-size: 12px;
+}
+#ai-studio .ai-check-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+#ai-studio .ai-check-grid > div {
+  border: 1px solid var(--release-line);
+  border-radius: 7px;
+  padding: 12px;
+  background: var(--release-bg);
+}
+#ai-studio .ai-check-grid strong {
+  display: block;
+  font-size: 12px;
+  margin: 6px 0;
+}
+#ai-studio .ai-check-grid p {
+  font-size: 11px;
+  margin: 0;
+}
+#ai-studio .ai-check-ok,
+#ai-studio .ai-check-review {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+#ai-studio .ai-check-ok {
+  color: var(--release-accent);
+}
+#ai-studio .ai-check-review {
+  color: #986021;
+}
+#ai-studio h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 18px 0 12px;
+}
+#ai-studio .ai-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+#ai-studio .ai-keywords span {
+  font-size: 11px;
+  padding: 5px 8px;
+  border: 1px solid var(--release-line);
+  border-radius: 5px;
+}
+#ai-studio .ai-keywords .present {
+  color: var(--release-accent);
+  background: var(--release-bg);
+}
+#ai-studio .ai-keywords .missing {
+  color: var(--release-muted);
+}
+#ai-studio .ai-check-notes {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--release-muted);
+  padding-left: 17px;
+  margin: 14px 0;
+}
+#ai-studio .ai-consent {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 20px 0;
+}
+#ai-studio .ai-consent input {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  accent-color: var(--release-accent);
+}
+#ai-studio .ai-run-panel > button:last-child {
+  font-size: 11px;
+  margin-top: 13px;
+}
+#ai-studio .ai-sidebar .ai-panel {
+  padding: 20px;
+}
+#ai-studio .ai-sidebar h2 {
+  font-size: 16px;
+}
+#ai-studio .ai-sidebar p {
+  font-size: 12px;
+}
+#ai-studio .ai-history-item {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  text-align: left;
+  width: 100%;
+  gap: 4px;
+  margin-top: 9px;
+  padding: 12px;
+  background: transparent;
+  border-color: var(--release-line);
+}
+#ai-studio .ai-history-item strong {
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+#ai-studio .ai-history-item span,
+#ai-studio .ai-history-item small {
+  font-size: 10px;
+  color: var(--release-muted);
+}
+#ai-studio .ai-history-item.active {
+  border-color: var(--release-accent);
+  background: var(--release-bg);
+}
+#ai-studio .ai-explainer h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+#ai-studio .ai-explainer p:last-child {
+  margin: 0;
+}
+#ai-studio .ai-notice,
+#ai-studio .ai-error {
+  padding: 14px 16px;
+  border: 1px solid var(--release-line);
+  border-left: 3px solid var(--release-accent);
+  border-radius: 7px;
+  background: var(--release-surface);
+  margin: 0;
+  font-size: 13px;
+}
+#ai-studio .ai-error {
+  border-left-color: #b34545;
+  color: #a23939;
+}
+#ai-studio .ai-report {
+  margin-top: 26px;
+  scroll-margin-top: 20px;
+}
+#ai-studio .ai-report > .ai-section-top h2 {
+  font-size: 24px;
+  display: block;
+  margin: 5px 0 8px;
+}
+#ai-studio .ai-report-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--release-bg);
+  border: 1px solid var(--release-line);
+  border-radius: 7px;
+  padding: 13px;
+  margin-top: 10px;
+}
+#ai-studio .ai-report-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--release-accent);
+}
+#ai-studio .ai-report-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 22px 0;
+}
+#ai-studio .ai-report-tabs button[aria-pressed="true"] {
+  color: var(--release-accent);
+  border-color: var(--release-accent);
+}
+#ai-studio .ai-requirements {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+#ai-studio .ai-requirements article {
+  border: 1px solid var(--release-line);
+  border-radius: 9px;
+  padding: 19px;
+  min-width: 0;
+}
+#ai-studio .ai-requirement-meta {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+#ai-studio .ai-requirement-meta span {
+  font-size: 10px;
+  padding: 3px 6px;
+  background: var(--release-bg);
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+#ai-studio .assessment-supported {
+  color: var(--release-accent);
+}
+#ai-studio .assessment-not_evidenced,
+#ai-studio .assessment-unclear {
+  color: #986021;
+}
+#ai-studio .ai-requirements h3 {
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+#ai-studio .ai-requirements small {
+  font-size: 10px;
+  color: var(--release-muted);
+}
+#ai-studio blockquote {
+  border-left: 3px solid var(--release-accent);
+  margin: 15px 0;
+  padding: 6px 12px;
+  background: var(--release-bg);
+}
+#ai-studio blockquote p {
+  color: var(--release-ink);
+  font-size: 13px;
+  margin: 0 0 5px;
+  overflow-wrap: anywhere;
+}
+#ai-studio cite {
+  font-size: 10px;
+  font-style: normal;
+  color: var(--release-muted);
+}
+#ai-studio .ai-question {
+  font-size: 12px;
+  margin: 14px 0 0;
+}
+#ai-studio .ai-usage {
+  margin: 22px 0 0;
+  padding-top: 15px;
+  border-top: 1px solid var(--release-line);
+  font-size: 11px;
+}
+@media (max-width: 1100px) {
+  #ai-studio .ai-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #ai-studio .ai-sidebar {
+    grid-template-columns: 1fr 1fr;
+  }
+  #ai-studio .ai-requirements {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 650px) {
+  #ai-studio .ai-heading {
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  #ai-studio .ai-heading h1 {
+    font-size: 30px;
+  }
+  #ai-studio .ai-private-badge {
+    font-size: 11px;
+    margin: 0;
+  }
+  #ai-studio .ai-layout {
+    gap: 16px;
+  }
+  #ai-studio .ai-panel,
+  #ai-studio .ai-report {
+    padding: 19px;
+  }
+  #ai-studio .ai-inputs {
+    gap: 15px;
+  }
+  #ai-studio h2 {
+    font-size: 17px;
+  }
+  #ai-studio .ai-provider-fields,
+  #ai-studio .ai-job-search,
+  #ai-studio .ai-sidebar {
+    grid-template-columns: 1fr;
+  }
+  #ai-studio .ai-model-field label {
+    flex: 1 1 100%;
+  }
+  #ai-studio input:not([type="checkbox"]):not([type="file"]),
+  #ai-studio textarea,
+  #ai-studio select {
+    font-size: 16px;
+  }
+  #ai-studio .ai-check-grid {
+    grid-template-columns: 1fr;
+  }
+  #ai-studio .ai-section-top {
+    flex-wrap: wrap;
+  }
+  #ai-studio .ai-report-tabs button {
+    width: 100%;
+  }
+  #ai-studio .ai-report > .ai-section-top h2 {
+    font-size: 21px;
+  }
+  #ai-studio .ai-job-search form {
+    flex-wrap: wrap;
+  }
+  #ai-studio .ai-job-search form label {
+    flex-basis: 100%;
+  }
+  #ai-studio .ai-job-search button {
+    width: 100%;
+  }
+}
