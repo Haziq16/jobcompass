@@ -1,0 +1,59 @@
+{
+  "name": "jobcompass",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A personal job-search workspace with company-board discovery and private application tracking.",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "prisma generate && next build",
+    "start": "next start --hostname 127.0.0.1",
+    "lint": "eslint .",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --env-file=.env scripts/test.mjs",
+    "db:start": "node scripts/database.mjs",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "test:migration": "node --env-file=.env scripts/check-migration.mjs",
+    "test:browser": "node --env-file=.env scripts/browser-release.mjs",
+    "extension:id": "node scripts/companion-key.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.0",
+    "@xmldom/xmldom": "0.9.12",
+    "ai": "7.0.146",
+    "better-auth": "1.7.11",
+    "jszip": "3.10.1",
+    "lucide-react": "0.577.0",
+    "next": "16.4.2",
+    "pdf-parse": "1.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.2",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "embedded-postgres": "18.4.0-beta.17",
+    "eslint": "9.39.2",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "playwright-core": "1.64.1",
+    "prettier": "3.9.10",
+    "prisma": "6.19.0",
+    "tailwindcss": "4.2.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.0"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "effect": "3.21.0"
+  },
+  "optionalDependencies": {
+    "@emnapi/runtime": "1.11.3"
+  }
+}

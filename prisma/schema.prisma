@@ -1,0 +1,355 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model Profile {
+  workspaceId String @default("local")
+  id String @id @default("owner")
+  skills String[] @default([])
+  titles String[] @default([])
+  locations String[] @default([])
+  excluded String[] @default([])
+  years Float?
+  arrangement String @default("any")
+  aliases Json @default("{}")
+  cvText String @default("")
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+model Settings {
+  workspaceId String @default("local")
+  id String @id @default("owner")
+  allowance Int @default(200)
+  budget Int @default(180)
+  dailyCap Int @default(6)
+  timezone String @default("Asia/Kuala_Lumpur")
+  cacheHours Int @default(12)
+  cycleStart DateTime
+  cycleEnd DateTime
+  adjustment Int @default(0)
+  providerPaused Boolean @default(false)
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+model Job {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  title String
+  employer String
+  location String?
+  country String?
+  description String?
+  remote Boolean?
+  employmentType String?
+  salaryMin Float?
+  salaryMax Float?
+  salaryCurrency String?
+  salaryPeriod String?
+  salaryText String?
+  qualifications String[] @default([])
+  publishedAt DateTime?
+  firstSeen DateTime @default(now())
+  lastFetched DateTime @default(now())
+  hidden Boolean @default(false)
+  skippedAt DateTime?
+  seniority String?
+  workArrangement String?
+  industry String?
+  metadataProvenance Json @default("{}")
+  relatedFingerprint String
+  sources JobSource[]
+  runs SearchRunJob[]
+  saved SavedJob?
+  application Application?
+  generations AiGeneration[]
+  @@index([lastFetched])
+  @@index([country, remote, hidden])
+  @@index([relatedFingerprint])
+  @@index([hidden, skippedAt, lastFetched])
+  @@index([employmentType, publishedAt])
+  @@index([employer])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+model JobSource {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  jobId String
+  job Job @relation(fields:[workspaceId,jobId],references:[workspaceId,id], onDelete:Cascade)
+  providerId String
+  publisher String?
+  sourceUrl String?
+  applyLinks Json
+  primaryUrl String?
+  fetchedAt DateTime @default(now())
+  @@index([primaryUrl])
+  @@unique([workspaceId,providerId])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+model SearchDefinition {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  name String
+  input Json
+  createdAt DateTime @default(now())
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+model SearchRun {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  fingerprint String
+  input Json
+  nextCursor String?
+  fetchedAt DateTime @default(now())
+  expiresAt DateTime
+  jobs SearchRunJob[]
+  ledgers ApiRequestLedger[]
+  intents FetchIntent[]
+  @@index([fingerprint, expiresAt])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+model SearchRunJob {
+  workspaceId String @default("local")
+  runId String
+  jobId String
+  run SearchRun @relation(fields:[workspaceId,runId],references:[workspaceId,id],onDelete:Cascade)
+  job Job @relation(fields:[workspaceId,jobId],references:[workspaceId,id],onDelete:Cascade)
+  @@id([runId,jobId])
+  @@index([jobId])
+  @@index([workspaceId])
+}
+model ApiRequestLedger {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  fingerprint String
+  cycleId String
+  dayKey String
+  units Int @default(1)
+  state String @default("reserved")
+  createdAt DateTime @default(now())
+  dispatchedAt DateTime?
+  completedAt DateTime?
+  providerStatus Int?
+  errorCategory String?
+  runId String?
+  run SearchRun? @relation(fields:[workspaceId,runId],references:[workspaceId,id])
+  intents FetchIntent[]
+  @@index([cycleId,state])
+  @@index([dayKey,state])
+  @@index([fingerprint,state])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+model FetchIntent {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  key String
+  fingerprint String
+  ledgerId String?
+  ledger ApiRequestLedger? @relation(fields:[workspaceId,ledgerId],references:[workspaceId,id])
+  runId String?
+  run SearchRun? @relation(fields:[workspaceId,runId],references:[workspaceId,id])
+  createdAt DateTime @default(now())
+  @@unique([workspaceId,key])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+model SavedJob {
+  workspaceId String @default("local")
+  jobId String @id
+  job Job @relation(fields:[workspaceId,jobId],references:[workspaceId,id],onDelete:Cascade)
+  notes String @default("")
+  tags String[] @default([])
+  createdAt DateTime @default(now())
+  @@index([workspaceId])
+  @@unique([workspaceId,jobId])
+}
+model Application {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  jobId String @unique
+  job Job @relation(fields:[workspaceId,jobId],references:[workspaceId,id],onDelete:Cascade)
+  status String @default("Saved")
+  preparationState String @default("not_started")
+  notes String @default("")
+  url String?
+  appliedAt DateTime?
+  followUpAt DateTime?
+  updatedAt DateTime @updatedAt
+  events ApplicationEvent[]
+  attempts ApplicationAttempt[]
+  @@index([status])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+  @@unique([workspaceId,jobId])
+}
+model ApplicationEvent {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields:[workspaceId,applicationId],references:[workspaceId,id],onDelete:Cascade)
+  status String
+  kind String @default("status")
+  message String?
+  evidence Json?
+  createdAt DateTime @default(now())
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+
+model ProfileVersion {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  facts Json
+  createdAt DateTime @default(now())
+  generations AiGeneration[]
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+
+model ResumeAsset {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  name String
+  bytes Bytes
+  sha256 String
+  text String
+  isDefault Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+
+model AiGeneration {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  requestKey String
+  fingerprint String
+  jobId String
+  job Job @relation(fields:[workspaceId,jobId],references:[workspaceId,id],onDelete:Cascade)
+  profileVersionId String
+  profileVersion ProfileVersion @relation(fields:[workspaceId,profileVersionId],references:[workspaceId,id])
+  jobSnapshot Json
+  settings Json
+  state String @default("pending")
+  error String?
+  analysis Json?
+  estimatedInputTokens Int
+  maxOutputTokens Int
+  inputTokens Int?
+  outputTokens Int?
+  estimatedCost Float?
+  actualCost Float?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  drafts DocumentDraft[]
+  @@index([jobId,createdAt])
+  @@index([state,createdAt])
+  @@unique([workspaceId,requestKey])
+  @@unique([workspaceId,fingerprint])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+
+model DocumentDraft {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  generationId String
+  generation AiGeneration @relation(fields:[workspaceId,generationId],references:[workspaceId,id],onDelete:Cascade)
+  kind String
+  content String
+  citations Json
+  revision Int @default(1)
+  approvedHash String?
+  approvedAt DateTime?
+  updatedAt DateTime @updatedAt
+  @@unique([generationId,kind])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+
+model ApplicationAttempt {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields:[workspaceId,applicationId],references:[workspaceId,id],onDelete:Cascade)
+  targetUrl String
+  state String @default("ready")
+  snapshot Json
+  grantHash String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  evidence Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([applicationId,createdAt])
+  @@unique([workspaceId,id])
+  @@index([workspaceId])
+}
+
+model User {
+  id String @id
+  name String
+  email String @unique
+  emailVerified Boolean @default(false)
+  image String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions Session[]
+  accounts Account[]
+}
+
+model Session {
+  id String @id
+  expiresAt DateTime
+  token String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@index([userId])
+}
+
+model Account {
+  id String @id
+  accountId String
+  providerId String
+  userId String
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope String?
+  password String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+}
+
+model Verification {
+  id String @id
+  identifier String
+  value String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([identifier])
+}
+
+model RateLimit {
+  id String @id @default(cuid())
+  key String @unique
+  count Int
+  lastRequest BigInt
+}

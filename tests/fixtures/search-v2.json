@@ -1,0 +1,46 @@
+{
+  "status": "OK",
+  "request_id": "sanitized-contract-fixture",
+  "parameters": { "num_pages": 1, "country": "my" },
+  "data": {
+    "cursor": "next-page-cursor",
+    "jobs": [
+      {
+        "job_id": "fixture-android-1",
+        "job_title": "Android Developer",
+        "employer_name": "Fictional Test Employer",
+        "job_publisher": "Test Source",
+        "job_apply_link": "https://example.com/jobs/1?utm_source=test&requisition=100",
+        "job_apply_is_direct": false,
+        "apply_options": [
+          {
+            "publisher": "Employer",
+            "apply_link": "https://example.org/careers?req=100",
+            "is_direct": true
+          },
+          { "publisher": "Unsafe", "apply_link": "javascript:alert(1)" }
+        ],
+        "job_description": "<p>Build Android applications with Kotlin.</p><script>alert('unsafe')</script>",
+        "job_location": "Kuala Lumpur, Malaysia",
+        "job_country": "MY",
+        "job_is_remote": true,
+        "job_min_salary": 4000,
+        "job_max_salary": 6000,
+        "job_salary_period": "MONTH",
+        "job_highlights": {
+          "Qualifications": [
+            "Kotlin and Jetpack Compose",
+            "2+ years of experience"
+          ]
+        }
+      },
+      {
+        "job_id": "fixture-minimal",
+        "job_title": "Project Coordinator",
+        "employer_name": "Fictional Minimal Employer",
+        "job_publisher": null,
+        "job_apply_link": null
+      }
+    ]
+  }
+}

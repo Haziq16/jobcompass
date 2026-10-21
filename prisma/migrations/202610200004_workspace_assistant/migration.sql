@@ -1,0 +1,15 @@
+ALTER TABLE "Job" ADD COLUMN "skippedAt" TIMESTAMP(3), ADD COLUMN "seniority" TEXT, ADD COLUMN "workArrangement" TEXT, ADD COLUMN "industry" TEXT, ADD COLUMN "metadataProvenance" JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE "Application" ADD COLUMN "preparationState" TEXT NOT NULL DEFAULT 'not_started';
+ALTER TABLE "ApplicationEvent" ADD COLUMN "kind" TEXT NOT NULL DEFAULT 'status', ADD COLUMN "message" TEXT, ADD COLUMN "evidence" JSONB;
+CREATE INDEX "Job_hidden_skippedAt_lastFetched_idx" ON "Job"("hidden","skippedAt","lastFetched");
+CREATE INDEX "Job_employmentType_publishedAt_idx" ON "Job"("employmentType","publishedAt");
+CREATE INDEX "Job_employer_idx" ON "Job"("employer");
+CREATE TABLE "ProfileVersion" ("id" TEXT PRIMARY KEY, "facts" JSONB NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "ResumeAsset" ("id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "bytes" BYTEA NOT NULL, "sha256" TEXT NOT NULL, "text" TEXT NOT NULL, "isDefault" BOOLEAN NOT NULL DEFAULT false, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE UNIQUE INDEX "ResumeAsset_one_default" ON "ResumeAsset" ("isDefault") WHERE "isDefault" = true;
+CREATE TABLE "AiGeneration" ("id" TEXT PRIMARY KEY, "requestKey" TEXT NOT NULL UNIQUE, "fingerprint" TEXT NOT NULL UNIQUE, "jobId" TEXT NOT NULL REFERENCES "Job"("id") ON DELETE CASCADE, "profileVersionId" TEXT NOT NULL REFERENCES "ProfileVersion"("id"), "jobSnapshot" JSONB NOT NULL, "settings" JSONB NOT NULL, "state" TEXT NOT NULL DEFAULT 'pending', "error" TEXT, "analysis" JSONB, "estimatedInputTokens" INTEGER NOT NULL, "maxOutputTokens" INTEGER NOT NULL, "inputTokens" INTEGER, "outputTokens" INTEGER, "estimatedCost" DOUBLE PRECISION, "actualCost" DOUBLE PRECISION, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "completedAt" TIMESTAMP(3));
+CREATE INDEX "AiGeneration_jobId_createdAt_idx" ON "AiGeneration"("jobId","createdAt");
+CREATE INDEX "AiGeneration_state_createdAt_idx" ON "AiGeneration"("state","createdAt");
+CREATE TABLE "DocumentDraft" ("id" TEXT PRIMARY KEY, "generationId" TEXT NOT NULL REFERENCES "AiGeneration"("id") ON DELETE CASCADE, "kind" TEXT NOT NULL, "content" TEXT NOT NULL, "citations" JSONB NOT NULL, "revision" INTEGER NOT NULL DEFAULT 1, "approvedHash" TEXT, "approvedAt" TIMESTAMP(3), "updatedAt" TIMESTAMP(3) NOT NULL, UNIQUE("generationId","kind"));
+CREATE TABLE "ApplicationAttempt" ("id" TEXT PRIMARY KEY, "applicationId" TEXT NOT NULL REFERENCES "Application"("id") ON DELETE CASCADE, "targetUrl" TEXT NOT NULL, "state" TEXT NOT NULL DEFAULT 'ready', "snapshot" JSONB NOT NULL, "grantHash" TEXT NOT NULL UNIQUE, "expiresAt" TIMESTAMP(3) NOT NULL, "revokedAt" TIMESTAMP(3), "evidence" JSONB, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE INDEX "ApplicationAttempt_applicationId_createdAt_idx" ON "ApplicationAttempt"("applicationId","createdAt");

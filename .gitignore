@@ -1,0 +1,58 @@
+# Dependencies and generated output
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Server credentials: only the sanitized template belongs in Git
+.env*
+!.env.example
+.owner-login*
+*.pem
+*.key
+*.p12
+*.pfx
+.aws/
+.ssh/
+
+# Local state, backups, browser sessions and hosting linkage
+.postgres/
+.vercel/
+.lock-repair/
+.release-backup/
+*.backup
+*.dump
+*.log
+test-results/
+playwright-report/
+blob-report/
+.auth/
+
+# Private operational notes and third-party research
+research/
+GPT_STATUS_UPDATE*.md
+UPGRADE_STATUS.md
+PUBLIC_RELEASE.md
+VERIFICATION.md
+SPROUT_REA_ANALYSIS.md
+FREEHIRE_REA_ANALYSIS.md
+provider-openapi.yaml
+
+# Existing production administration remains local
+scripts/configure-hosting.mjs
+scripts/connect-jsearch.mjs
+scripts/diagnose-owner.ts
+scripts/provision-owner.ts
+scripts/preflight-account-release.mjs
+scripts/release-project.mjs
+scripts/smoke-hosted.mjs
+scripts/smoke-public-release.mjs
+scripts/migrate-hosted.mjs
+scripts/vercel-request.mjs
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
