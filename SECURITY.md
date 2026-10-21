@@ -4,6 +4,8 @@ This is a private repository. Report suspected vulnerabilities privately to the 
 
 ## Credentials
 
+Run `npm run check:secrets` before pushing. It scans the Git index for private/generated files and common credential patterns. Locally it also compares tracked text against configured secrets without printing their values. CI runs the same tracked-file scan. This is an additional check, not a substitute for careful review.
+
 - Store local credentials in ignored `.env` files; `.env.example` contains placeholders and loopback development defaults only.
 - Configure production secrets directly in the hosting environment. Never put a server credential in a `NEXT_PUBLIC_` variable or the browser extension.
 - Repository access does not grant access to production credentials or user data.
