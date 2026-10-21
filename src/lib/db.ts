@@ -20,6 +20,7 @@ const privateModels = new Set([
   "ResumeAsset",
   "AiGeneration",
   "AiReview",
+  "AiConnection",
   "DocumentDraft",
   "ApplicationAttempt",
 ]);

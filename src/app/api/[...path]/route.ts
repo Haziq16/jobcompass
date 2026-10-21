@@ -315,6 +315,7 @@ async function handler(
             await tx.applicationAttempt.deleteMany();
             await tx.aiGeneration.deleteMany();
             await tx.aiReview.deleteMany();
+            await tx.aiConnection.deleteMany();
             await tx.profileVersion.deleteMany();
             await tx.resumeAsset.deleteMany();
             await tx.profile.deleteMany();

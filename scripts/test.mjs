@@ -22,6 +22,7 @@ const env = {
   JSEARCH_PLAN_CONFIRMED: "false",
   AI_GATEWAY_API_KEY: "",
   AI_GATEWAY_MODEL: "",
+  PERSONAL_AI_ENCRYPTION_KEY: "11".repeat(32),
 };
 execFileSync(
   process.execPath,

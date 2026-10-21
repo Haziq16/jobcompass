@@ -22,6 +22,14 @@ import { ReviewWaiting } from "./ReviewWaiting";
 const messages: Record<string, string> = {
   model_list_unavailable:
     "The provider’s model list could not be loaded. You can enter an available model ID manually. No generation was requested.",
+  model_list_timeout:
+    "The provider’s model list took too long to respond. No review was sent. Try loading the list again or enter a model ID.",
+  saved_connection_missing:
+    "Your saved connection was removed or belongs to another provider. Enter a key to save a new connection.",
+  saved_connection_unreadable:
+    "Your saved key could not be unlocked. Replace it with a new key and save the connection again.",
+  connection_storage_unavailable:
+    "Secure connection storage is unavailable. You can still use a key for this tab only.",
   provider_auth_failed:
     "The provider rejected this key or its permissions. Check the key in your provider account.",
   provider_credit_required:
@@ -63,7 +71,12 @@ const message = (code: string) =>
 export default function AiStudio() {
   const router = useRouter(),
     params = useSearchParams();
-  const { config, setConfig, forget } = usePersonalAi();
+  const {
+    config,
+    setConfig,
+    forget,
+    loading: connectionLoading,
+  } = usePersonalAi();
   const source = params.get("source") === "workspace" ? "workspace" : "catalog";
   const jobId = params.get("jobId") || "";
   const selectedReview = params.get("review") || "";
@@ -89,10 +102,15 @@ export default function AiStudio() {
     [notice, setNotice] = useState("");
   const [models, setModels] = useState<{ id: string; name: string }[]>([]),
     [loadingModels, setLoadingModels] = useState(false);
+  const [modelStatus, setModelStatus] = useState(""),
+    [modelError, setModelError] = useState("");
+  const [savingConnection, setSavingConnection] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
   const [providerOpen, setProviderOpen] = useState(false);
   const providerReady = Boolean(
-    config.apiKey.length >= 12 && config.model.trim(),
+    !connectionLoading &&
+    (config.saved || config.apiKey.trim().length >= 12) &&
+    config.model.trim(),
   );
   const providerRef = useRef<HTMLDetailsElement>(null);
   const waitingRef = useRef<HTMLDivElement>(null);
@@ -185,25 +203,52 @@ export default function AiStudio() {
   }
   async function loadModels() {
     setLoadingModels(true);
-    setError("");
+    setModelError("");
+    setModelStatus("");
     try {
       const result = await api<{
         models: { id: string; name: string }[];
         partial: boolean;
       }>("ai/models", "POST", {
         provider: config.provider,
-        apiKey: config.apiKey,
+        ...(config.saved
+          ? { useSavedConnection: true }
+          : { apiKey: config.apiKey }),
       });
       setModels(result.models);
-      setNotice(
-        result.partial
-          ? "Model list is partial. You can enter another model ID manually."
-          : "Model IDs loaded. Choose a text model that supports structured output. No generation was requested.",
+      setModelStatus(
+        result.models.length
+          ? `${result.models.length} models loaded. Choose one below.${result.partial ? " The list is partial; you can also enter an ID manually." : ""}`
+          : "Your provider returned no models for this key. Check its model-list permissions, or enter an available model ID manually.",
       );
     } catch (e) {
-      setError(message((e as Error).message));
+      setModels([]);
+      setModelError(message((e as Error).message));
     } finally {
       setLoadingModels(false);
+    }
+  }
+  async function saveProviderConnection() {
+    if (!providerReady) return;
+    setSavingConnection(true);
+    setModelError("");
+    try {
+      await api("ai/connection", "PUT", {
+        provider: config.provider,
+        model: config.model,
+        ...(config.saved
+          ? { useSavedConnection: true }
+          : { apiKey: config.apiKey }),
+      });
+      setConfig({ ...config, apiKey: "", saved: true });
+      setProviderOpen(false);
+      setNotice(
+        "Connection saved securely. Your provider and model will be ready after refresh or your next sign-in.",
+      );
+    } catch (e) {
+      setModelError(message((e as Error).message));
+    } finally {
+      setSavingConnection(false);
     }
   }
   async function upload(file: File) {
@@ -262,7 +307,9 @@ export default function AiStudio() {
         resumeText: resume,
         provider: config.provider,
         model: config.model,
-        apiKey: config.apiKey,
+        ...(config.saved
+          ? { useSavedConnection: true }
+          : { apiKey: config.apiKey }),
         reviewed,
         consent,
         requestKey: request.current!.key,
@@ -686,8 +733,9 @@ export default function AiStudio() {
                 <span className="ai-small-badge">Optional AI</span>
               </div>
               <p>
-                Use your own key. It stays in this tab and clears on refresh or
-                sign-out. Only your chosen provider receives the review.
+                Save your connection once to keep your provider and model ready
+                across sign-ins. Saved keys are encrypted and never sent back to
+                your browser.
               </p>
               <div className="ai-provider-fields">
                 <label>
@@ -695,14 +743,22 @@ export default function AiStudio() {
                   <select
                     aria-label="Provider"
                     value={config.provider}
-                    disabled={busy || loadingModels}
+                    disabled={
+                      busy ||
+                      loadingModels ||
+                      savingConnection ||
+                      connectionLoading
+                    }
                     onChange={(e) => {
                       setConfig({
                         provider: e.target.value as typeof config.provider,
                         model: "",
                         apiKey: "",
+                        saved: false,
                       });
                       setModels([]);
+                      setModelError("");
+                      setModelStatus("");
                       setConsent(false);
                     }}
                   >
@@ -720,26 +776,113 @@ export default function AiStudio() {
                     spellCheck={false}
                     value={config.apiKey}
                     maxLength={600}
-                    disabled={busy}
+                    disabled={
+                      busy ||
+                      loadingModels ||
+                      savingConnection ||
+                      connectionLoading
+                    }
                     onChange={(e) => {
-                      setConfig({ ...config, apiKey: e.target.value });
+                      setConfig({
+                        ...config,
+                        apiKey: e.target.value,
+                        saved: false,
+                      });
+                      setModels([]);
+                      setModelStatus("");
+                      setModelError("");
                       request.current = null;
                       setConsent(false);
                     }}
-                    placeholder="Paste your provider key here"
+                    placeholder={
+                      config.saved
+                        ? "Key saved securely — enter only to replace"
+                        : "Paste your provider key here"
+                    }
                     data-lpignore="true"
                     data-1p-ignore="true"
                   />
                 </label>
+                {config.saved && (
+                  <p className="ai-fine-print">
+                    Your encrypted key is saved in this account. You don’t need
+                    to enter it again.
+                  </p>
+                )}
               </div>
               <div className="ai-model-field">
+                <button
+                  disabled={
+                    (!config.saved && config.apiKey.trim().length < 12) ||
+                    loadingModels ||
+                    busy ||
+                    savingConnection ||
+                    connectionLoading
+                  }
+                  onClick={() => void loadModels()}
+                >
+                  {loadingModels ? "Loading…" : "Load models"}
+                </button>
+                {loadingModels && (
+                  <p role="status">
+                    Fetching model IDs from {config.provider}… No review is
+                    being generated.
+                  </p>
+                )}
+                {modelError && (
+                  <p className="ai-error" role="alert">
+                    {modelError}
+                  </p>
+                )}
+                {modelStatus && <p role="status">{modelStatus}</p>}
+                <label>
+                  Available models
+                  <select
+                    aria-label="Available models"
+                    disabled={
+                      busy ||
+                      loadingModels ||
+                      savingConnection ||
+                      !models.length
+                    }
+                    value={config.model}
+                    onChange={(e) => {
+                      setConfig({ ...config, model: e.target.value });
+                      setConsent(false);
+                    }}
+                  >
+                    <option value="">
+                      {models.length
+                        ? "Choose a model"
+                        : "Load models to see the list"}
+                    </option>
+                    {config.model &&
+                      !models.some((m) => m.id === config.model) && (
+                        <option value={config.model}>
+                          {config.model}
+                          {config.saved
+                            ? " (saved selection)"
+                            : " (manual selection)"}
+                        </option>
+                      )}
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name === m.id ? m.id : `${m.name} · ${m.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label>
                   Model ID
                   <input
-                    list="ai-models"
                     value={config.model}
                     maxLength={150}
-                    disabled={busy}
+                    disabled={
+                      busy ||
+                      loadingModels ||
+                      savingConnection ||
+                      connectionLoading
+                    }
                     onChange={(e) => {
                       setConfig({ ...config, model: e.target.value });
                       setConsent(false);
@@ -747,24 +890,28 @@ export default function AiStudio() {
                     placeholder="Load models or enter an exact ID"
                   />
                 </label>
-                <datalist id="ai-models">
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </datalist>
                 <button
-                  disabled={config.apiKey.length < 12 || loadingModels || busy}
-                  onClick={() => void loadModels()}
-                >
-                  {loadingModels ? "Loading…" : "Load models"}
-                </button>
-                <button
-                  disabled={!config.apiKey || busy}
+                  disabled={
+                    (!config.apiKey && !config.saved) ||
+                    busy ||
+                    loadingModels ||
+                    savingConnection
+                  }
                   onClick={() => {
-                    forget();
-                    setNotice("API key removed from this tab.");
+                    void forget()
+                      .then(() => {
+                        setModels([]);
+                        setModelStatus("");
+                        setConsent(false);
+                        setNotice(
+                          "Saved connection and the key in this tab were removed.",
+                        );
+                      })
+                      .catch(() =>
+                        setModelError(
+                          "Could not remove the connection. Try again.",
+                        ),
+                      );
                   }}
                 >
                   Forget key
@@ -776,18 +923,30 @@ export default function AiStudio() {
                 to a JobCompass-paid model.
               </p>
               <button
-                disabled={!providerReady || busy}
+                disabled={
+                  !providerReady || busy || savingConnection || loadingModels
+                }
+                onClick={() => void saveProviderConnection()}
+              >
+                {savingConnection ? "Saving…" : "Save connection"}{" "}
+                <CheckCircle2 size={15} />
+              </button>
+              <button
+                disabled={
+                  !providerReady || busy || savingConnection || loadingModels
+                }
                 onClick={() => setProviderOpen(false)}
               >
-                Done <CheckCircle2 size={15} />
+                {config.saved ? "Done" : "Use for this tab only"}
               </button>
               <details className="ai-privacy">
                 <summary>Key privacy & billing</summary>
                 <p>
-                  JobCompass passes your key over HTTPS only for your selected
-                  provider request. It is never saved in our database, cookies
-                  or browser storage. Your provider’s data and billing policies
-                  apply. There is no shared paid-key fallback.
+                  Saving stores an encrypted key in your private account. Only
+                  the server can unlock it for your selected provider; it never
+                  appears in exports or browser storage. “Forget key” removes
+                  it. A key used for this tab only clears on refresh or
+                  sign-out. Your provider’s data and billing policies apply.
                 </p>
               </details>
             </div>

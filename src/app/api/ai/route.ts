@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     return Response.json({
       enabled: canUsePersonalAi(session?.user),
       mode: aiMode(),
-      keyStorage: "tab_memory_only",
+      keyStorage: "optional_encrypted_account",
       ownerBilling: false,
     });
   } catch (error) {

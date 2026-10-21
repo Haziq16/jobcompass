@@ -38,6 +38,16 @@ import {
 import { GET as aiConfig } from "../src/app/api/ai/route";
 import { POST as modelPost } from "../src/app/api/ai/models/route";
 import {
+  GET as connectionGet,
+  PUT as connectionPut,
+  DELETE as connectionDelete,
+} from "../src/app/api/ai/connection/route";
+import {
+  saveConnection,
+  savedConnection,
+  resolvePersonalCredentials,
+} from "../src/lib/personal-ai-connection";
+import {
   POST as reviewPost,
   maxDuration,
 } from "../src/app/api/ai/reviews/route";
@@ -63,7 +73,7 @@ beforeEach(async () => {
     BYOK_DAILY_LIMIT: "20",
   });
   await authDb.$executeRawUnsafe(
-    'TRUNCATE TABLE "AiReview", "User", "Job", "Profile", "Settings" CASCADE',
+    'TRUNCATE TABLE "AiConnection", "AiReview", "User", "Job", "Profile", "Settings" CASCADE',
   );
 });
 after(async () => {
@@ -440,6 +450,113 @@ test("model discovery uses only the selected provider and never runs inference",
   ]);
   assert.equal(calls, 1);
 });
+test("saved connections encrypt keys, bind ciphertext to account/provider and never export or return keys", async () => {
+  const config = {
+    provider: "openai" as const,
+    model: "fixture-model",
+    apiKey: key,
+  };
+  const metadata = await inWorkspace("alice", () => saveConnection(config));
+  assert.deepEqual(metadata, {
+    provider: "openai",
+    model: "fixture-model",
+    saved: true,
+  });
+  const row = await authDb.aiConnection.findUniqueOrThrow({
+    where: { workspaceId: "alice" },
+  });
+  assert.ok(!JSON.stringify(row).includes(key));
+  assert.ok(row.keyCiphertext.startsWith("v1."));
+  const resolved = await inWorkspace("alice", () =>
+    resolvePersonalCredentials({
+      provider: "openai",
+      model: "another-model",
+      useSavedConnection: true,
+    }),
+  );
+  assert.equal(resolved.apiKey, key);
+  assert.equal(resolved.model, "another-model");
+  assert.equal(await inWorkspace("bob", savedConnection), null);
+  await assert.rejects(
+    inWorkspace("bob", () =>
+      resolvePersonalCredentials({
+        provider: "openai",
+        model: "fixture-model",
+        useSavedConnection: true,
+      }),
+    ),
+    /saved_connection_missing/,
+  );
+  await authDb.aiConnection.create({ data: { ...row, workspaceId: "bob" } });
+  await assert.rejects(
+    inWorkspace("bob", () =>
+      resolvePersonalCredentials({
+        provider: "openai",
+        model: "fixture-model",
+        useSavedConnection: true,
+      }),
+    ),
+    /saved_connection_unreadable/,
+  );
+  await assert.rejects(
+    inWorkspace("alice", () =>
+      resolvePersonalCredentials({
+        provider: "anthropic",
+        model: "fixture-model",
+        useSavedConnection: true,
+      }),
+    ),
+    /saved_connection_missing/,
+  );
+  const get = await connectionGet(req("/api/ai/connection", "GET"));
+  assert.ok(!JSON.stringify(await get.json()).includes(key));
+  process.env.AI_MODE = "off";
+  assert.equal(
+    (await connectionGet(req("/api/ai/connection", "GET"))).status,
+    410,
+  );
+  assert.equal(
+    (await connectionPut(req("/api/ai/connection", "PUT", config))).status,
+    410,
+  );
+  assert.equal(
+    (await connectionDelete(req("/api/ai/connection", "DELETE"))).status,
+    410,
+  );
+});
+
+test("provider model lists tolerate absent display names, reject malformed envelopes and never run inference", async () => {
+  for (const provider of ["openai", "anthropic", "openrouter"] as const) {
+    let calls = 0;
+    const result = await personalModels(
+      { provider, apiKey: key },
+      async (url) => {
+        calls++;
+        assert.ok(new URL(String(url)).pathname.endsWith("/models"));
+        return Response.json({
+          data: [
+            { id: "fixture-a", name: null, display_name: null },
+            { id: "fixture-a" },
+            { id: "fixture-b", name: "Friendly model" },
+            { id: "fixture-embedding" },
+          ],
+        });
+      },
+    );
+    assert.deepEqual(result.models.map((m) => m.id).sort(), [
+      "fixture-a",
+      "fixture-b",
+    ]);
+    assert.equal(calls, 1);
+  }
+  await assert.rejects(
+    personalModels({ provider: "openai", apiKey: key }, async () =>
+      Response.json({ unexpected: [] }),
+    ),
+    /model_list_unavailable/,
+  );
+});
+
 test("review persistence excludes keys, coalesces replays and keeps private reports isolated", async () => {
   const target = await job();
   let calls = 0;
@@ -665,6 +782,22 @@ test("owner preview uses actual sessions; personal reports remain exportable and
     403,
   );
   const target = await job(accounts[0].id);
+  assert.equal(
+    (
+      await connectionPut(
+        make(0, "/api/ai/connection", "PUT", {
+          provider: "openai",
+          model: "fixture-model",
+          apiKey: key,
+        }),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await connectionGet(make(1, "/api/ai/connection"))).status,
+    403,
+  );
   const run = await inWorkspace(accounts[0].id, () =>
     createPersonalReview(input(target.id), async () => ({ output: output() })),
   );
@@ -699,10 +832,15 @@ test("owner preview uses actual sessions; personal reports remain exportable and
   const data = await exported.json();
   assert.equal(data.aiReviews.length, 1);
   assert.ok(!JSON.stringify(data).includes(key));
+  assert.ok(!JSON.stringify(data).includes("keyCiphertext"));
   const cleared = await workspaceDelete(
     make(0, "/api/profile", "DELETE", { confirm: "DELETE PROFILE" }),
     { params: Promise.resolve({ path: ["profile"] }) },
   );
   assert.equal(cleared.status, 200);
   assert.equal(await inWorkspace(accounts[0].id, () => db.aiReview.count()), 0);
+  assert.equal(
+    await inWorkspace(accounts[0].id, () => db.aiConnection.count()),
+    0,
+  );
 });

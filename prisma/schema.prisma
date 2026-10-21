@@ -281,6 +281,14 @@ model ResumeAsset {
   @@index([workspaceId])
 }
 
+model AiConnection {
+  workspaceId String @id @default("local")
+  provider String
+  model String
+  keyCiphertext String
+  updatedAt DateTime @updatedAt
+}
+
 model AiReview {
   workspaceId String @default("local")
   id String @id @default(cuid())

@@ -83,7 +83,8 @@ export default function Preferences() {
             <h2>Your optional AI tools</h2>
             <p>
               Use your own provider key for résumé and job reviews. Keys stay in
-              tab memory and are cleared on refresh or sign-out.
+              tab memory, or are saved encrypted in your account when you choose
+              “Save connection”.
             </p>
             <Link href="/assistant">Open AI studio</Link>
           </section>

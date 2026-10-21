@@ -176,11 +176,15 @@ export async function personalModels(
     signal: AbortSignal.timeout(15000),
     cache: "no-store",
   });
-  if (!response.ok)
+  if (!response.ok) {
+    const code = personalProviderError({ statusCode: response.status });
     throw new AppError(
-      personalProviderError({ statusCode: response.status }),
+      code === "provider_failed_or_invalid_output"
+        ? "model_list_unavailable"
+        : code,
       response.status === 429 ? 429 : 400,
     );
+  }
   const body = await response.json();
   const list = z
     .object({
@@ -188,8 +192,8 @@ export async function personalModels(
         .array(
           z.object({
             id: z.string(),
-            name: z.string().optional(),
-            display_name: z.string().optional(),
+            name: z.string().nullish(),
+            display_name: z.string().nullish(),
           }),
         )
         .optional(),
@@ -197,8 +201,8 @@ export async function personalModels(
         .array(
           z.object({
             name: z.string(),
-            displayName: z.string().optional(),
-            supportedGenerationMethods: z.array(z.string()).optional(),
+            displayName: z.string().nullish(),
+            supportedGenerationMethods: z.array(z.string()).nullish(),
           }),
         )
         .optional(),
@@ -206,6 +210,8 @@ export async function personalModels(
       has_more: z.boolean().optional(),
     })
     .parse(body);
+  if (config.provider === "google" ? !list.models : !list.data)
+    throw new AppError("model_list_unavailable", 502);
   const models =
     config.provider === "google"
       ? (list.models || [])
@@ -222,8 +228,15 @@ export async function personalModels(
               !/embed|whisper|tts|realtime|dall-e|image|moderation/i.test(m.id),
           )
           .map((m) => ({ id: m.id, name: m.name || m.display_name || m.id }));
+  const unique = [
+    ...new Map(
+      models
+        .filter((model) => credentials.shape.model.safeParse(model.id).success)
+        .map((model) => [model.id, model]),
+    ).values(),
+  ];
   return {
-    models: models.slice(0, 1000).sort((a, b) => a.name.localeCompare(b.name)),
+    models: unique.slice(0, 1000).sort((a, b) => a.name.localeCompare(b.name)),
     partial: Boolean(
       list.nextPageToken || list.has_more || models.length > 1000,
     ),

@@ -504,6 +504,11 @@ html[data-theme="dark"] #ai-studio {
 #ai-studio .ai-model-field label {
   flex: 1 1 100%;
 }
+#ai-studio .ai-model-field > p {
+  flex: 1 1 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 #ai-studio .ai-privacy {
   margin-top: 18px;
 }

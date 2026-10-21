@@ -2,6 +2,10 @@ import { aiRequest } from "@/lib/ai-access";
 import { db } from "@/lib/db";
 import { createPersonalReview, expireReviews } from "@/lib/personal-ai";
 import { reviewInput } from "@/lib/resume-review-contracts";
+import {
+  connectionInput,
+  resolvePersonalCredentials,
+} from "@/lib/personal-ai-connection";
 import { apiError, readJson } from "@/lib/http";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,8 +14,20 @@ export const maxDuration = 300;
 export function POST(req: Request) {
   return aiRequest(req, async () => {
     try {
-      const data = reviewInput.parse(await readJson(req));
-      const run = await createPersonalReview(data);
+      const data = reviewInput
+        .omit({ apiKey: true })
+        .extend(connectionInput.shape)
+        .parse(await readJson(req));
+      const config = await resolvePersonalCredentials(data);
+      const run = await createPersonalReview({
+        ...config,
+        source: data.source,
+        jobId: data.jobId,
+        resumeText: data.resumeText,
+        consent: data.consent,
+        reviewed: data.reviewed,
+        requestKey: data.requestKey,
+      });
       return Response.json(run, {
         status: run.state === "pending" ? 202 : 200,
       });

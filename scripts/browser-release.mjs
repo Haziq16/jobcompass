@@ -48,6 +48,7 @@ const env = {
   JOBCOMPASS_BROWSER_CHECK_ID: randomUUID(),
   JSEARCH_API_KEY: "",
   AI_GATEWAY_API_KEY: "",
+  PERSONAL_AI_ENCRYPTION_KEY: "22".repeat(32),
 };
 execFileSync(
   process.execPath,
@@ -56,7 +57,7 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: source.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE TABLE "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
+  'TRUNCATE TABLE "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
 );
 const catalogNow = new Date();
 await db.catalogBoard.createMany({
@@ -437,7 +438,10 @@ try {
   let providerRequests = 0;
   assert.equal(await page.locator(".ai-provider").getAttribute("open"), null);
   assert.equal(
-    await page.getByLabel("Your API key", { exact: true }).isVisible(),
+    await page
+      .locator("#ai-studio:visible")
+      .getByLabel("Your API key", { exact: true })
+      .isVisible(),
     false,
   );
   await page.getByRole("button", { name: "Connect AI", exact: true }).click();
@@ -449,6 +453,7 @@ try {
       providerRequests++;
   });
   await page
+    .locator("#ai-studio:visible")
     .getByLabel("Your API key", { exact: true })
     .fill("fixture-browser-provider-key-123456");
   assert.equal(providerRequests, 0);
@@ -466,12 +471,38 @@ try {
   );
   await page.getByRole("button", { name: "Load models", exact: true }).click();
   await page
-    .locator('datalist option[value="fixture-model"]')
+    .locator(
+      'select[aria-label="Available models"] option[value="fixture-model"]',
+    )
     .waitFor({ state: "attached" });
-  await page.getByLabel("Model ID", { exact: true }).fill("fixture-model");
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page
+    .locator("#ai-studio:visible")
+    .getByLabel("Available models", { exact: true })
+    .selectOption("fixture-model");
   assert.equal(
-    await page.getByLabel("Your API key", { exact: true }).isVisible(),
+    await page
+      .locator("#ai-studio:visible")
+      .getByLabel("Model ID", { exact: true })
+      .inputValue(),
+    "fixture-model",
+  );
+  await page
+    .getByRole("button", { name: "Save connection", exact: true })
+    .click();
+  await page
+    .getByText("Connection saved securely.", { exact: false })
+    .waitFor();
+  const savedConnection = await db.aiConnection.findUniqueOrThrow({
+    where: { workspaceId: user.id },
+  });
+  assert.ok(
+    !savedConnection.keyCiphertext.includes("fixture-browser-provider-key"),
+  );
+  assert.equal(
+    await page
+      .locator("#ai-studio:visible")
+      .getByLabel("Your API key", { exact: true })
+      .isVisible(),
     false,
   );
   await page
@@ -649,21 +680,44 @@ try {
     "Improving a reviewed CV restores its original inputs and requires fresh consent before another paid request",
   );
   await page.reload();
-  await page.getByRole("button", { name: "Connect AI", exact: true }).click();
-  await page.getByLabel("Your API key", { exact: true }).waitFor();
+  await page
+    .locator("#ai-studio:visible .ai-connection-state")
+    .getByText("Ready", { exact: true })
+    .waitFor();
+  await page.locator("#ai-studio:visible .ai-provider > summary").click();
   assert.equal(
-    await page.getByLabel("Your API key", { exact: true }).inputValue(),
+    await page
+      .locator("#ai-studio:visible")
+      .getByLabel("Your API key", { exact: true })
+      .inputValue(),
     "",
+  );
+  assert.equal(
+    await page
+      .locator("#ai-studio:visible")
+      .getByLabel("Model ID", { exact: true })
+      .inputValue(),
+    "fixture-model",
+  );
+  assert.ok(
+    (
+      await page
+        .locator("#ai-studio:visible .ai-provider > summary")
+        .innerText()
+    ).includes("fixture-model"),
+  );
+  check(
+    "Saved encrypted connection restores the provider and selected model after refresh without returning its key",
   );
   assert.equal(await db.aiReview.count({ where: { workspaceId: user.id } }), 1);
   check(
     "AI model list, DOCX extraction, grounded provider fixture, private history and text download work end-to-end",
   );
   check(
-    "Keys remain out of browser storage and database, clear on refresh, and do not trigger automatic generation",
+    "Plaintext keys remain out of browser storage, reports and database; saved credentials never trigger automatic generation",
   );
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator(".ai-provider > summary").click();
+  await page.locator("#ai-studio:visible .ai-provider > summary").click();
   await page.evaluate(() => window.scrollTo(0, 0));
   assert.ok(
     await page.evaluate(
@@ -723,8 +777,9 @@ try {
   assert.ok(typography.size >= 28);
   check("Workspace headings use readable sans-serif typography");
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
-  await page.getByRole("button", { name: "Connect AI", exact: true }).click();
+  await page.locator("#ai-studio:visible .ai-provider > summary").click();
   await page
+    .locator("#ai-studio:visible")
     .getByLabel("Your API key", { exact: true })
     .fill("fixture-browser-provider-key-123456");
   await page.getByRole("button", { name: /Sign out/ }).click();
@@ -739,13 +794,49 @@ try {
   await page.waitForURL("**/discover");
   check("Sign-out and returning-account sign-in work");
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
-  await page.getByRole("button", { name: "Connect AI", exact: true }).click();
+  await page
+    .locator("#ai-studio:visible .ai-connection-state")
+    .getByText("Ready", { exact: true })
+    .waitFor();
+  await page.locator("#ai-studio:visible .ai-provider > summary").click();
   assert.equal(
-    await page.getByLabel("Your API key", { exact: true }).inputValue(),
+    await page
+      .locator("#ai-studio:visible")
+      .getByLabel("Your API key", { exact: true })
+      .inputValue(),
     "",
   );
   check(
-    "Signing out clears the in-memory provider key before the next account session",
+    "Sign-in restores the saved model while plaintext API keys remain absent from the browser",
+  );
+  assert.equal(
+    await page
+      .locator("#ai-studio:visible")
+      .getByLabel("Model ID", { exact: true })
+      .inputValue(),
+    "fixture-model",
+  );
+  await page.getByRole("button", { name: "Forget key", exact: true }).click();
+  await page
+    .getByText("Saved connection and the key in this tab were removed.", {
+      exact: true,
+    })
+    .waitFor();
+  await page.reload();
+  await page.getByRole("button", { name: "Connect AI", exact: true }).click();
+  assert.equal(
+    await page
+      .locator("#ai-studio:visible")
+      .getByLabel("Model ID", { exact: true })
+      .inputValue(),
+    "",
+  );
+  assert.equal(
+    await db.aiConnection.count({ where: { workspaceId: user.id } }),
+    0,
+  );
+  check(
+    "Forget key removes the encrypted account connection and prevents it restoring after refresh",
   );
   assert.deepEqual(errors, []);
   assert.equal(await db.apiRequestLedger.count(), 0);
