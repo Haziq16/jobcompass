@@ -5,7 +5,8 @@ import { reviewInput } from "@/lib/resume-review-contracts";
 import { apiError, readJson } from "@/lib/http";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 90;
+// Keep this literal so Next.js can statically extract the hosting configuration.
+export const maxDuration = 300;
 export function POST(req: Request) {
   return aiRequest(req, async () => {
     try {

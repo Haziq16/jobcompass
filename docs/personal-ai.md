@@ -28,6 +28,8 @@ Turning the mode off preserves jobs and review history. Users can still export t
 
 There is no automatic billable connection test. Generating a review is an explicit action, never a side effect of discovery or profile saving. `BYOK_DAILY_LIMIT` defaults to 20 attempts per account per UTC day, including failed or uncertain attempts. A shared per-account lock permits only one pending review. Replays of the same request key cannot dispatch twice. Uncertain requests are not retried; a user must deliberately start a new request, which may incur another charge.
 
+Provider requests have a four-minute deadline. The review route allows 300 seconds, leaving time for reservation, validation and persistence. Pending reviews become interrupted only after 330 seconds, so reading history in another tab cannot expire a legitimately running request. The studio displays the expected wait while generating. An earlier release stopped requests after 65 seconds; existing uncertain records remain unchanged and are never automatically replayed. A timeout does not establish whether the provider charged for its work.
+
 ## Accuracy boundaries
 
 - Text diagnostics are heuristics: extractable words, email-shaped text, standard English headings, length and replacement characters. They cannot reliably judge original PDF/DOCX columns, page count, reading order or an employer's parser. The editable text preview is essential.

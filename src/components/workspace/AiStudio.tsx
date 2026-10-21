@@ -50,7 +50,7 @@ const messages: Record<string, string> = {
   provider_model_unavailable:
     "This model is not available to your provider account. Choose another model ID.",
   provider_timeout:
-    "The provider timed out. It may have billed the request. No automatic retry was made.",
+    "The review reached its time limit or the provider timed out before returning a result. It may have billed the request. No automatic retry was made.",
   provider_failed_or_invalid_output:
     "The provider failed or did not return the required structured output. It may have billed the request. Try a compatible text model only when you choose to run another review.",
   ungrounded_evidence:
@@ -810,6 +810,13 @@ export default function AiStudio() {
               <Sparkles size={17} />
               {busy ? "Reviewing…" : "Run AI review"}
             </button>
+            {busy && (
+              <p className="ai-fine-print" role="status">
+                Waiting for your provider. Reasoning models can take several
+                minutes; this request allows up to four minutes of provider
+                time. Keep this tab open. No automatic retry will be made.
+              </p>
+            )}
             <p className="ai-fine-print">
               No automatic retries or background AI calls. A repeated click with
               unchanged inputs reopens the same request. For a deliberate new

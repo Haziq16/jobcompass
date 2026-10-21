@@ -4,6 +4,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { AppError } from "./contracts";
+import { REVIEW_PROVIDER_TIMEOUT_MS } from "./personal-ai-timing";
 import {
   credentials,
   evidenceBlocks,
@@ -116,7 +117,7 @@ export const runPersonalReview: ReviewProvider = async (
     ...(config.provider === "openai"
       ? { providerOptions: { openai: { store: false } } }
       : {}),
-    abortSignal: AbortSignal.timeout(65000),
+    abortSignal: AbortSignal.timeout(REVIEW_PROVIDER_TIMEOUT_MS),
   });
   return {
     output: result.output,

@@ -1,6 +1,7 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
 import { authDb, db } from "../src/lib/db";
@@ -22,16 +23,24 @@ import {
   providerFetch,
   personalModels,
   personalProviderError,
+  runPersonalReview,
   type ReviewProvider,
 } from "../src/lib/personal-ai-provider";
-import { createPersonalReview } from "../src/lib/personal-ai";
+import { createPersonalReview, expireReviews } from "../src/lib/personal-ai";
+import {
+  REVIEW_PROVIDER_TIMEOUT_MS,
+  REVIEW_INTERRUPTED_AFTER_MS,
+} from "../src/lib/personal-ai-timing";
 import {
   GET as reviewGet,
   DELETE as reviewDelete,
 } from "../src/app/api/ai/reviews/[id]/route";
 import { GET as aiConfig } from "../src/app/api/ai/route";
 import { POST as modelPost } from "../src/app/api/ai/models/route";
-import { POST as reviewPost } from "../src/app/api/ai/reviews/route";
+import {
+  POST as reviewPost,
+  maxDuration,
+} from "../src/app/api/ai/reviews/route";
 import {
   GET as workspaceGet,
   DELETE as workspaceDelete,
@@ -470,6 +479,88 @@ test("review persistence excludes keys, coalesces replays and keeps private repo
     /idempotency_conflict/,
   );
 });
+test("production provider deadline leaves saving time and never retries a timed-out call", async (t) => {
+  const deadlines: number[] = [];
+  t.mock.method(AbortSignal, "timeout", (ms: number) => {
+    deadlines.push(ms);
+    return new AbortController().signal;
+  });
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls++;
+    throw new DOMException("Simulated provider deadline", "TimeoutError");
+  });
+  await assert.rejects(
+    runPersonalReview(
+      { provider: "openai", model: "gpt-6.1-sol", apiKey: key },
+      cv,
+      description,
+    ),
+    (error: unknown) => personalProviderError(error) === "provider_timeout",
+  );
+  assert.equal(calls, 1);
+  assert.ok(deadlines.includes(240_000));
+  assert.equal(REVIEW_PROVIDER_TIMEOUT_MS, 240_000);
+  assert.ok(REVIEW_PROVIDER_TIMEOUT_MS <= maxDuration * 1000 - 60_000);
+  assert.ok(REVIEW_INTERRUPTED_AFTER_MS > maxDuration * 1000);
+});
+
+test("pending reviews survive the old expiry window and expire only after the hosting window", async () => {
+  const target = await job();
+  const data = input(target.id);
+  const first = await inWorkspace("alice", () =>
+    createPersonalReview(data, async () => ({ output: output() })),
+  );
+  await inWorkspace("alice", async () => {
+    await db.aiReview.update({
+      where: { id: first.id },
+      data: {
+        state: "pending",
+        report: Prisma.JsonNull,
+        completedAt: null,
+        createdAt: new Date(Date.now() - 110_000),
+      },
+    });
+    await expireReviews();
+    assert.equal(
+      (await db.aiReview.findUniqueOrThrow({ where: { id: first.id } })).state,
+      "pending",
+    );
+    let calls = 0;
+    await assert.rejects(
+      createPersonalReview({ ...data, requestKey: randomUUID() }, async () => {
+        calls++;
+        return { output: output() };
+      }),
+      /ai_review_in_progress/,
+    );
+    assert.equal(calls, 0);
+    await db.aiReview.update({
+      where: { id: first.id },
+      data: {
+        createdAt: new Date(Date.now() - REVIEW_INTERRUPTED_AFTER_MS - 1000),
+      },
+    });
+    await inWorkspace("bob", expireReviews);
+    assert.equal(
+      (await db.aiReview.findUniqueOrThrow({ where: { id: first.id } })).state,
+      "pending",
+    );
+    await expireReviews();
+    const expired = await db.aiReview.findUniqueOrThrow({
+      where: { id: first.id },
+    });
+    assert.equal(expired.state, "uncertain");
+    assert.equal(expired.error, "interrupted");
+    const replay = await createPersonalReview(data, async () => {
+      calls++;
+      return { output: output() };
+    });
+    assert.equal(replay.id, first.id);
+    assert.equal(calls, 0);
+  });
+});
+
 test("uncertain calls stay counted and cannot be dispatched again with the same request key", async () => {
   const target = await job();
   const data = input(target.id);

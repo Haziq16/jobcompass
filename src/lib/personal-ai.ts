@@ -10,6 +10,7 @@ import {
   type ReviewInput,
 } from "./resume-review-contracts";
 import { resumeChecks } from "./resume-checks";
+import { REVIEW_INTERRUPTED_AFTER_MS } from "./personal-ai-timing";
 import {
   personalProviderError,
   runPersonalReview,
@@ -54,7 +55,7 @@ export async function expireReviews() {
   await db.aiReview.updateMany({
     where: {
       state: "pending",
-      createdAt: { lt: new Date(Date.now() - 100_000) },
+      createdAt: { lt: new Date(Date.now() - REVIEW_INTERRUPTED_AFTER_MS) },
     },
     data: { state: "uncertain", error: "interrupted", completedAt: new Date() },
   });
