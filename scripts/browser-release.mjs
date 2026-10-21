@@ -1,4 +1,4 @@
-/* global document, innerWidth, getComputedStyle, localStorage, sessionStorage */
+/* global document, window, innerWidth, getComputedStyle, localStorage, sessionStorage */
 import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
 import { spawn, execFileSync } from "node:child_process";
@@ -125,7 +125,7 @@ for (let start = 0; start < 3005; start += 200)
         employmentType: "Full-time",
         description:
           i === 0
-            ? "Build Kotlin services using PostgreSQL and Docker. Work with a thoughtful team to design reliable APIs and collaborate on product development. Kotlin experience is required. This is fictional browser-verification data."
+            ? "Build Kotlin services using PostgreSQL and Docker. Work with a thoughtful team to design reliable APIs and collaborate on product development. Kotlin experience is required. Accessibility experience is required. This is fictional browser-verification data."
             : "Work with a thoughtful team to build useful products. Collaborate with colleagues across design, engineering and customer teams to improve product experiences. This is fictional browser-verification data.",
         publishedAt: new Date(catalogNow.valueOf() - i * 3600_000),
         sourceUrl: `https://example.test/jobs/${i}`,
@@ -435,6 +435,12 @@ try {
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
   await page.getByRole("heading", { name: "AI studio", exact: true }).waitFor();
   let providerRequests = 0;
+  assert.equal(await page.locator(".ai-provider").getAttribute("open"), null);
+  assert.equal(
+    await page.getByLabel("Your API key", { exact: true }).isVisible(),
+    false,
+  );
+  await page.getByRole("button", { name: "Connect AI", exact: true }).click();
   page.on("request", (r) => {
     if (
       r.url().includes("/api/ai/models") ||
@@ -463,6 +469,11 @@ try {
     .locator('datalist option[value="fixture-model"]')
     .waitFor({ state: "attached" });
   await page.getByLabel("Model ID", { exact: true }).fill("fixture-model");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  assert.equal(
+    await page.getByLabel("Your API key", { exact: true }).isVisible(),
+    false,
+  );
   await page
     .getByLabel("Job to review", { exact: true })
     .selectOption(
@@ -494,7 +505,11 @@ try {
     document.querySelector("textarea")?.value.includes("Built Kotlin"),
   );
   assert.equal(providerRequests, 1);
-  await page.screenshot({ path: "test-results/ai-studio-desktop.png" });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: "test-results/ai-studio-desktop.png",
+    fullPage: true,
+  });
   await page
     .getByLabel(
       "I have checked this résumé text for missing content, reading order and accuracy.",
@@ -510,6 +525,16 @@ try {
   await page
     .getByRole("button", { name: "Run AI review", exact: true })
     .click();
+  await page
+    .getByRole("heading", { name: "Reviewing your application", exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Reviewing…", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await page.screenshot({ path: "test-results/ai-waiting-desktop.png" });
   await page
     .getByText("Quotes were checked against the submitted text.", {
       exact: false,
@@ -527,7 +552,68 @@ try {
     ).status(),
     403,
   );
-  await page.screenshot({ path: "test-results/ai-review-desktop.png" });
+  await page
+    .getByRole("heading", {
+      name: "What to improve before applying",
+      exact: true,
+    })
+    .waitFor();
+  assert.ok(
+    (await page.locator(".ai-action-list li").first().innerText()).includes(
+      "Accessibility",
+    ),
+  );
+  assert.equal(
+    await page
+      .locator(".ai-summary-grid strong")
+      .allTextContents()
+      .then(JSON.stringify),
+    JSON.stringify(["1", "1", "1"]),
+  );
+  await page.locator(".ai-report").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: "test-results/ai-review-desktop.png",
+    fullPage: true,
+  });
+  const reviewDownloaded = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download application review", exact: true })
+    .click();
+  await (
+    await reviewDownloaded
+  ).saveAs("test-results/ai-application-review.txt");
+  assert.ok(
+    readFileSync("test-results/ai-application-review.txt", "utf8").includes(
+      "Accessibility experience is required.",
+    ),
+  );
+  await page
+    .getByRole("button", { name: "Requirements & evidence", exact: true })
+    .click();
+  await page
+    .getByLabel("Show requirements", { exact: true })
+    .selectOption("attention");
+  assert.equal(await page.locator(".ai-requirements article").count(), 1);
+  assert.ok(
+    (await page.locator(".ai-requirements").innerText()).includes(
+      "Accessibility",
+    ),
+  );
+  check(
+    "Review overview prioritizes gaps, filters evidence and exports an actionable plan without another AI call",
+  );
+  await page
+    .getByRole("button", { name: "Overview & action plan", exact: true })
+    .click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: "test-results/ai-review-mobile.png" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page
     .getByRole("button", { name: "Tailored evidence outline", exact: true })
     .click();
@@ -542,7 +628,28 @@ try {
       "Built Kotlin",
     ),
   );
+  await page
+    .getByRole("button", { name: "Improve this CV", exact: true })
+    .click();
+  assert.ok(
+    (
+      await page
+        .getByLabel("Résumé text to review", { exact: true })
+        .inputValue()
+    ).includes("Built Kotlin"),
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Run AI review", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(providerRequests, 2);
+  check(
+    "Improving a reviewed CV restores its original inputs and requires fresh consent before another paid request",
+  );
   await page.reload();
+  await page.getByRole("button", { name: "Connect AI", exact: true }).click();
   await page.getByLabel("Your API key", { exact: true }).waitFor();
   assert.equal(
     await page.getByLabel("Your API key", { exact: true }).inputValue(),
@@ -556,12 +663,17 @@ try {
     "Keys remain out of browser storage and database, clear on refresh, and do not trigger automatic generation",
   );
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".ai-provider > summary").click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   assert.ok(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   );
-  await page.screenshot({ path: "test-results/ai-studio-mobile.png" });
+  await page.screenshot({
+    path: "test-results/ai-studio-mobile.png",
+    fullPage: true,
+  });
   check("AI studio remains usable without horizontal overflow on mobile");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(origin + "/discover");
@@ -611,6 +723,7 @@ try {
   assert.ok(typography.size >= 28);
   check("Workspace headings use readable sans-serif typography");
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
+  await page.getByRole("button", { name: "Connect AI", exact: true }).click();
   await page
     .getByLabel("Your API key", { exact: true })
     .fill("fixture-browser-provider-key-123456");
@@ -626,6 +739,7 @@ try {
   await page.waitForURL("**/discover");
   check("Sign-out and returning-account sign-in work");
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
+  await page.getByRole("button", { name: "Connect AI", exact: true }).click();
   assert.equal(
     await page.getByLabel("Your API key", { exact: true }).inputValue(),
     "",

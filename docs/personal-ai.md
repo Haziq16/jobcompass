@@ -4,6 +4,12 @@ The AI studio compares one résumé with one selected catalogue or private job. 
 
 ![AI studio with fictional browser-verification data and a simulated provider](images/ai-studio.png)
 
+## Application workflow
+
+The studio starts with the selected job and the user's saved CV. Job switching, free text diagnostics, provider connection details, and history use progressive disclosure. Provider settings remain in a secondary panel; connecting or loading model IDs never starts a review. The primary action explains which input or confirmation is still needed. During generation, an elapsed timer shows actual waiting time without inventing a completion percentage or retrying the request.
+
+Completed and historical reviews open with evidence counts and a prioritized action plan, followed by matching experience. Required requirements appear first in the action plan; related experience and missing evidence remain distinct. Users can filter the requirement evidence, download the application review, inspect the original excerpts in a conventional outline, and restore a review's exact CV and job for editing. Restoring inputs clears approval and provider-usage consent, and sends no AI request. These views use the existing grounded report, so opening tabs, downloading or improving the input never consumes another provider call. Counts summarize the reviewed requirements, not the entire posting or an ATS score.
+
 ## Access and removal
 
 Set `AI_MODE` in the **production** Vercel environment and redeploy:

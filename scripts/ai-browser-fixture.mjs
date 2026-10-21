@@ -1,4 +1,5 @@
 /* global Request, Response, Headers */
+import { setTimeout as delay } from "node:timers/promises";
 // Preloaded only by the isolated browser harness. Never imported by app code.
 if (
   process.env.VERCEL ||
@@ -56,7 +57,23 @@ globalThis.fetch = async (input, options) => {
     const report = {
       requirements: [
         {
-          jobQuote: data.jobText.slice(0, 250),
+          jobQuote: "Kotlin experience is required.",
+          priority: "required",
+          assessment: "supported",
+          evidence: [{ blockId: block.id, quote: block.text }],
+          question: "",
+        },
+        {
+          jobQuote: "Accessibility experience is required.",
+          priority: "required",
+          assessment: "not_evidenced",
+          evidence: [],
+          question:
+            "Have you worked on accessibility? Add a truthful example if so.",
+        },
+        {
+          jobQuote:
+            "Work with a thoughtful team to design reliable APIs and collaborate on product development.",
           priority: "unspecified",
           assessment: "transferable",
           evidence: [{ blockId: block.id, quote: block.text }],
@@ -70,6 +87,7 @@ globalThis.fetch = async (input, options) => {
         },
       ],
     };
+    await delay(1600);
     return Response.json({
       id: "resp_fixture",
       object: "response",
