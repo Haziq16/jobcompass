@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
 import { spawn, execFileSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { createServer } from "node:net";
 import {
   mkdirSync,
@@ -53,8 +53,84 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: source.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE TABLE "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
+  'TRUNCATE TABLE "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
 );
+const catalogNow = new Date();
+await db.catalogBoard.createMany({
+  data: [
+    {
+      id: "fixture-tech",
+      name: "Example Labs",
+      platform: "ashby",
+      token: "fixture-tech",
+      jobCount: 1002,
+      lastSuccessAt: catalogNow,
+      initialIndexedAt: catalogNow,
+    },
+    {
+      id: "fixture-design",
+      name: "Example Creative",
+      platform: "greenhouse",
+      token: "fixture-design",
+      jobCount: 1002,
+      lastSuccessAt: catalogNow,
+      initialIndexedAt: catalogNow,
+    },
+    {
+      id: "fixture-health",
+      name: "Example Health",
+      platform: "lever",
+      token: "fixture-health",
+      jobCount: 1001,
+      lastSuccessAt: catalogNow,
+      initialIndexedAt: catalogNow,
+    },
+  ],
+});
+for (let start = 0; start < 3005; start += 200)
+  await db.catalogJob.createMany({
+    data: Array.from({ length: Math.min(200, 3005 - start) }, (_, offset) => {
+      const i = start + offset;
+      const employer = ["Example Labs", "Example Creative", "Example Health"][
+        i % 3
+      ];
+      const title =
+        i === 0
+          ? "Kotlin Platform Engineer"
+          : [
+              "Product Designer",
+              "Data Analyst",
+              "Customer Success Manager",
+              "Software Engineer",
+              "People Operations Partner",
+              "Marketing Manager",
+            ][i % 6];
+      const location = [
+        "Singapore",
+        "London, UK",
+        "Berlin, Germany",
+        "New York, USA",
+      ][i % 4];
+      return {
+        id: createHash("sha256").update(`catalog-fixture-${i}`).digest("hex"),
+        providerId: `catalog-fixture-${i}`,
+        boardId: ["fixture-tech", "fixture-design", "fixture-health"][i % 3],
+        title,
+        employer,
+        location,
+        remote: i % 3 === 0,
+        employmentType: "Full-time",
+        description:
+          "Work with a thoughtful team to build useful products. This is fictional browser-verification data.",
+        publishedAt: new Date(catalogNow.valueOf() - i * 3600_000),
+        sourceUrl: `https://example.test/jobs/${i}`,
+        applyUrl: `https://example.test/jobs/${i}`,
+        hash: `fixture-${i}`,
+        searchText: `${title} ${employer} ${location}`,
+      };
+    }),
+  });
+await db.catalogSync.create({ data: { id: "global", finishedAt: catalogNow } });
 mkdirSync("test-results", { recursive: true });
 const log = createWriteStream("test-results/release-server.log");
 const server = spawn(
@@ -132,6 +208,9 @@ try {
     .getByRole("heading", { name: "Discover jobs", exact: true })
     .waitFor();
   check("Public account creation starts a personal workspace");
+  await page
+    .getByRole("heading", { name: "3,005 available jobs", exact: true })
+    .waitFor();
   const user = await db.user.findUniqueOrThrow({
     where: { email: "alex@release.example" },
   });
@@ -163,8 +242,47 @@ try {
   assert.equal(discoveryRequests, 0);
   await page.screenshot({
     path: "test-results/release-discovery-desktop.png",
-    fullPage: true,
+    fullPage: false,
   });
+  assert.ok(
+    await page
+      .locator(".catalog-card h3 button")
+      .first()
+      .evaluate((e) => parseFloat(getComputedStyle(e).fontSize) >= 16),
+  );
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.waitForURL("**/discover?page=2");
+  await page.getByText("Page 2 of 101", { exact: true }).waitFor();
+  check("Shared catalogue paginates more than 3,000 jobs in the database");
+  await page
+    .getByLabel("What are you looking for?", { exact: true })
+    .fill("Kotlin");
+  await page.getByRole("button", { name: "Search jobs", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "1 matching jobs", exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Kotlin Platform Engineer", exact: true })
+    .click();
+  await page.getByRole("dialog").waitFor();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Save job", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Saved", exact: true })
+    .waitFor();
+  const copied = await db.jobSource.findFirstOrThrow({
+    where: { workspaceId: user.id, providerId: "catalog-fixture-0" },
+  });
+  assert.ok(copied.jobId);
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  check(
+    "Catalogue search, keyboard-accessible detail and account-private save work end-to-end",
+  );
+  await page.goto(origin + "/discover");
   let direct = 0;
   await page.route("**/api/direct-discovery", async (route) => {
     direct++;
@@ -175,6 +293,11 @@ try {
       body: JSON.stringify({ count: 1, cached: false }),
     });
   });
+  await page
+    .getByText("Looking for a specific company? Import another board", {
+      exact: true,
+    })
+    .click();
   await page.getByRole("button", { name: "Greenhouse ↗", exact: true }).click();
   assert.equal(direct, 0);
   await page.getByRole("button", { name: "Find jobs", exact: true }).click();
@@ -283,6 +406,9 @@ try {
   await page
     .getByRole("heading", { name: "Discover jobs", exact: true })
     .waitFor();
+  await page
+    .getByRole("heading", { name: "3,005 available jobs", exact: true })
+    .waitFor();
   assert.ok(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -290,8 +416,15 @@ try {
   );
   await page.screenshot({
     path: "test-results/release-discovery-mobile.png",
-    fullPage: true,
+    fullPage: false,
   });
+  await page.locator(".catalog-card h3 button").first().click();
+  await page.getByRole("dialog").waitFor();
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  check(
+    "Mobile catalogue cards and native detail-dialog keyboard controls work",
+  );
   await page.getByRole("link", { name: "My jobs", exact: true }).click();
   await page
     .getByRole("button", { name: /Product Designer/ })

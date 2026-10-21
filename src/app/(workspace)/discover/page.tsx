@@ -1,8 +1,9 @@
-import DirectDiscovery from "@/components/workspace/DirectDiscovery";
+import { Suspense } from "react";
+import CatalogDiscovery from "@/components/workspace/CatalogDiscovery";
 export default function Page() {
   return (
-    <>
-      <DirectDiscovery />
-    </>
+    <Suspense fallback={<p>Loading discovery…</p>}>
+      <CatalogDiscovery />
+    </Suspense>
   );
 }

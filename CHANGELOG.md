@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 2026-10-21
+
+- Added a shared worldwide catalogue across 64 verified Greenhouse, Lever and Ashby company boards.
+- Added indexed keyword search, location/company/remote filters, pagination and accessible job details.
+- Added private, idempotent saving from discovery without copying the catalogue into every account.
+- Added scheduled feed checks, browsing-triggered refreshes, shared leases, conditional requests and source backoff.
+- Distinguished true publication timestamps, initial imports and subsequently discovered jobs.
+- Added complete-snapshot closure handling while preserving saved jobs and excluding stale sources.
+- Verified thousands of fixture jobs, account isolation, scheduler protection, migrations and desktop/mobile flows.
+
 ## 1.0.0 — 2026-10-21
 
 - Added public account registration with private, isolated workspaces.

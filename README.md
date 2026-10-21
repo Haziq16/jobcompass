@@ -10,7 +10,9 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 ## Features
 
-- **Direct discovery:** import public Greenhouse and Lever company-board listings without an API key.
+- **Worldwide discovery:** search a shared catalogue from 64 public Greenhouse, Lever and Ashby company boards, with database pagination and company, location, remote and freshness filters.
+- **Automatic feed checks:** scheduled background refreshes and coalesced checks while browsing, without a paid job-search API key.
+- **Direct discovery:** optionally import another Greenhouse or Lever company board into your own workspace.
 - **Your job library:** search stored opportunities, filter metadata, browse details, and skip or restore roles.
 - **A focused shortlist:** save jobs and keep private notes and tags.
 - **Application tracking:** maintain stages, notes, dates and an event timeline. Employer links never automatically mark a role Applied.
@@ -22,22 +24,32 @@ AI tools and assisted form filling are deferred. Supporting source remains in th
 
 ## How discovery works
 
-Choose a platform and a company board token. Add keywords, then select **Find jobs**. Matching postings are stored in your workspace for browsing later.
+Discover searches a shared index of public employer listings. Search by title, skill or company, add a location, then filter by employer, remote work, source or freshness. Results are paginated in the database; saving creates an independent copy in your private workspace. Jobs are never copied into every account automatically.
+
+The included GitHub workflow checks due feeds about every 30 minutes. Signed-in browsing can trigger checks as often as every five minutes. These are polling targets, not instant-delivery guarantees; GitHub can delay schedules and sources may update late. Check **Actions → Refresh job catalogue** for scheduler health. The workflow uses hosted-runner minutes; monitor the repository owner's included allowance and spending settings. There is no new paid scheduler subscription.
+
+Employer publication dates and first-discovery dates are distinct. Greenhouse's `updated_at` is not a posting date. Initial imports are not labelled as new postings. The “newly discovered” filter includes only jobs first detected after a board's initial successful import. The default sort uses publication dates where supplied, or first-discovery time for subsequent arrivals. Remote does not imply worldwide work eligibility.
+
+Complete successful snapshots retire missing roles from discovery. Failed or incomplete snapshots do not close jobs. Feeds unconfirmed for 48 hours leave the search results until they recover. Previously saved private copies and notes remain available. Requests use conditional HTTP validators when supplied, fixed upstream hosts, bounded responses, a global database lease, and failure backoff. Unchanged job content is not rewritten.
+
+The starting board registry is curated and weighted toward technology employers, with roles across departments and regions. It is not the entire worldwide job market. Full-text search covers titles, employers, locations, departments and the first 6,000 characters of descriptions. The employer link always provides the complete posting.
+
+For a company outside the catalogue, expand **Import another board**, choose a platform and company board token, add keywords, then select **Find jobs**.
 
 For example, a careers URL ending in `job-boards.greenhouse.io/company` or `jobs.lever.co/company` uses `company` as its board token. Lever also supports an EU hosting region.
 
-This searches **one selected company board**, not the entire job market. Imports use caching and stable source identities. Repeated imports update existing records; missing results never automatically delete or close a saved job. Country, salary, posting date and other absent fields remain unknown.
+The optional manual import searches **one selected company board**. It uses caching and stable source identities. Repeated imports update existing records; missing results never automatically delete or close a saved job. Country, salary, posting date and other absent fields remain unknown.
 
 Current bounds: 8 MB per board response, 500 matching jobs per import, 10 seconds between direct attempts and 50 attempts per rolling 24 hours per workspace. Upstream failures are not automatically retried.
 
 ## Stack
 
-| Layer | Technology |
-| --- | --- |
-| Application | Next.js, React, TypeScript |
-| Data | PostgreSQL, Prisma |
-| Accounts | Better Auth, database sessions |
-| Styling | CSS, Tailwind, Lucide icons |
+| Layer        | Technology                                            |
+| ------------ | ----------------------------------------------------- |
+| Application  | Next.js, React, TypeScript                            |
+| Data         | PostgreSQL, Prisma                                    |
+| Accounts     | Better Auth, database sessions                        |
+| Styling      | CSS, Tailwind, Lucide icons                           |
 | Verification | Node.js tests, PostgreSQL fixtures, Playwright/Chrome |
 
 Dependency versions are pinned in `package.json` and `package-lock.json`.
@@ -85,15 +97,15 @@ Open **http://127.0.0.1:3000/discover**. Local mode is loopback-only and uses a 
 
 Set these values in the hosting environment, keeping credentials server-side:
 
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL` | Production PostgreSQL connection secret |
-| `APP_ACCESS=hosted` | Require application sessions |
-| `APP_URL` | Exact public HTTPS application origin |
-| `BETTER_AUTH_SECRET` | Strong authentication signing secret, at least 32 characters |
-| `PUBLIC_SIGNUP=true` | Allow account creation |
-| `ENABLE_AI=false` | Keep deferred tools disabled |
-| `OWNER_EMAIL` | Legacy workspace attribution when migrating an existing owner-only installation |
+| Variable             | Purpose                                                                         |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `DATABASE_URL`       | Production PostgreSQL connection secret                                         |
+| `APP_ACCESS=hosted`  | Require application sessions                                                    |
+| `APP_URL`            | Exact public HTTPS application origin                                           |
+| `BETTER_AUTH_SECRET` | Strong authentication signing secret, at least 32 characters                    |
+| `PUBLIC_SIGNUP=true` | Allow account creation                                                          |
+| `ENABLE_AI=false`    | Keep deferred tools disabled                                                    |
+| `OWNER_EMAIL`        | Legacy workspace attribution when migrating an existing owner-only installation |
 
 Keep the signing secret stable between releases. Review and apply migrations before promoting a new build. Configure production-domain access separately from repository visibility; a private GitHub repository does not make the hosted website private.
 

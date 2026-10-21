@@ -1,0 +1,32 @@
+name: Refresh job catalogue
+on:
+  schedule:
+    - cron: "13,43 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: catalogue-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      # No checkout, dependency installation, Vercel token or database access.
+      - name: Check employer feeds
+        env:
+          CATALOG_REFRESH_URL: ${{ vars.CATALOG_REFRESH_URL }}
+          CATALOG_REFRESH_SECRET: ${{ secrets.CATALOG_REFRESH_SECRET }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const url = new URL(process.env.CATALOG_REFRESH_URL || '');
+          const secret = process.env.CATALOG_REFRESH_SECRET || '';
+          if (url.protocol !== 'https:' || url.pathname !== '/api/catalog/refresh' || url.search || url.username || url.password || secret.length < 32) throw new Error('Invalid catalogue scheduler configuration');
+          const response = await fetch(url, {headers: {Authorization: `Bearer ${secret}`}, redirect: 'error', signal: AbortSignal.timeout(180000)});
+          if (!response.ok) throw new Error(`Catalogue refresh HTTP ${response.status}`);
+          const result = await response.json();
+          console.log(JSON.stringify({status: result.status, checked: result.checked, succeeded: result.succeeded, failed: result.failed}));
+          if (result.status === 'completed' && result.checked > 0 && result.succeeded === 0) throw new Error('No employer feed could be refreshed');
+          NODE

@@ -4,7 +4,9 @@ JobCompass is a Next.js application backed by PostgreSQL. Prisma handles databas
 
 ## Main flows
 
-**Discovery:** An explicit user action posts a selected company board and keywords to the authenticated direct-discovery endpoint. A provider adapter validates the public response, normalizes jobs, and stores them in the user's workspace. Durable request records support caching, idempotency and rate limits.
+**Discovery:** Public employer feeds populate shared `CatalogBoard` and `CatalogJob` tables. A single `CatalogSync` lease coalesces scheduled and browsing-triggered refreshes. Validated complete snapshots commit per board; conditional requests and content hashes avoid unnecessary writes. Search uses a PostgreSQL full-text index and database pagination. Saving an opportunity creates an independent private job/source/save, preserving account boundaries.
+
+**Manual import:** An explicit user action can still post another Greenhouse or Lever board and keywords to the authenticated direct-discovery endpoint. This separate path stores matching jobs directly in the user's workspace. Durable request records support caching, idempotency and rate limits.
 
 **Browsing:** Jobs, Saved and Applications query stored data. Local filters and navigation do not call job providers. Common list queries paginate in PostgreSQL; deterministic match ranking currently runs in application memory.
 
@@ -14,21 +16,21 @@ JobCompass is a Next.js application backed by PostgreSQL. Prisma handles databas
 
 Authenticated request handlers enter a workspace context using the session user's ID. The scoped Prisma client filters private operations and assigns ownership on creation. Workspace IDs are immutable during updates. Composite foreign keys prevent a child record from linking to another account's job, application, run or profile version.
 
-Authentication tables use a separate client. An unscoped private-data request in hosted mode fails closed. Local mode uses a loopback-only development workspace.
+Authentication tables and the public catalogue use an explicitly unscoped client. Catalogue queries do not contain personal notes, applications or saved state. Personal status is joined through the account-scoped client only. An unscoped private-data request in hosted mode fails closed. Local mode uses a loopback-only development workspace.
 
 ## Directory map
 
-| Location | Purpose |
-| --- | --- |
-| `src/app/(workspace)` | Main product screens |
-| `src/app/api` | Validated request handlers and auth routes |
-| `src/components/workspace` | Current workspace UI |
-| `src/lib` | Providers, discovery, matching, account context and data access |
-| `prisma` | Schema and ordered SQL migrations |
-| `tests` | Isolated fixtures and database integration tests |
-| `scripts` | Local database and verification utilities |
-| `extension` | Deferred companion source; inactive in this release |
+| Location                   | Purpose                                                         |
+| -------------------------- | --------------------------------------------------------------- |
+| `src/app/(workspace)`      | Main product screens                                            |
+| `src/app/api`              | Validated request handlers and auth routes                      |
+| `src/components/workspace` | Current workspace UI                                            |
+| `src/lib`                  | Providers, discovery, matching, account context and data access |
+| `prisma`                   | Schema and ordered SQL migrations                               |
+| `tests`                    | Isolated fixtures and database integration tests                |
+| `scripts`                  | Local database and verification utilities                       |
+| `extension`                | Deferred companion source; inactive in this release             |
 
 ## Current limits
 
-Discovery searches one selected Greenhouse or Lever board, not a worldwide company catalogue. Missing provider values remain unknown. There is no scheduled crawler, mailbox integration or automated employer submission. AI and companion tools are disabled. See [README.md](../README.md) for configuration and [SECURITY.md](../SECURITY.md) for credential handling.
+The curated catalogue is weighted toward technology employers, with worldwide roles across departments. It is not the entire worldwide job market. Refreshes are polling, not real-time employer webhooks; source delays and GitHub schedule delays affect discovery latency. Missing provider values remain unknown. AI and companion tools remain disabled. See [discovery operations](discovery.md), [README.md](../README.md) and [SECURITY.md](../SECURITY.md).

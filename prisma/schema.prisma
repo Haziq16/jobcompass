@@ -5,6 +5,60 @@ datasource db {
   provider = "postgresql"
   url = env("DATABASE_URL")
 }
+// Only public employer data is shared. Saved jobs, notes and applications stay
+// in the existing account-scoped Job tables.
+model CatalogBoard {
+  id String @id
+  platform String
+  token String
+  name String
+  enabled Boolean @default(true)
+  jobCount Int @default(0)
+  initialIndexedAt DateTime?
+  lastSuccessAt DateTime?
+  lastAttemptAt DateTime?
+  nextFetchAt DateTime @default(now())
+  etag String?
+  modified String?
+  failures Int @default(0)
+  error String?
+  jobs CatalogJob[]
+}
+model CatalogJob {
+  id String @id
+  boardId String
+  board CatalogBoard @relation(fields:[boardId], references:[id], onDelete:Cascade)
+  providerId String @unique
+  title String
+  employer String
+  location String?
+  country String?
+  remote Boolean?
+  employmentType String?
+  department String?
+  description String?
+  salaryText String?
+  sourceUrl String
+  applyUrl String
+  publishedAt DateTime?
+  firstSeen DateTime @default(now())
+  lastChangedAt DateTime @default(now())
+  discoveredAfterBaseline Boolean @default(false)
+  active Boolean @default(true)
+  hash String
+  searchText String
+  @@index([active,publishedAt])
+  @@index([active,firstSeen])
+  @@index([boardId,active])
+  @@index([employer])
+}
+model CatalogSync {
+  id String @id
+  leaseUntil DateTime @default(now())
+  nextRunAt DateTime @default(now())
+  startedAt DateTime?
+  finishedAt DateTime?
+}
 model Profile {
   workspaceId String @default("local")
   id String @id @default("owner")

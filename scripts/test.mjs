@@ -38,6 +38,7 @@ execFileSync(
     "tests/upgrade.test.ts",
     "tests/direct.test.ts",
     "tests/accounts.test.ts",
+    "tests/catalog.test.ts",
   ],
   { env, stdio: "inherit" },
 );
