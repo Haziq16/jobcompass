@@ -38,7 +38,15 @@ export function accessAllowed(
   }
   const forwarded = headers.get("x-forwarded-host");
   if (forwarded && forwarded !== host) return false;
-  if (headers.get("sec-fetch-site") === "cross-site") return false;
+  if (headers.get("sec-fetch-site") === "cross-site") {
+    // Links from other sites may open pages; cross-site fetches, embedded
+    // documents and state-changing requests must still be rejected.
+    const documentNavigation =
+      ["GET", "HEAD"].includes(method) &&
+      headers.get("sec-fetch-mode") === "navigate" &&
+      headers.get("sec-fetch-dest") === "document";
+    if (!documentNavigation) return false;
+  }
   if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
     const origin = headers.get("origin");
     if (

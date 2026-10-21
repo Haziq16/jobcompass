@@ -570,6 +570,37 @@ test("hosted, cross-site and forged-origin requests cannot access data or spend 
     false,
   );
 });
+test("external links can open hosted pages without allowing cross-site writes or embeds", () => {
+  const env = {
+    APP_ACCESS: "hosted",
+    APP_URL: "https://jobs.example",
+    PUBLIC_SIGNUP: "true",
+    BETTER_AUTH_SECRET: "test-only-secret-with-at-least-32-characters",
+  };
+  const navigation = new Headers({
+    host: "jobs.example",
+    "sec-fetch-site": "cross-site",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-dest": "document",
+  });
+  assert.equal(accessAllowed(navigation, "GET", env), true);
+  assert.equal(accessAllowed(navigation, "HEAD", env), true);
+  assert.equal(accessAllowed(navigation, "POST", env), false);
+  navigation.set("origin", env.APP_URL);
+  assert.equal(accessAllowed(navigation, "POST", env), false);
+  navigation.set("sec-fetch-dest", "iframe");
+  assert.equal(accessAllowed(navigation, "GET", env), false);
+  navigation.set("sec-fetch-dest", "empty");
+  navigation.set("sec-fetch-mode", "cors");
+  assert.equal(accessAllowed(navigation, "GET", env), false);
+  navigation.set("sec-fetch-dest", "document");
+  navigation.set("sec-fetch-mode", "navigate");
+  navigation.set("host", "attacker.example");
+  assert.equal(accessAllowed(navigation, "GET", env), false);
+  navigation.set("host", "jobs.example");
+  navigation.set("x-forwarded-host", "attacker.example");
+  assert.equal(accessAllowed(navigation, "GET", env), false);
+});
 test("CV validates signatures, bounds and embedded objects; extracts editable text only", async () => {
   await assert.rejects(
     extractCv(Buffer.from("not a pdf"), "cv.pdf"),
