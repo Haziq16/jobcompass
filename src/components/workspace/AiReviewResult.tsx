@@ -81,6 +81,11 @@ export function ReviewResult({
       [
         `APPLICATION REVIEW: ${run.jobSnapshot.title} at ${run.jobSnapshot.employer}`,
         "AI interpretation; not an ATS score or hiring prediction.",
+        ...(run.report?.validation?.omittedEvidence
+          ? [
+              `Validation notice: ${run.report.validation.omittedEvidence} unverifiable CV excerpts were removed; ${run.report.validation.requirementsNeedingReview} requirements need manual review.`,
+            ]
+          : []),
         ...requirements.flatMap((r) => [
           "",
           `${labels[r.assessment]}${r.priority === "required" ? " · Required" : ""}`,
@@ -131,6 +136,23 @@ export function ReviewResult({
         </div>
       ) : (
         <>
+          {Boolean(run.report?.validation?.omittedEvidence) && (
+            <div className="ai-validation-warning" role="status">
+              <strong>Some evidence needs your review</strong>
+              <p>
+                {run.report!.validation!.omittedEvidence} unverifiable CV{" "}
+                {run.report!.validation!.omittedEvidence === 1
+                  ? "excerpt was"
+                  : "excerpts were"}{" "}
+                removed. {run.report!.validation!.requirementsNeedingReview}{" "}
+                {run.report!.validation!.requirementsNeedingReview === 1
+                  ? "requirement is"
+                  : "requirements are"}{" "}
+                marked “Needs clarification”. The remaining quotes were verified
+                against your original text.
+              </p>
+            </div>
+          )}
           <div
             className="ai-report-tabs"
             role="group"

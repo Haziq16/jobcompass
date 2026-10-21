@@ -316,10 +316,12 @@ export default function AiStudio() {
       });
       setRun(result);
       history.refresh();
-      if (result.state !== "succeeded")
+      if (result.state === "pending")
         setNotice(
-          "The request is recorded. A failed or uncertain run is not automatically retried.",
+          "This review is still running. Reload its saved report to check the result; no second paid request will be sent.",
         );
+      else if (result.state !== "succeeded")
+        setError(message(result.error || "provider_failed_or_invalid_output"));
     } catch (e) {
       const code = (e as Error).message;
       setError(

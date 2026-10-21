@@ -76,7 +76,14 @@ globalThis.fetch = async (input, options) => {
             "Work with a thoughtful team to design reliable APIs and collaborate on product development.",
           priority: "unspecified",
           assessment: "transferable",
-          evidence: [{ blockId: block.id, quote: block.text }],
+          evidence: [
+            { blockId: block.id, quote: block.text },
+            {
+              blockId: block.id,
+              quote:
+                "Led 500 fictional engineers; unsupported provider excerpt",
+            },
+          ],
           question: "How does this experience relate to the advertised role?",
         },
       ],

@@ -768,6 +768,22 @@ html[data-theme="dark"] #ai-studio {
   border-radius: 10px;
   background: var(--release-bg);
 }
+#ai-studio .ai-validation-warning {
+  border: 1px solid var(--release-line);
+  border-left: 3px solid var(--ai-warning);
+  background: var(--release-bg);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0 20px;
+}
+#ai-studio .ai-validation-warning strong {
+  font-size: 14px;
+  color: var(--ai-warning);
+}
+#ai-studio .ai-validation-warning p {
+  font-size: 13px;
+  margin: 7px 0 0;
+}
 #ai-studio .ai-run-state h3 {
   margin-top: 0;
 }

@@ -289,6 +289,35 @@ test("grounding rejects invented evidence and job requirements and demotes keywo
     "unclear",
   );
 });
+test("invalid requirement quotes are removed and demoted without losing verified parts or accepting invented claims", () => {
+  const report = output();
+  report.requirements[0].evidence.push({
+    blockId: "R9999",
+    quote: "Managed 500 engineers at Google",
+  });
+  report.requirements[0].question = "How did you manage 500 engineers?";
+  const valid = validateReview(report, cv, description);
+  assert.equal(valid.requirements[0].assessment, "unclear");
+  assert.equal(valid.requirements[0].evidence.length, 1);
+  assert.equal(valid.validation.omittedEvidence, 1);
+  assert.equal(valid.validation.requirementsNeedingReview, 1);
+  assert.ok(!JSON.stringify(valid).includes("500 engineers"));
+  assert.equal(valid.outline.length, 1);
+  const noEvidence = output();
+  noEvidence.requirements[0].evidence[0].quote =
+    "Fabricated candidate qualification";
+  const partial = validateReview(noEvidence, cv, description);
+  assert.equal(partial.requirements[0].assessment, "unclear");
+  assert.deepEqual(partial.requirements[0].evidence, []);
+  // Outline exports remain strict; no invalid quote can become CV text.
+  noEvidence.outline[0].excerpts[0].quote =
+    "Fabricated candidate qualification";
+  assert.throws(
+    () => validateReview(noEvidence, cv, description),
+    /ungrounded_evidence/,
+  );
+});
+
 test("all four provider adapters use the supplied key, fixed HTTPS hosts and structured SDK output", async () => {
   for (const provider of [
     "openai",

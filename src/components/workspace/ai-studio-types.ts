@@ -1,5 +1,8 @@
 import type { ResumeChecks } from "@/lib/resume-checks";
-import type { ReviewOutput } from "@/lib/resume-review-contracts";
+import type {
+  ReviewOutput,
+  ValidatedReview,
+} from "@/lib/resume-review-contracts";
 export type Job = {
   id: string;
   title: string;
@@ -13,7 +16,7 @@ export type Run = {
   model: string;
   state: string;
   error: string | null;
-  report: ReviewOutput | null;
+  report: (ReviewOutput & Partial<Pick<ValidatedReview, "validation">>) | null;
   checks: ResumeChecks;
   jobSnapshot: Job;
   resumeSnapshot: string;

@@ -599,7 +599,7 @@ try {
       .locator(".ai-summary-grid strong")
       .allTextContents()
       .then(JSON.stringify),
-    JSON.stringify(["1", "1", "1"]),
+    JSON.stringify(["1", "0", "2"]),
   );
   await page.locator(".ai-report").scrollIntoViewIfNeeded();
   await page.screenshot({
@@ -624,7 +624,7 @@ try {
   await page
     .getByLabel("Show requirements", { exact: true })
     .selectOption("attention");
-  assert.equal(await page.locator(".ai-requirements article").count(), 1);
+  assert.equal(await page.locator(".ai-requirements article").count(), 2);
   assert.ok(
     (await page.locator(".ai-requirements").innerText()).includes(
       "Accessibility",
@@ -632,6 +632,24 @@ try {
   );
   check(
     "Review overview prioritizes gaps, filters evidence and exports an actionable plan without another AI call",
+  );
+  assert.ok(
+    (await page.locator(".ai-validation-warning").innerText()).includes(
+      "1 unverifiable CV excerpt was removed",
+    ),
+  );
+  assert.ok(
+    !(await page.locator(".ai-report").innerText()).includes(
+      "500 fictional engineers",
+    ),
+  );
+  assert.ok(
+    !readFileSync("test-results/ai-application-review.txt", "utf8").includes(
+      "500 fictional engineers",
+    ),
+  );
+  check(
+    "Unverified model quotes are omitted and flagged for manual review without discarding verified results or retrying inference",
   );
   await page
     .getByRole("button", { name: "Overview & action plan", exact: true })
