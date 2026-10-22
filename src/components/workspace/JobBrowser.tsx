@@ -13,6 +13,7 @@ import {
 import { api, useResource } from "./client";
 import type { Job as BaseJob } from "../classic/common";
 import JobDetail from "../classic/JobDetail";
+import JobSearchForm from "./JobSearchForm";
 import UrlTextField from "./UrlTextField";
 type Job = BaseJob & {
   skippedAt: string | null;
@@ -30,10 +31,11 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
   const url = params.toString();
   const view = params.get("view") || "board",
     selectedId = params.get("job"),
-    isSkipped = view === "skipped";
+    isSkipped = params.get("status") === "skipped" || view === "skipped";
   const query = new URLSearchParams(url);
   query.delete("job");
   query.delete("view");
+  query.delete("status");
   query.delete("expanded");
   query.set("skipped", String(isSkipped));
   if (saved) query.set("saved", "true");
@@ -116,7 +118,7 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
       }
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        void a.mutate(a.active, { skipped: true });
+        void a.mutate(a.active, { skipped: !a.active.skippedAt });
         a.change({ job: null });
       }
       if (e.key === " " || e.key === "ArrowRight") {
@@ -149,12 +151,12 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
       <div className="upgrade-heading">
         <div>
           <h1 ref={heading} tabIndex={-1}>
-            {saved ? "Saved jobs" : "My jobs"}
+            {saved ? "Shortlist" : "Job library"}
           </h1>
           <p>
             {saved
-              ? "Your shortlist, ready for the next step."
-              : "All your imported opportunities, in one place."}
+              ? "Jobs you want to pursue. Prepare an application to track your next step."
+              : "All jobs you've saved or imported. Use Shortlist for roles you want to pursue."}
           </p>
         </div>
         <Link href="/discover" className="primary">
@@ -162,46 +164,57 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
         </Link>
       </div>
       <section className="upgrade-filters" aria-label="Stored job filters">
-        <UrlTextField
-          label="Search stored jobs"
-          value={params.get("q") || ""}
-          onCommit={(q) => change({ q, job: null })}
-          placeholder="Role, company or notes"
-        />
-        <UrlTextField
-          label="Country"
-          value={params.get("country") || ""}
-          onCommit={(country) =>
-            change({ country: country.toLowerCase(), job: null })
+        <JobSearchForm
+          query={params.get("q") || ""}
+          location={params.get("location") || params.get("country") || ""}
+          onSearch={(q, location) =>
+            change({ q, location, country: null, job: null })
           }
-          placeholder="Two-letter code"
-          maxLength={2}
         />
-        <label>
-          Match
-          <select
-            value={params.get("min") || "0"}
-            onChange={(e) => change({ min: e.target.value })}
-          >
-            <option value="0">All matches</option>
-            <option value="50">50% or higher</option>
-            <option value="75">75% or higher</option>
-          </select>
-        </label>
-        <label>
-          Sort
-          <select
-            value={params.get("sort") || "recent"}
-            onChange={(e) => change({ sort: e.target.value })}
-          >
-            <option value="recent">Recently fetched</option>
-            <option value="published">Recently posted</option>
-            <option value="match">Profile match</option>
-          </select>
-        </label>
         <details>
-          <summary>More filters</summary>
+          <summary>Filters &amp; sort</summary>
           <div className="filter-options">
+            <label>
+              Status
+              <select
+                aria-label="Job status"
+                value={isSkipped ? "skipped" : "active"}
+                onChange={(e) =>
+                  change({
+                    status: e.target.value === "skipped" ? "skipped" : null,
+                    view: view === "skipped" ? "board" : view,
+                    job: null,
+                    expanded: null,
+                  })
+                }
+              >
+                <option value="active">Active jobs</option>
+                <option value="skipped">Skipped jobs</option>
+              </select>
+            </label>
+            <label>
+              Match
+              <select
+                value={params.get("min") || "0"}
+                onChange={(e) => change({ min: e.target.value })}
+              >
+                <option value="0">All matches</option>
+                <option value="50">50% or higher</option>
+                <option value="75">75% or higher</option>
+              </select>
+            </label>
+            <label>
+              Sort
+              <select
+                value={params.get("sort") || "recent"}
+                onChange={(e) => change({ sort: e.target.value })}
+              >
+                <option value="recent">Recently updated</option>
+                <option value="published">Recently posted</option>
+                <option value="match">Profile match</option>
+              </select>
+            </label>
+
             {[
               "employmentType",
               "seniority",
@@ -336,6 +349,9 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
               Previously hidden jobs
             </label>
           </div>
+          <button onClick={() => router.push(pathname, { scroll: false })}>
+            Clear filters
+          </button>
           <p className="muted">
             Unknown fields stay unknown. Salary comparisons require the same
             currency and period.
@@ -347,19 +363,26 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
           {[
             ["quick", "Quick Browse"],
             ["board", "Job Board"],
-            ["skipped", "Skipped"],
           ].map(([value, label]) => (
             <button
               key={value}
-              aria-pressed={view === value}
-              onClick={() => change({ view: value, job: null, expanded: null })}
+              aria-pressed={(view === "skipped" ? "board" : view) === value}
+              onClick={() =>
+                change({
+                  view: value,
+                  status: isSkipped ? "skipped" : null,
+                  job: null,
+                  expanded: null,
+                })
+              }
             >
               {label}
             </button>
           ))}
         </div>
         <span>
-          {result.data?.total ?? 0} stored jobs · No discovery credits used
+          {result.data?.total ?? 0} jobs in your{" "}
+          {saved ? "shortlist" : "library"}
         </span>
       </div>
       {(error || result.error) && (
@@ -390,6 +413,11 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
           <p className="eyebrow">{active.employer}</p>
           <h2>{active.title}</h2>
           <p>{active.location || "Location unknown"}</p>
+          {active.match.score === null && (
+            <Link href="/profile" className="profile-setup-link">
+              Set up profile for matches
+            </Link>
+          )}
           <span className="match-badge">
             {active.match.score === null
               ? "Profile needed"
@@ -409,11 +437,11 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
             <button
               disabled={busy}
               onClick={() => {
-                void mutate(active, { skipped: true });
+                void mutate(active, { skipped: !isSkipped });
                 change({ job: null });
               }}
             >
-              Skip <kbd>←</kbd>
+              {isSkipped ? "Restore" : "Skip"} <kbd>←</kbd>
             </button>
             <button
               onClick={() =>
@@ -428,12 +456,12 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
               disabled={busy}
               onClick={() => void prepare(active)}
             >
-              Track application
+              Prepare application
             </button>
           </div>
           <p className="muted">
-            Save and Skip only organize your library. Prepare opens a private
-            workspace.
+            Save adds a role to Shortlist. Skip removes it from active jobs.
+            Prepare opens a private workspace.
           </p>
         </section>
       ) : (
@@ -461,6 +489,11 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
                     </small>
                   </span>
                 </button>
+                {j.match.score === null && (
+                  <Link href="/profile" className="profile-setup-link">
+                    Set up profile for matches
+                  </Link>
+                )}
                 <div className="card-actions">
                   <button
                     aria-label={`${j.saved ? "Unsave" : "Save"} ${j.title}`}
@@ -486,7 +519,7 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
                     </button>
                   )}
                   <button disabled={busy} onClick={() => void prepare(j)}>
-                    Prepare
+                    Prepare application
                   </button>
                   {j.application?.id && (
                     <Link href={`/applications/${j.application.id}`}>

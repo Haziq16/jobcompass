@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { api, useResource } from "./client";
+import JobSearchForm from "./JobSearchForm";
 import DirectDiscovery from "./DirectDiscovery";
 import { usePersonalAi } from "./PersonalAiContext";
 
@@ -142,7 +143,9 @@ function CatalogDetail({
           {job.saved ? "Saved" : saving ? "Saving…" : "Save job"}
         </button>
         {job.personalJobId && (
-          <Link href={`/jobs?job=${job.personalJobId}`}>Open in My jobs</Link>
+          <Link href={`/jobs?job=${job.personalJobId}`}>
+            Open in job library
+          </Link>
         )}
       </div>
       {error && <p role="alert">{error}</p>}
@@ -182,16 +185,10 @@ export default function CatalogDiscovery() {
   const { data, error, loading, refresh } = useResource<Result>(
     `catalog?${url}`,
   );
-  const [query, setQuery] = useState(params.get("q") || ""),
-    [location, setLocation] = useState(params.get("location") || "");
   const [selected, setSelected] = useState<Listing | null>(null),
     [saving, setSaving] = useState<string | null>(null),
     [notice, setNotice] = useState(""),
     [saveError, setSaveError] = useState("");
-  useEffect(() => {
-    setQuery(params.get("q") || "");
-    setLocation(params.get("location") || "");
-  }, [params]);
   useEffect(() => {
     const check = () => {
       if (document.visibilityState !== "visible") return;
@@ -299,39 +296,11 @@ export default function CatalogDiscovery() {
           </button>
         </div>
       </div>
-      <form
-        className="catalog-search"
-        onSubmit={(event) => {
-          event.preventDefault();
-          update({ q: query.trim(), location: location.trim() });
-        }}
-      >
-        <label>
-          <span>What are you looking for?</span>
-          <div>
-            <Search size={19} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              maxLength={200}
-              placeholder="Job title, skill or company"
-            />
-          </div>
-        </label>
-        <label>
-          <span>Where?</span>
-          <div>
-            <MapPin size={19} />
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              maxLength={120}
-              placeholder="City, country or region"
-            />
-          </div>
-        </label>
-        <button className="primary">Search jobs</button>
-      </form>
+      <JobSearchForm
+        query={params.get("q") || ""}
+        location={params.get("location") || ""}
+        onSearch={(q, location) => update({ q, location })}
+      />
       <div className="catalog-personalization">
         <div
           className="catalog-mode-tabs"
@@ -497,7 +466,7 @@ export default function CatalogDiscovery() {
       )}
       {notice && (
         <p className="catalog-notice" role="status">
-          {notice} <Link href="/saved">View saved jobs</Link>
+          {notice} <Link href="/saved">View shortlist</Link>
         </p>
       )}
       {saveError && <p role="alert">{saveError}</p>}

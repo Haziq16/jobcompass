@@ -20,9 +20,9 @@ import { SignOut } from "../AccountControls";
 import { usePersonalAi } from "./PersonalAiContext";
 const navigation = [
   ["/discover", "Discover", Radio],
-  ["/jobs", "My jobs", Search],
-  ["/saved", "Saved", Bookmark],
+  ["/saved", "Shortlist", Bookmark],
   ["/applications", "Applications", BriefcaseBusiness],
+  ["/jobs", "Job library", Search],
   ["/profile", "Profile", UserRound],
   ["/settings", "Settings", Settings],
 ] as const;

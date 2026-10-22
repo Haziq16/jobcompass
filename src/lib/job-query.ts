@@ -2,6 +2,14 @@ import type { Prisma } from "@prisma/client";
 import { AppError } from "./contracts";
 export function jobFilters(params: URLSearchParams): Prisma.JobWhereInput {
   const and: Prisma.JobWhereInput[] = [];
+  const location = params.get("location")?.trim().slice(0, 120);
+  if (location)
+    and.push({
+      OR: [
+        { location: { contains: location, mode: "insensitive" } },
+        { country: { equals: location, mode: "insensitive" } },
+      ],
+    });
   for (const field of [
     "employmentType",
     "seniority",

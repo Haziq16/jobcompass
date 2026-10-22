@@ -22,10 +22,12 @@ The existing application routes, wording with factual meaning, account boundarie
 
 **AI Studio:** What is the next step for this application? Keep the selected job and five application stages visible. CV, ATS readiness and recommendations form one compact utility strip, with the document/review workspace taking most of the space. Provider settings remain a separate native dialog. No background model calls.
 
-**My jobs / Saved / Applications:** Which job needs my next action? Keep titles, employer context, status and genuine actions prominent. Employer navigation never implies submission.
+**Job library / Shortlist / Applications:** Which job needs my next action? Keep titles, employer context, status and genuine actions prominent. Employer navigation never implies submission.
 
 **Profile / Settings:** What am I changing, and when is it saved? Keep labels near inputs, retain explicit save behavior, and keep destructive actions separate.
 
 ## Verification
 
 Use the actual app in desktop, tablet and phone layouts. Exercise navigation, focus/Escape, filters, job details, CV previews, editing and downloads. Taste Skill measurements are evidence, not a quality score. A long paginated job list is intentionally below the fold; its items are not separate dashboard sections. Peer job cards can vary in content, so judge blank-space warnings in context. Inspect fictional fixture screens for private CV flows and never use live paid requests as a design check.
+
+Job lifecycle: Discover searches employer listings; saving adds a private copy to Shortlist and the complete Job library. Preparing creates an Applications tracker. Search uses the same query and named-location form in discovery and private collections; skipped status is a filter separate from browse layout. On phones, advanced filters, Studio tools and upload preferences use disclosures. Keep document controls and the next action near the current application; preserve explicit review and provider consent.

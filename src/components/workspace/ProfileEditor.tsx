@@ -91,7 +91,14 @@ export default function ProfileEditor() {
       </div>
       {(resource.error || error) && (
         <p role="alert" className="alert">
-          {error || resource.error}
+          {error
+            ? `Your changes could not be saved. ${error}`
+            : "Could not load your profile. Try loading it again."}
+          {resource.error && (
+            <button onClick={resource.refresh} disabled={resource.loading}>
+              Retry loading profile
+            </button>
+          )}
         </p>
       )}
       {resource.loading && <p role="status">Loading profile…</p>}

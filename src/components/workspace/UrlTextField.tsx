@@ -7,6 +7,7 @@ export default function UrlTextField({
   placeholder,
   maxLength,
   type = "text",
+  actionLabel = "Update",
 }: {
   label: string;
   value: string;
@@ -14,6 +15,7 @@ export default function UrlTextField({
   placeholder?: string;
   maxLength?: number;
   type?: "text" | "number";
+  actionLabel?: string;
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
@@ -36,7 +38,7 @@ export default function UrlTextField({
           min={type === "number" ? 0 : undefined}
         />
       </label>
-      <button aria-label={`Apply ${label}`}>Apply</button>
+      <button aria-label={`${actionLabel} ${label}`}>{actionLabel}</button>
     </form>
   );
 }

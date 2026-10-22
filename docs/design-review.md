@@ -44,3 +44,13 @@ The screen questions are **which job should I consider?** for discovery and **wh
 7. Phone/tablet navigation folds, search stays reachable and horizontal overflow is checked. The full CV editor remains vertically scrollable by design.
 
 This is a functional application refinement, not a claimed external jury rating. `DESIGN.md` records the shared direction and `PRODUCT.md` records the product constraints for future changes.
+
+## P1 workflow fixes, 22 October 2026
+
+The critique's lifecycle and mobile issues were addressed with a shared query/location search form, Discover / Shortlist / Applications / Job library navigation, explicit preparation copy and profile-setup links. Named-location filters combine with the job query; description skills are searchable, and old country-code links remain supported. Skipped status is a separate filter and can be restored in either layout. Advanced filters are collapsed initially.
+
+Studio tools and upload preferences use disclosures. Once a CV is loaded, replacement/reuse controls collapse; source-view tabs fit one phone row. The continuation action follows the accuracy checkbox and never overlays the document. The original DOCX preview styles were not changed. Job save/view controls have at least 44px hit targets.
+
+Profile load failures now offer Retry. Save failures keep the current editor draft and say it was not saved. Password recovery was explicitly deferred by the user ("SKIP FOR NOW"); no pretend email-reset flow was added. The two P2 findings remain outside this change.
+
+Verification: 72 integration checks passed; a targeted final query/location/description-skill test also passed. The expanded browser release suite passed with fictional accounts, a simulated profile 503 and simulated AI, including first library card top below 650px at 390x844, CV editor top below 844px, non-overlapping continuation, 44px save targets, separate status/layout filters, and original-format CV round trips. Phone, tablet and desktop screenshots were reviewed. Physical iOS/Android devices were not available; these are browser viewport checks.

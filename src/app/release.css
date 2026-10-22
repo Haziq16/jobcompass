@@ -1152,3 +1152,106 @@ html[data-theme="dark"] .primary {
     transition: none;
   }
 }
+
+/* Shared search: the same query and named-location controls in each job collection. */
+.upgrade-filters {
+  display: block;
+}
+.job-search-form {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+.job-search-form label > span {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.job-search-form label > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--release-line);
+  border-radius: 8px;
+  background: var(--release-bg);
+  color: var(--release-muted);
+}
+.job-search-form label > div:focus-within {
+  outline: 2px solid var(--release-accent);
+  outline-offset: 2px;
+}
+.upgrade-body .job-search-form input:not([type="checkbox"]):not([type="file"]) {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 0;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--release-ink);
+}
+.job-search-form .primary {
+  min-height: 47px;
+}
+.upgrade-filters > details {
+  margin-top: 12px;
+}
+.upgrade-filters > details > summary {
+  min-height: 44px;
+  align-content: center;
+}
+.profile-setup-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  text-underline-offset: 3px;
+}
+.upgrade-body .card-actions button,
+.upgrade-body .card-actions a,
+#catalog-discovery .catalog-card button,
+#catalog-discovery .catalog-card a {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 720px) {
+  .upgrade-heading {
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+  .upgrade-heading p {
+    margin-bottom: 0;
+  }
+  .upgrade-filters {
+    padding: 12px;
+  }
+  .job-search-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .job-search-form label:first-child {
+    grid-column: 1 / -1;
+  }
+  .upgrade-body
+    .job-search-form
+    input:not([type="checkbox"]):not([type="file"]) {
+    font-size: 16px;
+  }
+  .job-search-form .primary {
+    padding: 12px;
+  }
+  .upgrade-toolbar {
+    margin: 12px 0;
+    gap: 8px;
+  }
+  .upgrade-toolbar button {
+    min-height: 44px;
+  }
+}

@@ -355,7 +355,7 @@ try {
     await page
       .getByRole("button", { name: "Open navigation", exact: true })
       .click();
-  await page.getByRole("link", { name: "My jobs", exact: true }).click();
+  await page.getByRole("link", { name: "Job library", exact: true }).click();
   await page
     .getByRole("button", { name: /Product Designer/ })
     .first()
@@ -365,36 +365,32 @@ try {
     fullPage: true,
   });
   await page
-    .getByLabel("Search stored jobs", { exact: true })
+    .getByLabel("What are you looking for?", { exact: true })
     .fill("Product Designer");
-  await page
-    .getByRole("button", { name: "Apply Search stored jobs", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Search jobs", exact: true }).click();
   await page.waitForURL(/q=Product\+Designer/);
   await page.getByRole("button", { name: "Quick Browse", exact: true }).click();
   await page
     .getByRole("heading", { name: "Product Designer", exact: true })
     .waitFor();
   await page.getByRole("button", { name: /^Save/ }).first().click();
-  await page.getByRole("link", { name: "Saved", exact: true }).click();
+  await page.getByRole("link", { name: "Shortlist", exact: true }).click();
   await page
     .getByRole("button", { name: /Product Designer/ })
     .first()
     .waitFor();
   check("Imported jobs can be saved and found in the private shortlist");
   await page
-    .getByLabel("Search stored jobs", { exact: true })
+    .getByLabel("What are you looking for?", { exact: true })
     .fill("Product Designer");
-  await page
-    .getByRole("button", { name: "Apply Search stored jobs", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Search jobs", exact: true }).click();
   await page.waitForURL(/q=Product\+Designer/);
   await page.getByRole("button", { name: "Quick Browse", exact: true }).click();
   await page
     .getByRole("heading", { name: "Product Designer", exact: true })
     .waitFor();
   await page
-    .getByRole("button", { name: "Track application", exact: true })
+    .getByRole("button", { name: "Prepare application", exact: true })
     .click();
   await page.waitForURL("**/applications/*");
   await page
@@ -406,7 +402,26 @@ try {
     .getByRole("heading", { name: "Your application timeline" })
     .waitFor();
   check("Application notes and timeline work without AI tools");
+  let profileLoads = 0;
+  await page.route("**/api/profile", async (route) => {
+    if (route.request().method() === "GET" && profileLoads++ === 0)
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "temporary_failure" }),
+      });
+    return route.continue();
+  });
   await page.getByRole("link", { name: "Profile", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Retry loading profile", exact: true })
+    .click();
+  await page.getByLabel("Target roles", { exact: false }).waitFor();
+  assert.ok(profileLoads >= 2);
+  await page.unroute("**/api/profile");
+  check(
+    "A failed profile load offers Retry and recovers without reloading the page",
+  );
   await page
     .getByRole("heading", { name: "Your profile", exact: true })
     .waitFor();
@@ -576,6 +591,7 @@ try {
     )
     .click();
   const sourceBytes = await cvLayoutFixture();
+  await page.getByText("Upload preferences", { exact: true }).click();
   await page
     .getByRole("checkbox", { name: /Use my next upload as my saved CV/ })
     .check();
@@ -618,6 +634,29 @@ try {
     path: "test-results/ai-studio-desktop.png",
     fullPage: true,
   });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const cvBox = await page.locator("#ai-resume-text").boundingBox();
+  assert.ok(cvBox && cvBox.y < 844, `CV editor begins at ${cvBox?.y}px`);
+  const cvNext = await page.locator(".studio-next:visible").boundingBox();
+  assert.ok(
+    cvNext && cvNext.y >= cvBox.y + cvBox.height,
+    "Continuation never covers the CV editor",
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Continue to review", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await page.screenshot({
+    path: "test-results/p1-cv-mobile.png",
+    fullPage: true,
+  });
+  check(
+    "Mobile CV editor starts in the first viewport and Continue still requires an explicit accuracy check",
+  );
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page
     .getByLabel(
       "I have checked this résumé text for missing content, reading order and accuracy.",
@@ -1101,12 +1140,47 @@ try {
     await page
       .getByRole("button", { name: "Open navigation", exact: true })
       .click();
-  await page.getByRole("link", { name: "My jobs", exact: true }).click();
+  await page.getByRole("link", { name: "Job library", exact: true }).click();
   assert.equal(
     await page
       .getByRole("button", { name: "Open navigation", exact: true })
       .getAttribute("aria-expanded"),
     "false",
+  );
+  await page.locator(".board-list article").first().waitFor();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const firstJob = await page
+    .locator(".board-list article")
+    .first()
+    .boundingBox();
+  assert.ok(
+    firstJob && firstJob.y < 650,
+    `First job begins at ${firstJob?.y}px`,
+  );
+  const saveHit = await page
+    .locator(".board-list .card-actions button")
+    .first()
+    .boundingBox();
+  assert.ok(saveHit && saveHit.width >= 44 && saveHit.height >= 44);
+  await page
+    .getByLabel("What are you looking for?", { exact: true })
+    .fill("Product Designer");
+  await page.getByLabel("Where?", { exact: true }).fill("Singapore");
+  await page.getByRole("button", { name: "Search jobs", exact: true }).click();
+  await page.waitForURL(/location=Singapore/);
+  await page.locator(".board-list article").first().waitFor();
+  await page.getByText("Filters & sort", { exact: true }).click();
+  await page.getByLabel("Job status", { exact: true }).selectOption("skipped");
+  await page.waitForURL(/status=skipped/);
+  await page.getByLabel("Job status", { exact: true }).selectOption("active");
+  await page.waitForURL((url) => !url.searchParams.has("status"));
+  await page.getByText("Filters & sort", { exact: true }).click();
+  await page.screenshot({
+    path: "test-results/p1-library-mobile.png",
+    fullPage: false,
+  });
+  check(
+    "Mobile library shows its first role sooner, uses named-location search and separates skipped status from layout with 44px save targets",
   );
   await page
     .getByRole("button", { name: /Product Designer/ })

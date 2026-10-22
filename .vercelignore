@@ -23,3 +23,6 @@ FREEHIRE_REA_ANALYSIS.md
 scripts/ai-browser-fixture.mjs
 scripts/cv-layout-fixture.mjs
 .taste-skill
+
+.impeccable
+GPT_STATUS_UPDATE*.md

@@ -368,7 +368,7 @@ export default function AiStudio() {
       setNotice(
         result.truncated
           ? "The extracted text exceeds the 40,000-character review limit. Edit it below before running AI."
-          : "Text extracted. Check for missing or reordered content before confirming it. No AI provider was contacted.",
+          : "CV imported. Check text accuracy before continuing. No AI used.",
       );
     } catch (e) {
       setError(message((e as Error).message));
@@ -467,7 +467,12 @@ export default function AiStudio() {
     !busy,
   );
   return (
-    <section id="ai-studio" aria-labelledby="ai-studio-title">
+    <section
+      id="ai-studio"
+      aria-labelledby="ai-studio-title"
+      data-step={step}
+      data-has-job={Boolean(run || context.data?.job)}
+    >
       <header className="ai-heading">
         <div>
           <h1 id="ai-studio-title">AI studio</h1>
@@ -487,59 +492,64 @@ export default function AiStudio() {
           </span>
         </div>
       </header>
-      <div className="studio-toolkit" aria-label="Application toolkit">
-        <button onClick={() => navigateStep("cv", run?.id)}>
-          <span className="toolkit-icon">
-            <FileText size={21} />
-          </span>
-          <span>
-            <small>Your CV</small>
-            <strong>
-              {sourceDocument ? "Original Word format" : "Add your original CV"}
-            </strong>
-            <em>
-              {sourceDocument?.name || "Keep your document’s look and feel"}
-            </em>
-          </span>
-          <ArrowRight size={17} />
-        </button>
-        <button
-          onClick={() => {
-            setCvView("ats");
-            navigateStep("cv", run?.id);
-          }}
-        >
-          <span className="toolkit-icon">
-            <CheckCircle2 size={21} />
-          </span>
-          <span>
-            <small>ATS readiness</small>
-            <strong>
-              {sourceDocument
-                ? `${sourceDocument.passed} of ${sourceDocument.total} checks passed`
-                : "Check your document"}
-            </strong>
-            <em>Parsing, structure and job keywords</em>
-          </span>
-          <ArrowRight size={17} />
-        </button>
-        <button
-          onClick={() => {
-            setRecommended(true);
-            navigateStep("opportunity", run?.id);
-          }}
-        >
-          <span className="toolkit-icon">
-            <Search size={21} />
-          </span>
-          <span>
-            <small>Discovery</small>
-            <strong>Find jobs for you</strong>
-            <em>Ranked using your CV and preferred roles</em>
-          </span>
-          <ArrowRight size={17} />
-        </button>
-      </div>
+      <details className="studio-tools-disclosure">
+        <summary>CV tools &amp; job discovery</summary>
+        <div className="studio-toolkit" aria-label="Application toolkit">
+          <button onClick={() => navigateStep("cv", run?.id)}>
+            <span className="toolkit-icon">
+              <FileText size={21} />
+            </span>
+            <span>
+              <small>Your CV</small>
+              <strong>
+                {sourceDocument
+                  ? "Original Word format"
+                  : "Add your original CV"}
+              </strong>
+              <em>
+                {sourceDocument?.name || "Keep your document’s look and feel"}
+              </em>
+            </span>
+            <ArrowRight size={17} />
+          </button>
+          <button
+            onClick={() => {
+              setCvView("ats");
+              navigateStep("cv", run?.id);
+            }}
+          >
+            <span className="toolkit-icon">
+              <CheckCircle2 size={21} />
+            </span>
+            <span>
+              <small>ATS readiness</small>
+              <strong>
+                {sourceDocument
+                  ? `${sourceDocument.passed} of ${sourceDocument.total} checks passed`
+                  : "Check your document"}
+              </strong>
+              <em>Parsing, structure and job keywords</em>
+            </span>
+            <ArrowRight size={17} />
+          </button>
+          <button
+            onClick={() => {
+              setRecommended(true);
+              navigateStep("opportunity", run?.id);
+            }}
+          >
+            <span className="toolkit-icon">
+              <Search size={21} />
+            </span>
+            <span>
+              <small>Discovery</small>
+              <strong>Find jobs for you</strong>
+              <em>Ranked using your CV and preferred roles</em>
+            </span>
+            <ArrowRight size={17} />
+          </button>
+        </div>
+      </details>
       {(notice || error) && (
         <div className="ai-feedback">
           {notice && (
@@ -740,7 +750,7 @@ export default function AiStudio() {
                         disabled={busy}
                       >
                         <option value="catalog">Worldwide catalogue</option>
-                        <option value="workspace">My jobs</option>
+                        <option value="workspace">Job library</option>
                       </select>
                     </label>
                     <form
@@ -831,44 +841,54 @@ export default function AiStudio() {
                 </div>
                 <p>
                   {resume
-                    ? "Your text is ready to review. Edits here only affect this application."
+                    ? "Edits here affect this application only."
                     : "Use your saved CV, import a file, or paste your text below."}
                 </p>
-                <div className="ai-upload">
-                  <label className="ai-upload-button">
-                    <Upload size={16} />
-                    {uploading ? "Extracting text…" : "Import PDF or DOCX"}
-                    <input
-                      type="file"
-                      accept=".pdf,.docx"
-                      disabled={uploading || busy}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void upload(file);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
-                  <span>Up to 3 MB · DOCX layout preserved</span>
-                  <button
-                    disabled={busy || !context.data?.resumeText}
-                    onClick={() => changeResume(context.data?.resumeText || "")}
-                  >
-                    Use saved CV
-                  </button>
-                </div>
-                <label className="ai-consent">
-                  <input
-                    type="checkbox"
-                    checked={saveDefaultCv}
-                    disabled={busy || uploading}
-                    onChange={(e) => setSaveDefaultCv(e.target.checked)}
-                  />
-                  <span>
-                    Use my next upload as my saved CV for future applications
-                    and job recommendations.
-                  </span>
-                </label>
+                <details className="cv-import-options" open={!resume.trim()}>
+                  <summary>
+                    {resume.trim() ? "Replace or reuse CV" : "Import your CV"}
+                  </summary>
+                  <div className="ai-upload">
+                    <label className="ai-upload-button">
+                      <Upload size={16} />
+                      {uploading ? "Extracting text…" : "Import PDF or DOCX"}
+                      <input
+                        type="file"
+                        accept=".pdf,.docx"
+                        disabled={uploading || busy}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void upload(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <span>Up to 3 MB · DOCX layout preserved</span>
+                    <button
+                      disabled={busy || !context.data?.resumeText}
+                      onClick={() =>
+                        changeResume(context.data?.resumeText || "")
+                      }
+                    >
+                      Use saved CV
+                    </button>
+                  </div>
+                  <details className="cv-save-options">
+                    <summary>Upload preferences</summary>
+                    <label className="ai-consent">
+                      <input
+                        type="checkbox"
+                        checked={saveDefaultCv}
+                        disabled={busy || uploading}
+                        onChange={(e) => setSaveDefaultCv(e.target.checked)}
+                      />
+                      <span>
+                        Use my next upload as my saved CV for future
+                        applications and job recommendations.
+                      </span>
+                    </label>
+                  </details>
+                </details>
                 <div
                   className="ai-report-tabs"
                   role="group"

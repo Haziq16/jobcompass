@@ -69,6 +69,7 @@ export function Applications() {
       </div>
       <div className="upgrade-toolbar">
         <UrlTextField
+          actionLabel="Search"
           label="Search roles or companies"
           value={params.get("q") || ""}
           onCommit={(q) => change("q", q)}

@@ -460,6 +460,27 @@ test("metadata filters, database pagination and skip/restore use stored jobs wit
   );
   assert.equal(await db.apiRequestLedger.count(), 0);
 });
+test("named location search combines with job query and preserves legacy country filters", async () => {
+  const job = await seed();
+  await db.job.update({
+    where: { id: job.id },
+    data: { location: "Kuala Lumpur, Malaysia" },
+  });
+  for (const [query, total] of [
+    ["q=Android&location=kuala", 1],
+    ["q=Terraform&location=kuala", 1],
+    ["q=Android&location=Singapore", 0],
+    ["q=Designer&location=kuala", 0],
+    ["location=my", 1],
+    ["country=my", 1],
+    ["country=sg&location=kuala", 0],
+  ] as const) {
+    const response = await jobsGet(request(`jobs?${query}`), ctx("jobs"));
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).total, total, query);
+  }
+});
+
 test("resume original bytes survive version and default selection changes", async () => {
   const bytes = await documentBytes("Original résumé text.", "docx");
   const upload = async (name: string) => {

@@ -1983,3 +1983,111 @@ html[data-theme="dark"] #ai-studio {
     font-size: 12px;
   }
 }
+
+/* Keep the current application in view; tools and preferences stay one disclosure away. */
+#ai-studio .studio-tools-disclosure {
+  margin-bottom: 16px;
+}
+#ai-studio .studio-tools-disclosure > summary,
+#ai-studio .cv-save-options > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+#ai-studio .studio-tools-disclosure .studio-toolkit {
+  margin-top: 8px;
+}
+#ai-studio .cv-save-options {
+  margin-bottom: 12px;
+}
+@media (max-width: 720px) {
+  #ai-studio[data-has-job="true"] .ai-heading {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  #ai-studio[data-has-job="true"] .ai-heading h1 {
+    margin: 0;
+  }
+  #ai-studio[data-has-job="true"] .ai-heading p {
+    display: none;
+  }
+  #ai-studio[data-has-job="true"] .ai-heading .studio-header-actions {
+    width: auto;
+  }
+  #ai-studio[data-has-job="true"] .studio-context-bar {
+    padding: 10px 0;
+    border: 0;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  #ai-studio[data-has-job="true"] .studio-context-bar > a {
+    width: auto;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  #ai-studio[data-has-job="true"] .studio-context-bar > div {
+    width: 100%;
+  }
+  #ai-studio[data-has-job="true"] .studio-context-bar .studio-mode {
+    display: none;
+  }
+  #ai-studio .studio-tools-disclosure {
+    margin-bottom: 0;
+  }
+  #ai-studio .studio-steps {
+    margin-bottom: 12px;
+  }
+  #ai-studio .studio-steps button {
+    min-height: 44px;
+  }
+  #ai-studio .ai-composer .ai-panel {
+    padding: 14px;
+  }
+  #ai-studio .ai-upload {
+    gap: 8px;
+    margin: 10px 0;
+  }
+  #ai-studio .ai-upload > span {
+    font-size: 12px;
+  }
+  #ai-studio .ai-report-tabs button {
+    min-height: 44px;
+  }
+  #ai-studio .studio-next {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    background: var(--release-surface);
+    padding: 12px;
+    border-top: 1px solid var(--release-line);
+  }
+  #ai-studio .studio-next button {
+    min-height: 44px;
+  }
+}
+
+#ai-studio .cv-import-options > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  #ai-studio .ai-report-tabs[aria-label="Source CV views"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+  #ai-studio .ai-report-tabs[aria-label="Source CV views"] button {
+    padding: 8px 5px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  #ai-studio .studio-next .primary {
+    order: -1;
+    grid-column: 1 / -1;
+  }
+}

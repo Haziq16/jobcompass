@@ -136,6 +136,7 @@ async function handler(
               OR: [
                 { title: { contains: filter, mode: "insensitive" } },
                 { employer: { contains: filter, mode: "insensitive" } },
+                { description: { contains: filter, mode: "insensitive" } },
                 { saved: { notes: { contains: filter, mode: "insensitive" } } },
                 { saved: { tags: { has: filter } } },
               ],
