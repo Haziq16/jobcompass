@@ -18,6 +18,8 @@ import type { Job, Run } from "./ai-studio-types";
 import { Checks } from "./AiReviewChecks";
 import { ReviewResult } from "./AiReviewResult";
 import { ReviewWaiting } from "./ReviewWaiting";
+import { TailoredCv } from "./TailoredCv";
+import { StudioApply } from "./StudioApply";
 
 const messages: Record<string, string> = {
   model_list_unavailable:
@@ -80,6 +82,26 @@ export default function AiStudio() {
   const source = params.get("source") === "workspace" ? "workspace" : "catalog";
   const jobId = params.get("jobId") || "";
   const selectedReview = params.get("review") || "";
+  const steps = [
+    ["opportunity", "Job"],
+    ["cv", "Your CV"],
+    ["review", "Review"],
+    ["documents", "Tailored CV"],
+    ["apply", "Apply"],
+  ];
+  const requestedStep =
+    params.get("step") ||
+    (selectedReview ? "review" : jobId ? "cv" : "opportunity");
+  const step = steps.some(([key]) => key === requestedStep)
+    ? requestedStep
+    : "opportunity";
+  function navigateStep(next: string, reviewId = selectedReview) {
+    const p = new URLSearchParams(params.toString());
+    p.set("step", next);
+    if (reviewId) p.set("review", reviewId);
+    else p.delete("review");
+    router.push(`/assistant?${p}`, { scroll: false });
+  }
   const context = useResource<{ resumeText: string; job: Job | null }>(
     `ai/context?source=${source}&jobId=${encodeURIComponent(jobId)}`,
   );
@@ -112,7 +134,24 @@ export default function AiStudio() {
     (config.saved || config.apiKey.trim().length >= 12) &&
     config.model.trim(),
   );
-  const providerRef = useRef<HTMLDetailsElement>(null);
+  const providerRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const close = () => {
+      if (providerRef.current?.open) providerRef.current.close();
+      setProviderOpen(false);
+    };
+    window.addEventListener("popstate", close);
+    return () => window.removeEventListener("popstate", close);
+  }, []);
+  useEffect(() => {
+    const dialog = providerRef.current;
+    if (!dialog) return;
+    if (providerOpen && !dialog.open) dialog.showModal();
+    else if (!providerOpen && dialog.open) dialog.close();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, [providerOpen]);
   const waitingRef = useRef<HTMLDivElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
@@ -123,12 +162,12 @@ export default function AiStudio() {
   const reportRef = useRef<HTMLDivElement>(null);
   const runId = run?.id;
   useEffect(() => {
-    if (runId)
-      reportRef.current?.scrollIntoView({
+    if (runId && step === "review")
+      document.getElementById("studio-flow-navigation")?.scrollIntoView({
         behavior: "instant",
         block: "start",
       });
-  }, [runId]);
+  }, [runId, step]);
   const liveChecks = useMemo(
     () => resumeChecks(resume, context.data?.job?.description || ""),
     [resume, context.data?.job?.description],
@@ -144,16 +183,38 @@ export default function AiStudio() {
     if (selectedReview)
       api<Run>(`ai/reviews/${encodeURIComponent(selectedReview)}`)
         .then((value) => {
-          if (current) setRun(value);
+          if (current) {
+            setRun(value);
+            setResume(value.resumeSnapshot);
+            initialised.current = true;
+            const p = new URLSearchParams(window.location.search);
+            if (
+              p.get("source") !== value.jobSnapshot.source ||
+              p.get("jobId") !== value.jobSnapshot.id
+            ) {
+              p.set("source", value.jobSnapshot.source);
+              p.set("jobId", value.jobSnapshot.id);
+              router.replace(`/assistant?${p}`, { scroll: false });
+            }
+          }
         })
         .catch(() => {
           if (current) setError("Could not open this private review.");
         });
+    else setRun(null);
     return () => {
       current = false;
     };
-  }, [selectedReview]);
+  }, [selectedReview, router]);
   function changeResume(value: string) {
+    if (run && value !== resume) {
+      setRun(null);
+      request.current = null;
+      router.replace(
+        `/assistant?source=${run.jobSnapshot.source}&jobId=${encodeURIComponent(run.jobSnapshot.id)}&step=cv`,
+        { scroll: false },
+      );
+    }
     setResume(value);
     setReviewed(false);
     setConsent(false);
@@ -162,17 +223,14 @@ export default function AiStudio() {
   function changeJob(id: string, nextSource = source) {
     setConsent(false);
     setError("");
-    router.replace(
-      `/assistant?source=${nextSource}&jobId=${encodeURIComponent(id)}`,
+    setRun(null);
+    router.push(
+      `/assistant?source=${nextSource}&jobId=${encodeURIComponent(id)}&step=${id ? "cv" : "opportunity"}`,
       { scroll: false },
     );
   }
   function connectProvider() {
     setProviderOpen(true);
-    providerRef.current?.scrollIntoView({
-      block: "center",
-      behavior: "instant",
-    });
   }
   function newRequest() {
     if (busy) return;
@@ -315,6 +373,7 @@ export default function AiStudio() {
         requestKey: request.current!.key,
       });
       setRun(result);
+      navigateStep("review", result.id);
       history.refresh();
       if (result.state === "pending")
         setNotice(
@@ -371,17 +430,23 @@ export default function AiStudio() {
     <section id="ai-studio" aria-labelledby="ai-studio-title">
       <header className="ai-heading">
         <div>
-          <p className="eyebrow">PREPARE YOUR NEXT APPLICATION</p>
+          <p className="eyebrow">YOUR APPLICATION WORKSPACE</p>
           <h1 id="ai-studio-title">AI studio</h1>
           <p>
-            See where your experience fits. Know what to improve before you
-            apply.
+            Choose an opportunity. Prepare your documents. Apply with everything
+            in one place.
           </p>
         </div>
-        <span className="ai-private-badge">
-          <KeyRound size={15} />
-          Private to your account
-        </span>
+        <div className="studio-header-actions">
+          <button disabled={busy} onClick={connectProvider}>
+            {providerReady ? "AI settings" : "Connect AI"}
+          </button>
+          <Link href="/applications">Applications</Link>
+          <span className="ai-private-badge">
+            <KeyRound size={15} />
+            Private to your account
+          </span>
+        </div>
       </header>
       {(notice || error) && (
         <div className="ai-feedback">
@@ -397,10 +462,47 @@ export default function AiStudio() {
           )}
         </div>
       )}
+      <div className="studio-context-bar">
+        <Link href="/discover">← Find opportunities</Link>
+        <div>
+          <strong>
+            {run?.jobSnapshot.title ||
+              context.data?.job?.title ||
+              "Choose your next opportunity"}
+          </strong>
+          <span>
+            {run?.jobSnapshot.employer ||
+              context.data?.job?.employer ||
+              "Your job, CV and next action stay together"}
+          </span>
+        </div>
+        <span className="studio-mode">
+          {providerReady ? "AI connected" : "Manual application available"}
+        </span>
+      </div>
+      <nav
+        id="studio-flow-navigation"
+        className="studio-steps"
+        aria-label="Application steps"
+      >
+        {steps.map(([key, label], index) => (
+          <button
+            key={key}
+            disabled={
+              busy || (key !== "opportunity" && !run && !context.data?.job)
+            }
+            aria-current={step === key ? "step" : undefined}
+            onClick={() => navigateStep(key, run?.id)}
+          >
+            <span>{index + 1}</span>
+            {label}
+          </button>
+        ))}
+      </nav>
       <div className="ai-layout">
         <div className="ai-inputs">
           {run && (
-            <div ref={reportRef}>
+            <div ref={reportRef} hidden={step !== "review"}>
               <ReviewResult
                 key={run.id}
                 run={run}
@@ -408,7 +510,6 @@ export default function AiStudio() {
                 onNew={newRequest}
                 onEdit={editReviewedCv}
                 errorMessage={message}
-                onConnect={connectProvider}
               />
               {run.state === "pending" && (
                 <button
@@ -427,24 +528,69 @@ export default function AiStudio() {
               )}
             </div>
           )}
+          {run?.state === "succeeded" && (
+            <div hidden={step !== "documents"}>
+              <TailoredCv
+                key={run.id}
+                review={run}
+                onConnect={connectProvider}
+                errorMessage={message}
+              />
+              <div className="studio-next">
+                <button onClick={() => navigateStep("review", run.id)}>
+                  ← Back to review
+                </button>
+                <button
+                  className="primary"
+                  onClick={() => navigateStep("apply", run.id)}
+                >
+                  Continue to Apply <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+          {step === "documents" && run?.state !== "succeeded" && (
+            <section className="studio-empty">
+              <FileText size={28} />
+              <h2>Prepare a CV for this role</h2>
+              <p>
+                Complete an AI review to create a tailored CV, or apply with
+                your original CV.
+              </p>
+              <button
+                className="primary"
+                onClick={() => navigateStep("review")}
+              >
+                Review my CV
+              </button>
+              <button onClick={() => navigateStep("apply")}>
+                Apply with original CV
+              </button>
+            </section>
+          )}
+          {step === "apply" && (run?.jobSnapshot || context.data?.job) && (
+            <StudioApply
+              key={(run?.jobSnapshot || context.data!.job)!.id}
+              job={(run?.jobSnapshot || context.data!.job)!}
+              onDocuments={() => navigateStep("documents", run?.id)}
+              onCv={() => navigateStep("cv", run?.id)}
+            />
+          )}
           {busy && (
             <div ref={waitingRef}>
               <ReviewWaiting />
             </div>
           )}
-          <details
+          <div
             className="ai-composer"
-            key={run?.id || "new"}
-            open={!run || busy}
+            hidden={
+              step === "apply" ||
+              step === "documents" ||
+              (step === "review" && Boolean(run))
+            }
           >
-            <summary>
-              {run
-                ? "Review inputs or prepare another application"
-                : "Your application"}
-              <span>Job → CV → Review</span>
-            </summary>
             <div className="ai-composer-content">
-              <section className="ai-panel">
+              <section className="ai-panel" hidden={step !== "opportunity"}>
                 <h2>
                   <Search size={19} />
                   <span className="ai-step-number">1</span> The opportunity
@@ -503,29 +649,29 @@ export default function AiStudio() {
                       <button disabled={busy}>Search</button>
                     </form>
                   </div>
-                  <label>
-                    Job to review
-                    <select
-                      aria-label="Job to review"
-                      value={jobId}
-                      disabled={busy || jobs.loading}
-                      onChange={(e) => changeJob(e.target.value)}
-                    >
-                      <option value="">Select an opportunity</option>
-                      {context.data?.job &&
-                        !jobs.data?.jobs.some((j) => j.id === jobId) && (
-                          <option value={jobId}>
-                            {context.data.job.title} —{" "}
-                            {context.data.job.employer}
-                          </option>
-                        )}
-                      {jobs.data?.jobs.map((j) => (
-                        <option key={j.id} value={j.id}>
-                          {j.title} — {j.employer}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div
+                    className="studio-job-results"
+                    aria-label="Opportunities to prepare"
+                  >
+                    {jobs.data?.jobs.map((j) => (
+                      <button
+                        className="studio-job-choice"
+                        data-job-id={j.id}
+                        key={j.id}
+                        disabled={busy}
+                        onClick={() => changeJob(j.id)}
+                      >
+                        <span className="studio-company-mark">
+                          {j.employer[0]}
+                        </span>
+                        <span>
+                          <strong>{j.title}</strong>
+                          <small>{j.employer}</small>
+                        </span>
+                        <ArrowRight size={16} />
+                      </button>
+                    ))}
+                  </div>
                   {jobs.error && (
                     <p role="alert">
                       Jobs could not be loaded. Try your search again.
@@ -555,7 +701,7 @@ export default function AiStudio() {
                   </details>
                 )}
               </section>
-              <section className="ai-panel">
+              <section className="ai-panel" hidden={step !== "cv"}>
                 <div className="ai-section-top">
                   <h2>
                     <FileText size={19} />
@@ -631,7 +777,25 @@ export default function AiStudio() {
                   </span>
                 </label>
               </section>
-              <section className="ai-panel ai-run-panel">
+              <div className="studio-next" hidden={step !== "cv"}>
+                <button onClick={() => navigateStep("opportunity", run?.id)}>
+                  ← Change job
+                </button>
+                <button
+                  className="primary"
+                  disabled={resume.trim().length < 100 || !reviewed}
+                  onClick={() => navigateStep("review", run?.id)}
+                >
+                  Continue to review <ArrowRight size={16} />
+                </button>
+                <button onClick={() => navigateStep("apply", run?.id)}>
+                  Use original CV & apply
+                </button>
+              </div>
+              <section
+                className="ai-panel ai-run-panel"
+                hidden={step !== "review"}
+              >
                 <h2>
                   <Sparkles size={19} />
                   <span className="ai-step-number">3</span> Get your application
@@ -704,16 +868,33 @@ export default function AiStudio() {
                 )}
               </section>
             </div>
-          </details>
+          </div>
+          {step === "review" && run?.state === "succeeded" && (
+            <div className="studio-next">
+              <button onClick={editReviewedCv}>Edit source CV</button>
+              <button
+                className="primary"
+                onClick={() => navigateStep("documents", run.id)}
+              >
+                Create tailored CV <ArrowRight size={16} />
+              </button>
+              <button onClick={() => navigateStep("apply", run.id)}>
+                Continue to Apply
+              </button>
+            </div>
+          )}
         </div>
         <aside className="ai-sidebar">
-          <details
+          <dialog
             ref={providerRef}
             className="ai-panel ai-provider"
-            open={providerOpen}
-            onToggle={(e) => setProviderOpen(e.currentTarget.open)}
+            aria-labelledby="studio-provider-title"
+            onClose={() => setProviderOpen(false)}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setProviderOpen(false);
+            }}
           >
-            <summary>
+            <div className="studio-provider-heading">
               <KeyRound size={17} />
               <span>
                 AI connection
@@ -726,12 +907,18 @@ export default function AiStudio() {
               <span className="ai-connection-state">
                 {providerReady ? "Ready" : "Setup"}
               </span>
-            </summary>
+              <button
+                aria-label="Close AI settings"
+                onClick={() => setProviderOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
             <div className="ai-provider-content">
               <div className="ai-section-top">
                 <h2>
                   <KeyRound size={19} />
-                  Provider settings
+                  <span id="studio-provider-title">Provider settings</span>
                 </h2>
                 <span className="ai-small-badge">Optional AI</span>
               </div>
@@ -953,11 +1140,11 @@ export default function AiStudio() {
                 </p>
               </details>
             </div>
-          </details>
+          </dialog>
 
-          <div className="ai-panel">
+          <div className="ai-panel studio-queue">
             <div className="ai-section-top">
-              <h2>Recent reviews</h2>
+              <h2>Application drafts</h2>
               <button
                 aria-label="Refresh recent reviews"
                 disabled={history.loading}
@@ -966,10 +1153,7 @@ export default function AiStudio() {
                 Refresh
               </button>
             </div>
-            <p>
-              Private to your account. API keys are never part of a saved
-              review.
-            </p>
+            <p>Pick up where you left off.</p>
             {history.loading ? (
               <p>Loading…</p>
             ) : history.data?.reviews.length ? (
@@ -985,7 +1169,13 @@ export default function AiStudio() {
                   onClick={() => {
                     setError("");
                     void api<Run>(`ai/reviews/${r.id}`)
-                      .then(setRun)
+                      .then((value) => {
+                        setRun(value);
+                        router.push(
+                          `/assistant?source=${value.jobSnapshot.source}&jobId=${encodeURIComponent(value.jobSnapshot.id)}&review=${value.id}&step=review`,
+                          { scroll: false },
+                        );
+                      })
                       .catch(() => setError("Could not load this review."));
                   }}
                 >

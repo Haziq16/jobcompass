@@ -5,6 +5,7 @@ import { useState } from "react";
 import { statuses } from "@/lib/contracts";
 import { api, useResource } from "./client";
 import UrlTextField from "./UrlTextField";
+import { usePersonalAi } from "./PersonalAiContext";
 type Application = {
   id: string;
   jobId: string;
@@ -285,6 +286,7 @@ function Overview({ app, refresh }: { app: Application; refresh: () => void }) {
   );
 }
 export function ApplicationDetail({ id }: { id: string }) {
+  const { enabled: personalAiEnabled } = usePersonalAi();
   const params = useSearchParams(),
     router = useRouter();
   const tab = params.get("tab") || "overview";
@@ -318,7 +320,11 @@ export function ApplicationDetail({ id }: { id: string }) {
             role="group"
             aria-label="Application sections"
           >
-            {["overview", "timeline"].map((t) => (
+            {[
+              "overview",
+              ...(personalAiEnabled ? ["documents"] : []),
+              "timeline",
+            ].map((t) => (
               <button
                 key={t}
                 aria-pressed={tab === t}
@@ -338,6 +344,8 @@ export function ApplicationDetail({ id }: { id: string }) {
                 refresh={resource.refresh}
               />
             </>
+          ) : tab === "documents" && personalAiEnabled ? (
+            <ApplicationStudioDocuments jobId={app.jobId} />
           ) : (
             <section className="upgrade-panel">
               <h2>Your application timeline</h2>
@@ -359,5 +367,37 @@ export function ApplicationDetail({ id }: { id: string }) {
         </>
       )}
     </>
+  );
+}
+function ApplicationStudioDocuments({ jobId }: { jobId: string }) {
+  const result = useResource<{ reviewId: string | null }>(
+    `ai/application?source=workspace&jobId=${encodeURIComponent(jobId)}`,
+  );
+  const review = result.data?.reviewId;
+  return (
+    <section className="upgrade-panel">
+      <h2>Documents for this application</h2>
+      <p>
+        Open your private workspace to compare sources, edit your CV and
+        download the version you have reviewed.
+      </p>
+      {result.loading ? (
+        <p role="status">Finding your saved documents…</p>
+      ) : result.error ? (
+        <p role="alert">
+          Documents could not be loaded.{" "}
+          <button onClick={result.refresh}>Reload</button>
+        </p>
+      ) : (
+        <Link
+          href={`/assistant?source=workspace&jobId=${encodeURIComponent(jobId)}${review ? `&review=${review}&step=documents` : "&step=cv"}`}
+        >
+          {review
+            ? "Open tailored CV & downloads"
+            : "Prepare application documents"}{" "}
+          →
+        </Link>
+      )}
+    </section>
   );
 }

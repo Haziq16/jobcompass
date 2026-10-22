@@ -7,6 +7,11 @@ import { createCvDraft, saveCvDraft } from "../src/lib/tailored-cv";
 import { cvDocumentBytes } from "../src/lib/tailored-cv-document";
 import { GET as cvDownload } from "../src/app/api/ai/cv-drafts/[id]/download/route";
 import { GET as cvHistory } from "../src/app/api/ai/reviews/[id]/cv/route";
+import {
+  studioApplication,
+  updateStudioApplication,
+} from "../src/lib/studio-application";
+import { POST as studioApplicationPost } from "../src/app/api/ai/application/route";
 import { PATCH as cvPatch } from "../src/app/api/ai/cv-drafts/[id]/route";
 import { Prisma } from "@prisma/client";
 import { generateText, Output } from "ai";
@@ -208,6 +213,87 @@ function cvOutput() {
     ],
   };
 }
+test("studio handoff saves preparation without submission; explicit confirmation is idempotent and account private", async () => {
+  const target = await job("local");
+  await db.jobSource.create({
+    data: {
+      jobId: target.id,
+      providerId: "studio-fixture",
+      publisher: "Fixture",
+      sourceUrl: "https://example.test/careers",
+      primaryUrl: "https://example.test/apply",
+      applyLinks: [
+        {
+          url: "https://example.test/apply",
+          direct: true,
+          publisher: "Fixture",
+        },
+      ],
+    },
+  });
+  const initial = await studioApplication("workspace", target.id);
+  assert.equal(initial.applyUrl, "https://example.test/apply");
+  assert.equal(initial.application, null);
+  const prepared = await updateStudioApplication(
+    "workspace",
+    target.id,
+    "prepare",
+  );
+  assert.equal(prepared.application?.status, "Preparing");
+  assert.equal(prepared.application?.appliedAt, null);
+  const review = await createPersonalReview(input(target.id), async () => ({
+    output: output(),
+  }));
+  assert.equal(
+    (await studioApplication("workspace", target.id)).reviewId,
+    review.id,
+  );
+  await updateStudioApplication("workspace", target.id, "prepare");
+  assert.equal(await db.application.count(), 1);
+  assert.equal(await db.applicationEvent.count(), 1);
+  await assert.rejects(
+    inWorkspace("other", () => studioApplication("workspace", target.id)),
+    /job_not_found/,
+  );
+  await assert.rejects(
+    inWorkspace("other", () =>
+      updateStudioApplication("workspace", target.id, "confirm_submission"),
+    ),
+    /job_not_found/,
+  );
+  const confirmed = await updateStudioApplication(
+    "workspace",
+    target.id,
+    "confirm_submission",
+  );
+  assert.equal(confirmed.application?.status, "Applied");
+  assert.ok(confirmed.application?.appliedAt);
+  const again = await updateStudioApplication(
+    "workspace",
+    target.id,
+    "confirm_submission",
+  );
+  assert.deepEqual(
+    again.application?.appliedAt,
+    confirmed.application?.appliedAt,
+  );
+  assert.equal(await db.applicationEvent.count(), 2);
+  process.env.AI_MODE = "off";
+  assert.equal(
+    (
+      await studioApplicationPost(
+        req("/api/ai/application", "POST", {
+          source: "workspace",
+          jobId: target.id,
+          action: "prepare",
+        }),
+      )
+    ).status,
+    410,
+  );
+  assert.equal(await db.aiReview.count(), 1);
+  assert.equal(await db.aiCvDraft.count(), 0);
+});
 test("tailored CV rewrites supported wording, copies source context and rejects unsupported facts", () => {
   const result = validateCv(cvOutput(), cv);
   assert.ok(cvText(result).includes("SUMMARY"));

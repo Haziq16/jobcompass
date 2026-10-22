@@ -506,10 +506,10 @@ try {
     false,
   );
   await page
-    .getByLabel("Job to review", { exact: true })
-    .selectOption(
-      createHash("sha256").update("catalog-fixture-0").digest("hex"),
-    );
+    .locator(
+      `.studio-job-choice[data-job-id="${createHash("sha256").update("catalog-fixture-0").digest("hex")}"]`,
+    )
+    .click();
   const zip = new JSZip();
   zip.file("[Content_Types].xml", "<Types/>");
   const resumeLines = [
@@ -547,6 +547,9 @@ try {
       { exact: true },
     )
     .check();
+  await page
+    .getByRole("button", { name: "Continue to review", exact: true })
+    .click();
   await page
     .getByLabel(
       "I agree to send these inputs to the selected provider and use my API allowance for this request.",
@@ -677,7 +680,10 @@ try {
       "Built Kotlin",
     ),
   );
-  await page.getByRole("button", { name: "Tailored CV", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Application steps" })
+    .getByRole("button", { name: "4 Tailored CV", exact: true })
+    .click();
   const cvWorkspace = page.locator("#ai-studio:visible .ai-tailored-cv");
   await cvWorkspace
     .getByRole("button", { name: "Generate tailored CV", exact: true })
@@ -766,18 +772,95 @@ try {
     "Tailored CV generation rewrites supported content, compares sources, saves edits and downloads reviewed Word/text without extra inference",
   );
   await page
+    .getByRole("navigation", { name: "Application steps" })
+    .getByRole("button", { name: "5 Apply", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Apply on employer website", exact: false })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("link", { name: "Apply on employer website", exact: false })
+      .getAttribute("href"),
+    "https://example.test/jobs/0",
+  );
+  await page
+    .getByRole("button", { name: "Save to Applications", exact: true })
+    .click();
+  await page
+    .getByText("Your application is tracked", { exact: true })
+    .waitFor();
+  const studioTracked = await db.application.findFirstOrThrow({
+    where: {
+      workspaceId: user.id,
+      job: { sources: { some: { providerId: "catalog-fixture-0" } } },
+    },
+  });
+  assert.equal(studioTracked.status, "Preparing");
+  assert.equal(studioTracked.appliedAt, null);
+  await page
+    .getByRole("button", { name: "I’ve submitted my application", exact: true })
+    .click();
+  await page.getByText("Applied", { exact: true }).waitFor();
+  assert.equal(providerRequests, 3);
+  await page.screenshot({
+    path: "test-results/ai-apply-desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.screenshot({
+    path: "test-results/ai-apply-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.reload();
+  await page
+    .getByRole("heading", { name: "Application recorded", exact: true })
+    .waitFor();
+  await page.getByText("Applied", { exact: true }).waitFor();
+  check(
+    "Studio steps survive refresh; employer handoff tracks preparation and only explicit submission confirmation records Applied without AI calls",
+  );
+  await page
+    .getByRole("link", { name: "Open application & timeline", exact: false })
+    .click();
+  await page.getByRole("button", { name: "Documents", exact: true }).click();
+  await page
+    .getByRole("link", { name: "Open tailored CV & downloads", exact: false })
+    .click();
+  await page.locator("#ai-studio:visible .ai-cv-paper").waitFor();
+  assert.ok(
+    (
+      await page.locator("#ai-studio:visible .ai-cv-paper").innerText()
+    ).includes("Reviewed manually for this opportunity."),
+  );
+  assert.equal(providerRequests, 3);
+  check(
+    "Application Documents returns to the matching saved tailored CV, retaining manual edits without another model call",
+  );
+  await page
+    .getByRole("navigation", { name: "Application steps" })
+    .getByRole("button", { name: "3 Review", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "Improve this CV", exact: true })
     .click();
   assert.ok(
     (
       await page
+        .locator("#ai-studio:visible")
         .getByLabel("Résumé text to review", { exact: true })
         .inputValue()
     ).includes("Built Kotlin"),
   );
   assert.equal(
     await page
-      .getByRole("button", { name: "Run AI review", exact: true })
+      .getByRole("button", { name: "Continue to review", exact: true })
       .isDisabled(),
     true,
   );
@@ -787,10 +870,9 @@ try {
   );
   await page.reload();
   await page
-    .locator("#ai-studio:visible .ai-connection-state")
-    .getByText("Ready", { exact: true })
+    .getByRole("button", { name: "AI settings", exact: true })
     .waitFor();
-  await page.locator("#ai-studio:visible .ai-provider > summary").click();
+  await page.getByRole("button", { name: "AI settings", exact: true }).click();
   assert.equal(
     await page
       .locator("#ai-studio:visible")
@@ -808,7 +890,7 @@ try {
   assert.ok(
     (
       await page
-        .locator("#ai-studio:visible .ai-provider > summary")
+        .locator("#ai-studio:visible .studio-provider-heading")
         .innerText()
     ).includes("fixture-model"),
   );
@@ -822,8 +904,24 @@ try {
   check(
     "Plaintext keys remain out of browser storage, reports and database; saved credentials never trigger automatic generation",
   );
+  await page.goBack();
+  await page.waitForFunction(
+    () => !document.querySelector("dialog.ai-provider[open]"),
+  );
+  await page.goForward();
+  await page.getByRole("button", { name: "AI settings", exact: true }).click();
+  await page.locator("#ai-studio:visible dialog.ai-provider[open]").waitFor();
+  check(
+    "Browser Back closes provider settings without leaving a modal over the next application step; Forward restores navigation",
+  );
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator("#ai-studio:visible .ai-provider > summary").click();
+  await page.keyboard.press("Escape");
+  await page
+    .locator("#ai-studio:visible dialog.ai-provider")
+    .waitFor({ state: "hidden" });
+  check(
+    "AI settings is a separate native dialog and closes with Escape while preserving the selected connection",
+  );
   await page.evaluate(() => window.scrollTo(0, 0));
   assert.ok(
     await page.evaluate(
@@ -883,11 +981,12 @@ try {
   assert.ok(typography.size >= 28);
   check("Workspace headings use readable sans-serif typography");
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
-  await page.locator("#ai-studio:visible .ai-provider > summary").click();
+  await page.getByRole("button", { name: "AI settings", exact: true }).click();
   await page
     .locator("#ai-studio:visible")
     .getByLabel("Your API key", { exact: true })
     .fill("fixture-browser-provider-key-123456");
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /Sign out/ }).click();
   await page.waitForURL("**/sign-in");
   await page
@@ -901,10 +1000,9 @@ try {
   check("Sign-out and returning-account sign-in work");
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
   await page
-    .locator("#ai-studio:visible .ai-connection-state")
-    .getByText("Ready", { exact: true })
+    .getByRole("button", { name: "AI settings", exact: true })
     .waitFor();
-  await page.locator("#ai-studio:visible .ai-provider > summary").click();
+  await page.getByRole("button", { name: "AI settings", exact: true }).click();
   assert.equal(
     await page
       .locator("#ai-studio:visible")
