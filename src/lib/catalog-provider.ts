@@ -23,6 +23,44 @@ export type PublicJob = {
   searchText: string;
 };
 const text = z.string().nullish();
+const workable = z.object({
+  jobs: z
+    .array(
+      z.object({
+        shortcode: z.string().min(1),
+        title: z.string().min(1),
+        url: z.string(),
+        description: text,
+        published_on: text,
+        city: text,
+        state: text,
+        country: text,
+        telecommuting: z.boolean().nullish(),
+        type: text,
+      }),
+    )
+    .max(20000),
+});
+const recruitee = z.object({
+  offers: z
+    .array(
+      z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(1),
+        careers_url: z.string(),
+        location: text,
+        created_at: text,
+        description: text,
+        requirements: text,
+        remote: z.boolean().nullish(),
+        hybrid: z.boolean().nullish(),
+        salary: z
+          .object({ min: text, max: text, currency: text, period: text })
+          .nullish(),
+      }),
+    )
+    .max(20000),
+});
 const ashby = z.object({
   jobs: z
     .array(
@@ -70,7 +108,47 @@ function date(value: string | null | undefined) {
 }
 export function parseCatalog(data: unknown, board: PublicBoard): PublicJob[] {
   let rows: Omit<PublicJob, "id" | "hash" | "searchText">[];
-  if (board.platform === "ashby") {
+  if (board.platform === "workable") {
+    rows = workable.parse(data).jobs.map((j) => ({
+      providerId: `direct:workable:${board.token}:${j.shortcode}`,
+      title: plainText(j.title),
+      employer: board.name,
+      location: [j.city, j.state, j.country].filter(Boolean).join(", ") || null,
+      country: j.country || null,
+      remote: j.telecommuting ?? null,
+      employmentType: j.type || null,
+      department: null,
+      description: plainText(j.description || "") || null,
+      salaryText: null,
+      sourceUrl: httpsLink(j.url),
+      applyUrl: httpsLink(j.url),
+      publishedAt: date(j.published_on),
+    }));
+  } else if (board.platform === "recruitee") {
+    rows = recruitee.parse(data).offers.map((j) => ({
+      providerId: `direct:recruitee:${board.token}:${j.id}`,
+      title: plainText(j.title),
+      employer: board.name,
+      location: j.location || null,
+      country: null,
+      remote: j.remote ?? null,
+      employmentType: null,
+      department: null,
+      description:
+        plainText([j.description, j.requirements].filter(Boolean).join("\n")) ||
+        null,
+      salaryText:
+        j.salary && (j.salary.min || j.salary.max)
+          ? [j.salary.min, j.salary.max].filter(Boolean).join(" - ") +
+            " " +
+            [j.salary.currency, j.salary.period].filter(Boolean).join(" ")
+          : null,
+      sourceUrl: httpsLink(j.careers_url),
+      applyUrl: httpsLink(j.careers_url),
+      // created_at is the record creation date, not a verified publication time.
+      publishedAt: null,
+    }));
+  } else if (board.platform === "ashby") {
     rows = ashby
       .parse(data)
       .jobs.filter((j) => j.isListed)
@@ -101,10 +179,10 @@ export function parseCatalog(data: unknown, board: PublicBoard): PublicJob[] {
       });
   } else {
     rows = parseBoardResponse(data, {
-      platform: board.platform,
+      platform: board.platform === "lever-eu" ? "lever" : board.platform,
       board: board.token,
       query: "",
-      region: "global",
+      region: board.platform === "lever-eu" ? "eu" : "global",
     }).map((j) => ({
       providerId: j.providerId,
       title: j.title,

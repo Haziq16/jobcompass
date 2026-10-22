@@ -23,6 +23,7 @@ model CatalogBoard {
   failures Int @default(0)
   error String?
   jobs CatalogJob[]
+  @@index([enabled,nextFetchAt])
 }
 model CatalogJob {
   id String @id

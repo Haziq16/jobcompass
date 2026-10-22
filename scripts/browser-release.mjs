@@ -292,6 +292,29 @@ try {
   await page.waitForURL("**/discover?page=2");
   await page.getByText("Page 2 of 101", { exact: true }).waitFor();
   check("Shared catalogue paginates more than 3,000 jobs in the database");
+  await page.locator(".catalog-filter-disclosure > summary").click();
+  for (const platform of ["workable", "recruitee", "lever-eu"]) {
+    await page
+      .getByRole("combobox", { name: "Job source", exact: true })
+      .selectOption(platform);
+    await page.waitForURL(
+      (url) => url.searchParams.get("platform") === platform,
+    );
+    await page
+      .getByRole("heading", { name: "0 matching jobs", exact: true })
+      .waitFor();
+  }
+  await page
+    .getByRole("combobox", { name: "Job source", exact: true })
+    .selectOption("");
+  await page.waitForURL((url) => !url.searchParams.has("platform"));
+  await page
+    .getByRole("heading", { name: "3,005 available jobs", exact: true })
+    .waitFor();
+  await page.locator(".catalog-filter-disclosure > summary").click();
+  check(
+    "Additional ATS source filters are selectable and never silently return unrelated source jobs",
+  );
   await page
     .getByLabel("What are you looking for?", { exact: true })
     .fill("Kotlin");

@@ -15,6 +15,14 @@ import {
 } from "./job-recommendations";
 
 export const CATALOG_INTERVAL_MS = 5 * 60_000;
+const originalBoards = new Set(catalogBoards.map(([p, t]) => `${p}:${t}`));
+function refreshInterval(id: string, jobs: number) {
+  return jobs === 0
+    ? 86400000
+    : originalBoards.has(id)
+      ? CATALOG_INTERVAL_MS
+      : 30 * 60000;
+}
 export async function seedCatalog() {
   await authDb.catalogBoard.createMany({
     data: catalogBoards.map(([platform, token, name]) => ({
@@ -32,6 +40,11 @@ export async function publishCatalogBoard(
   boardId: string,
   jobs: PublicJob[],
   now = new Date(),
+  admission?: {
+    activate: boolean;
+    etag: string | null;
+    modified: string | null;
+  },
 ) {
   return authDb.$transaction(
     async (tx) => {
@@ -72,7 +85,16 @@ export async function publishCatalogBoard(
           jobCount: jobs.length,
           initialIndexedAt: board.initialIndexedAt || now,
           lastSuccessAt: now,
-          nextFetchAt: new Date(now.valueOf() + CATALOG_INTERVAL_MS),
+          nextFetchAt: new Date(
+            now.valueOf() + refreshInterval(board.id, jobs.length),
+          ),
+          ...(admission
+            ? {
+                enabled: admission.activate,
+                etag: admission.etag,
+                modified: admission.modified,
+              }
+            : {}),
           failures: 0,
           error: null,
         },
@@ -111,7 +133,8 @@ export async function refreshCatalog(request: typeof fetch = fetch) {
   try {
     const pending = await authDb.catalogBoard.findMany({
       where: { enabled: true, nextFetchAt: { lte: now } },
-      orderBy: { nextFetchAt: "asc" },
+      orderBy: [{ nextFetchAt: "asc" }, { id: "asc" }],
+      take: 120,
     });
     await Promise.all(
       Array.from({ length: 4 }, async () => {
@@ -143,7 +166,9 @@ export async function refreshCatalog(request: typeof fetch = fetch) {
                 where: { id: board.id },
                 data: {
                   lastSuccessAt: new Date(),
-                  nextFetchAt: new Date(Date.now() + CATALOG_INTERVAL_MS),
+                  nextFetchAt: new Date(
+                    Date.now() + refreshInterval(board.id, board.jobCount),
+                  ),
                   failures: 0,
                   error: null,
                 },
@@ -212,7 +237,16 @@ export function catalogFilters(params: URLSearchParams) {
     );
   if (employer) clauses.push(Prisma.sql`j.employer=${employer}`);
   if (params.get("remote") === "true") clauses.push(Prisma.sql`j.remote=true`);
-  if (["greenhouse", "lever", "ashby"].includes(platform || ""))
+  if (
+    [
+      "greenhouse",
+      "lever",
+      "lever-eu",
+      "ashby",
+      "workable",
+      "recruitee",
+    ].includes(platform || "")
+  )
     clauses.push(Prisma.sql`b.platform=${platform}`);
   const hours =
     since === "1h" ? 1 : since === "24h" ? 24 : since === "7d" ? 168 : 0;

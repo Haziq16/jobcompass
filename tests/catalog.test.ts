@@ -14,6 +14,10 @@ import {
 import { GET as catalogGet } from "../src/app/api/catalog/route";
 import { POST as catalogSave } from "../src/app/api/catalog/[id]/route";
 import {
+  seedCatalogCandidates,
+  expandCatalog,
+} from "../src/lib/catalog-expansion";
+import {
   GET as scheduledRefresh,
   POST as browsingRefresh,
 } from "../src/app/api/catalog/refresh/route";
@@ -48,6 +52,199 @@ beforeEach(async () => {
   await authDb.catalogBoard.create({ data: fixture });
 });
 after(() => db.$disconnect());
+
+test("additional public adapters validate full snapshots, preserve unknowns and regional identity", async () => {
+  const work = parseCatalog(
+    {
+      jobs: [
+        {
+          shortcode: "one",
+          title: "Support engineer",
+          url: "https://apply.workable.com/example/j/one",
+          description: "<p>Customer support</p>",
+          published_on: "2026-10-21",
+          country: "Greece",
+          telecommuting: true,
+        },
+      ],
+    },
+    { platform: "workable", token: "example", name: "Example" },
+  )[0];
+  assert.equal(work.remote, true);
+  assert.equal(work.country, "Greece");
+  assert.equal(work.description, "Customer support");
+  assert.equal(work.publishedAt, "2026-10-21T00:00:00.000Z");
+  const rec = parseCatalog(
+    {
+      offers: [
+        {
+          id: 1,
+          title: "Analyst",
+          careers_url: "https://example.recruitee.com/o/analyst",
+          created_at: "2026-01-01",
+          description: "<p>Analysis</p>",
+          requirements: "SQL",
+          salary: { min: "100", max: "200", currency: "EUR", period: "hour" },
+        },
+      ],
+    },
+    { platform: "recruitee", token: "example", name: "Example" },
+  )[0];
+  assert.equal(rec.publishedAt, null);
+  assert.equal(rec.remote, null);
+  assert.ok(rec.description?.includes("SQL"));
+  assert.equal(rec.salaryText, "100 - 200 EUR hour");
+  assert.throws(() =>
+    parseCatalog(
+      {
+        offers: [
+          { id: 1, title: "Unsafe", careers_url: "http://127.0.0.1/private" },
+        ],
+      },
+      { platform: "recruitee", token: "example", name: "Example" },
+    ),
+  );
+  for (const platform of ["workable", "recruitee", "lever-eu"] as const) {
+    assert.throws(() =>
+      boardUrl({ platform, token: "x.example/../private", name: "Unsafe" }),
+    );
+  }
+  assert.equal(
+    new URL(
+      boardUrl({ platform: "lever-eu", token: "example", name: "Example" }),
+    ).hostname,
+    "api.eu.lever.co",
+  );
+  await assert.rejects(
+    fetchCatalogBoard(
+      { platform: "workable", token: "example", name: "Example" },
+      async () => Response.json({ error: "not_found" }),
+    ),
+  );
+});
+
+test("candidate registry is idempotent, disabled by default and never overwrites existing enabled boards", async () => {
+  await seedCatalogCandidates();
+  await seedCatalogCandidates();
+  assert.ok(
+    (await authDb.catalogBoard.count({ where: { enabled: false } })) > 19000,
+  );
+  assert.equal(
+    (await authDb.catalogBoard.findUniqueOrThrow({ where: { id: fixture.id } }))
+      .enabled,
+    true,
+  );
+  assert.equal(await authDb.catalogJob.count(), 0);
+  assert.equal(
+    await authDb.catalogSync.count({
+      where: { id: { startsWith: "candidate-seed:" } },
+    }),
+    1,
+  );
+});
+
+test("candidate validation activates atomically, coalesces runs and does not consume paid units", async () => {
+  await authDb.catalogBoard.create({
+    data: {
+      id: "greenhouse:expansionfixture",
+      platform: "greenhouse",
+      token: "expansionfixture",
+      name: "Expansion fixture",
+      enabled: false,
+      nextFetchAt: new Date(0),
+    },
+  });
+  await authDb.catalogBoard.create({
+    data: {
+      id: "greenhouse:secondexpansion",
+      platform: "greenhouse",
+      token: "secondexpansion",
+      name: "Second fixture",
+      enabled: false,
+      nextFetchAt: new Date(0),
+    },
+  });
+  let concurrent = 0,
+    peak = 0;
+  const first = await expandCatalog({
+    maxBoards: 2,
+    request: async () => {
+      concurrent++;
+      peak = Math.max(peak, concurrent);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      concurrent--;
+      return Response.json({ jobs: [rawJob(901)] });
+    },
+  });
+  assert.equal(first.activated, 2);
+  assert.equal(first.added, 2);
+  assert.equal(peak, 2);
+  const board = await authDb.catalogBoard.findUniqueOrThrow({
+    where: { id: "greenhouse:expansionfixture" },
+  });
+  assert.equal(board.enabled, true);
+  assert.ok(board.initialIndexedAt);
+  assert.equal(board.jobCount, 1);
+  const second = await expandCatalog({
+    request: async () => {
+      throw new Error("Must not fetch");
+    },
+  });
+  assert.equal(second.status, "already_current");
+  assert.equal(await authDb.apiRequestLedger.count(), 0);
+});
+
+test("oversized expansion is deferred without publishing jobs or disabling normal refresh", async () => {
+  const previous = process.env.CATALOG_DATABASE_BUDGET_MB;
+  process.env.CATALOG_DATABASE_BUDGET_MB = "32";
+  try {
+    await authDb.catalogBoard.create({
+      data: {
+        id: "greenhouse:expansionfixture",
+        platform: "greenhouse",
+        token: "expansionfixture",
+        name: "Expansion fixture",
+        enabled: false,
+        nextFetchAt: new Date(0),
+      },
+    });
+    const result = await expandCatalog({
+      maxBoards: 1,
+      request: async () =>
+        Response.json({
+          jobs: Array.from({ length: 500 }, (_, i) => ({
+            ...rawJob(i + 1000),
+            content: "x".repeat(30000),
+          })),
+        }),
+    });
+    assert.ok(
+      result.status === "capacity_paused" ||
+        ("deferred" in result && Number(result.deferred) > 0),
+    );
+    assert.equal(result.activated, 0);
+    assert.equal(await authDb.catalogJob.count(), 0);
+    assert.equal(
+      (
+        await authDb.catalogBoard.findUniqueOrThrow({
+          where: { id: fixture.id },
+        })
+      ).enabled,
+      true,
+    );
+    assert.equal(
+      (
+        await authDb.catalogBoard.findUniqueOrThrow({
+          where: { id: "greenhouse:expansionfixture" },
+        })
+      ).enabled,
+      false,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.CATALOG_DATABASE_BUDGET_MB;
+    else process.env.CATALOG_DATABASE_BUDGET_MB = previous;
+  }
+});
 test("catalogue source normalisation keeps true dates, excludes unlisted roles and fixes upstream hosts", async () => {
   for (const [platform, token, name] of catalogBoards) {
     const url = new URL(boardUrl({ platform, token, name }));

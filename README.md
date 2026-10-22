@@ -10,7 +10,7 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 ## Features
 
-- **Worldwide discovery:** search a shared catalogue from 64 public Greenhouse, Lever and Ashby company boards, with database pagination and company, location, remote and freshness filters.
+- **Worldwide discovery:** search independently collected employer feeds from Greenhouse, Lever (including EU), Ashby, Workable and Recruitee, with database pagination and company, location, remote and freshness filters.
 - **Automatic feed checks:** scheduled background refreshes and coalesced checks while browsing, without a paid job-search API key.
 - **Direct discovery:** optionally import another Greenhouse or Lever company board into your own workspace.
 - **Your job library:** search stored opportunities, filter metadata, browse details, and skip or restore roles.
@@ -36,7 +36,13 @@ Employer publication dates and first-discovery dates are distinct. Greenhouse's 
 
 Complete successful snapshots retire missing roles from discovery. Failed or incomplete snapshots do not close jobs. Feeds unconfirmed for 48 hours leave the search results until they recover. Previously saved private copies and notes remain available. Requests use conditional HTTP validators when supplied, fixed upstream hosts, bounded responses, a global database lease, and failure backoff. Unchanged job content is not rewritten.
 
-The starting board registry is curated and weighted toward technology employers, with roles across departments and regions. It is not the entire worldwide job market. Full-text search covers titles, employers, locations, departments and the first 6,000 characters of descriptions. The employer link always provides the complete posting.
+The original 64 boards are supplemented by a registry of 19,822 candidate employer boards. Candidates remain invisible until a complete live employer snapshot validates and passes storage admission. Candidate count is not an active-employer or job count. The registry is weighted toward technology employers and is not the entire worldwide job market. Full-text search covers titles, employers, locations, departments and the first 6,000 characters of descriptions. The employer link always provides the complete posting.
+
+The existing scheduler also attempts bounded candidate admission, at most once every six hours. Normal refreshes process at most 120 due boards per invocation. Original priority boards retain a five-minute due interval, added boards use 30 minutes and empty boards use a day; actual detection also depends on backlog and scheduler/source availability. A separate expansion lease prevents duplicate admission runs. No paid data API is used. [Candidate provenance and licence](docs/catalog-candidates.md) are recorded separately.
+
+New-board ingestion pauses at the database-size budget (`CATALOG_DATABASE_BUDGET_MB`, at most 750 MiB), with a conservative per-board reserve. Existing feeds continue refreshing. This is a growth guard, not a guarantee about hosting quotas or private-data growth; watch provider usage and runner minutes. No service plan is upgraded automatically. Free storage cannot be claimed to hold millions of indexed full-description jobs without measurement.
+
+An operator can bootstrap a bounded batch against the intended environment with `node --env-file=.env --import=tsx scripts/expand-catalog.ts --boards 100 --execute`. The scheduler's six-hour interval remains in force; the explicit operator command bypasses that interval but still respects the lease and storage guard. Failed candidates back off without retiring existing jobs. This command writes only shared employer catalogue data and candidate health, never private CVs, credentials or applications.
 
 For a company outside the catalogue, expand **Import another board**, choose a platform and company board token, add keywords, then select **Find jobs**.
 

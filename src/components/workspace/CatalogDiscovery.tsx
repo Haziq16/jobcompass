@@ -393,6 +393,7 @@ export default function CatalogDiscovery() {
           <label>
             Source
             <select
+              aria-label="Job source"
               value={params.get("platform") || ""}
               onChange={(e) => update({ platform: e.target.value })}
             >
@@ -400,6 +401,9 @@ export default function CatalogDiscovery() {
               <option value="greenhouse">Greenhouse</option>
               <option value="lever">Lever</option>
               <option value="ashby">Ashby</option>
+              <option value="lever-eu">Lever EU</option>
+              <option value="workable">Workable</option>
+              <option value="recruitee">Recruitee</option>
             </select>
           </label>
           <label className="catalog-remote">
@@ -422,10 +426,9 @@ export default function CatalogDiscovery() {
           )}
         </div>
         <p className="catalog-freshness-note">
-          Feeds are checked about every 30 minutes in the background, and as
-          often as every 5 minutes while browsing. Source availability and
-          scheduler delays can affect timing. Remote roles may have location
-          restrictions.
+          Sources refresh automatically in batches. Timing varies by employer,
+          pending checks and source availability; check the source timestamp on
+          a listing. Remote roles may have location restrictions.
         </p>
         <p className="catalog-date-note">
           Latest uses publication dates when supplied, or discovery time for

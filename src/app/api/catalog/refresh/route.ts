@@ -19,6 +19,10 @@ export async function GET(req: Request) {
   )
     return Response.json({ error: "unauthorized" }, { status: 401 });
   try {
+    if (new URL(req.url).searchParams.get("mode") === "expand") {
+      const { expandCatalog } = await import("@/lib/catalog-expansion");
+      return Response.json(await expandCatalog());
+    }
     return Response.json(await refreshCatalog());
   } catch (error) {
     return apiError(error);

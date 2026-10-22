@@ -65,7 +65,8 @@ export const catalogBoards = [
   ["ashby", "clerk", "Clerk"],
   ["ashby", "ashby", "Ashby"],
 ] as const;
-export type CatalogPlatform = (typeof catalogBoards)[number][0];
+export type CatalogPlatform =
+  (typeof catalogBoards)[number][0] | "lever-eu" | "workable" | "recruitee";
 export type PublicBoard = {
   platform: CatalogPlatform;
   token: string;
@@ -79,6 +80,12 @@ export function boardUrl(board: PublicBoard) {
       return `https://boards-api.greenhouse.io/v1/boards/${board.token}/jobs?content=true`;
     case "lever":
       return `https://api.lever.co/v0/postings/${board.token}?mode=json`;
+    case "lever-eu":
+      return `https://api.eu.lever.co/v0/postings/${board.token}?mode=json`;
+    case "workable":
+      return `https://apply.workable.com/api/v1/widget/accounts/${board.token}?details=true`;
+    case "recruitee":
+      return `https://${board.token}.recruitee.com/api/offers/`;
     case "ashby":
       return `https://api.ashbyhq.com/posting-api/job-board/${board.token}?includeCompensation=true`;
     default:

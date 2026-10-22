@@ -11,7 +11,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 6
     steps:
       # No checkout, dependency installation, Vercel token or database access.
       - name: Check employer feeds
@@ -29,4 +29,10 @@ jobs:
           const result = await response.json();
           console.log(JSON.stringify({status: result.status, checked: result.checked, succeeded: result.succeeded, failed: result.failed}));
           if (result.status === 'completed' && result.checked > 0 && result.succeeded === 0) throw new Error('No employer feed could be refreshed');
+          // A separate six-hour lease bounds candidate admission. No new subscription,
+          // third-party job-data API or extra scheduled runner is provisioned.
+          url.searchParams.set('mode', 'expand');
+          const growth = await fetch(url, {headers: {Authorization: `Bearer ${secret}`}, redirect: 'error', signal: AbortSignal.timeout(180000)});
+          if (!growth.ok) throw new Error(`Catalogue expansion HTTP ${growth.status}`);
+          console.log(JSON.stringify(await growth.json()));
           NODE
