@@ -677,6 +677,94 @@ try {
       "Built Kotlin",
     ),
   );
+  await page.getByRole("button", { name: "Tailored CV", exact: true }).click();
+  const cvWorkspace = page.locator("#ai-studio:visible .ai-tailored-cv");
+  await cvWorkspace
+    .getByRole("button", { name: "Generate tailored CV", exact: true })
+    .waitFor();
+  assert.equal(providerRequests, 2);
+  assert.equal(
+    await cvWorkspace
+      .getByRole("button", { name: "Generate tailored CV", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await cvWorkspace.getByRole("checkbox", { name: /I agree to send/ }).check();
+  await cvWorkspace
+    .getByRole("button", { name: "Generate tailored CV", exact: true })
+    .click();
+  await cvWorkspace
+    .getByLabel("Tailored CV preview")
+    .waitFor({ timeout: 30000 });
+  assert.equal(providerRequests, 3);
+  assert.ok(
+    (await cvWorkspace.getByLabel("Tailored CV preview").innerText()).includes(
+      "Developed services using Kotlin",
+    ),
+  );
+  assert.equal(
+    await cvWorkspace
+      .getByRole("button", { name: "Download Word CV", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await cvWorkspace
+    .getByRole("button", { name: "Compare with sources", exact: true })
+    .click();
+  await cvWorkspace
+    .getByText("Show original evidence (1)", { exact: true })
+    .first()
+    .click();
+  assert.ok(
+    (await cvWorkspace.locator("blockquote").first().innerText()).includes(
+      "Built Kotlin",
+    ),
+  );
+  await cvWorkspace
+    .getByRole("button", { name: "Edit CV", exact: true })
+    .click();
+  const cvEditor = cvWorkspace.getByLabel("Tailored CV text", { exact: true });
+  const cvContent =
+    (await cvEditor.inputValue()) + "\nReviewed manually for this opportunity.";
+  await cvEditor.fill(cvContent);
+  await cvWorkspace
+    .getByRole("button", { name: "Save edits", exact: true })
+    .click();
+  await cvWorkspace.getByText(/Revision 2/).waitFor();
+  await cvWorkspace
+    .getByRole("checkbox", { name: /I have checked the wording/ })
+    .check();
+  const wordDownload = page.waitForEvent("download");
+  await cvWorkspace
+    .getByRole("button", { name: "Download Word CV", exact: true })
+    .click();
+  await (await wordDownload).saveAs("test-results/ai-tailored-cv.docx");
+  await cvWorkspace.getByText(/Revision 3/).waitFor();
+  const textDownload = page.waitForEvent("download");
+  await cvWorkspace
+    .getByRole("button", { name: "Download CV text", exact: true })
+    .click();
+  await (await textDownload).saveAs("test-results/ai-tailored-cv.txt");
+  assert.equal(
+    readFileSync("test-results/ai-tailored-cv.txt", "utf8"),
+    cvContent,
+  );
+  assert.equal(providerRequests, 3);
+  await cvWorkspace
+    .getByRole("button", { name: "CV preview", exact: true })
+    .click();
+  await page.screenshot({ path: "test-results/ai-tailored-cv-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.screenshot({ path: "test-results/ai-tailored-cv-mobile.png" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  check(
+    "Tailored CV generation rewrites supported content, compares sources, saves edits and downloads reviewed Word/text without extra inference",
+  );
   await page
     .getByRole("button", { name: "Improve this CV", exact: true })
     .click();
@@ -693,7 +781,7 @@ try {
       .isDisabled(),
     true,
   );
-  assert.equal(providerRequests, 2);
+  assert.equal(providerRequests, 3);
   check(
     "Improving a reviewed CV restores its original inputs and requires fresh consent before another paid request",
   );

@@ -408,6 +408,7 @@ export default function AiStudio() {
                 onNew={newRequest}
                 onEdit={editReviewedCv}
                 errorMessage={message}
+                onConnect={connectProvider}
               />
               {run.state === "pending" && (
                 <button

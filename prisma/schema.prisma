@@ -306,9 +306,34 @@ model AiReview {
   outputTokens Int?
   createdAt DateTime @default(now())
   completedAt DateTime?
+  cvDrafts AiCvDraft[]
   @@unique([workspaceId,requestKey])
   @@unique([workspaceId,id])
   @@index([workspaceId,createdAt])
+}
+model AiCvDraft {
+  workspaceId String @default("local")
+  id String @id @default(cuid())
+  reviewId String
+  review AiReview @relation(fields:[workspaceId,reviewId],references:[workspaceId,id],onDelete:Cascade)
+  requestKey String
+  fingerprint String
+  provider String
+  model String
+  state String @default("pending")
+  error String?
+  document Json?
+  content String?
+  revision Int @default(1)
+  approvedHash String?
+  inputTokens Int?
+  outputTokens Int?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId,requestKey])
+  @@unique([workspaceId,id])
+  @@index([workspaceId,reviewId,createdAt])
 }
 model AiGeneration {
   workspaceId String @default("local")

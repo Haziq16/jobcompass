@@ -54,46 +54,96 @@ globalThis.fetch = async (input, options) => {
       b.text.startsWith("Built Kotlin"),
     );
     if (!block) throw new Error("Missing fixture evidence");
-    const report = {
-      requirements: [
-        {
-          jobQuote: "Kotlin experience is required.",
-          priority: "required",
-          assessment: "supported",
-          evidence: [{ blockId: block.id, quote: block.text }],
-          question: "",
-        },
-        {
-          jobQuote: "Accessibility experience is required.",
-          priority: "required",
-          assessment: "not_evidenced",
-          evidence: [],
-          question:
-            "Have you worked on accessibility? Add a truthful example if so.",
-        },
-        {
-          jobQuote:
-            "Work with a thoughtful team to design reliable APIs and collaborate on product development.",
-          priority: "unspecified",
-          assessment: "transferable",
-          evidence: [
-            { blockId: block.id, quote: block.text },
-            {
-              blockId: block.id,
-              quote:
-                "Led 500 fictional engineers; unsupported provider excerpt",
-            },
-          ],
-          question: "How does this experience relate to the advertised role?",
-        },
-      ],
-      outline: [
-        {
-          heading: "Experience",
-          excerpts: [{ blockId: block.id, quote: block.text }],
-        },
-      ],
-    };
+    const report =
+      data.task === "tailored_cv"
+        ? {
+            nameId: data.resumeBlocks[0].id,
+            contactIds: [data.resumeBlocks[1].id],
+            summary: [
+              {
+                text: "Software engineer developing Kotlin services with PostgreSQL and Docker.",
+                sourceIds: [block.id],
+              },
+            ],
+            sections: [
+              {
+                heading: "Experience",
+                entries: [
+                  {
+                    contextIds: [block.id],
+                    points: [
+                      {
+                        text: "Developed services using Kotlin, PostgreSQL and Docker.",
+                        sourceIds: [block.id],
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                heading: "Education",
+                entries: [
+                  {
+                    contextIds: [
+                      data.resumeBlocks.find((b) => b.text.startsWith("BSc"))
+                        .id,
+                    ],
+                    points: [
+                      {
+                        text: "Completed a BSc in Computer Science at Example University in 2020.",
+                        sourceIds: [
+                          data.resumeBlocks.find((b) =>
+                            b.text.startsWith("BSc"),
+                          ).id,
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          }
+        : {
+            requirements: [
+              {
+                jobQuote: "Kotlin experience is required.",
+                priority: "required",
+                assessment: "supported",
+                evidence: [{ blockId: block.id, quote: block.text }],
+                question: "",
+              },
+              {
+                jobQuote: "Accessibility experience is required.",
+                priority: "required",
+                assessment: "not_evidenced",
+                evidence: [],
+                question:
+                  "Have you worked on accessibility? Add a truthful example if so.",
+              },
+              {
+                jobQuote:
+                  "Work with a thoughtful team to design reliable APIs and collaborate on product development.",
+                priority: "unspecified",
+                assessment: "transferable",
+                evidence: [
+                  { blockId: block.id, quote: block.text },
+                  {
+                    blockId: block.id,
+                    quote:
+                      "Led 500 fictional engineers; unsupported provider excerpt",
+                  },
+                ],
+                question:
+                  "How does this experience relate to the advertised role?",
+              },
+            ],
+            outline: [
+              {
+                heading: "Experience",
+                excerpts: [{ blockId: block.id, quote: block.text }],
+              },
+            ],
+          };
     await delay(1600);
     return Response.json({
       id: "resp_fixture",

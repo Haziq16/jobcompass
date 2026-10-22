@@ -20,7 +20,7 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 - **Separate accounts:** hosted signup and sign-in with account-scoped data, exports and deletion controls.
 - **Responsive interface:** consistent typography, desktop and mobile navigation, keyboard-accessible job details, and light/dark themes.
 
-**Optional AI studio:** résumé text checks, job-keyword coverage, evidence-linked AI reviews and tailored text outlines using the user's own provider key. The initial release is an owner-only preview; `AI_MODE=off` removes the feature, and `AI_MODE=byok` enables it for signed-in users with their own keys. See [personal-key AI](docs/personal-ai.md) and [research notes](docs/ai-research.md).
+**Optional AI studio:** résumé text checks, job-keyword coverage, evidence-linked AI reviews and full tailored CV drafts using the user's own provider key. Compare rewritten wording with original sources, edit private versions, and download a reviewed Word or text CV. The initial release is an owner-only preview; `AI_MODE=off` removes the feature, and `AI_MODE=byok` enables it for signed-in users with their own keys. See [personal-key AI](docs/personal-ai.md) and [research notes](docs/ai-research.md).
 
 The legacy gateway tools and assisted form filling remain disabled. Public accounts do not use the shared paid JSearch connection.
 

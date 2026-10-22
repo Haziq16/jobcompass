@@ -1,6 +1,13 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import JSZip from "jszip";
+import { validateCv, cvText } from "../src/lib/tailored-cv-contracts";
+import { createCvDraft, saveCvDraft } from "../src/lib/tailored-cv";
+import { cvDocumentBytes } from "../src/lib/tailored-cv-document";
+import { GET as cvDownload } from "../src/app/api/ai/cv-drafts/[id]/download/route";
+import { GET as cvHistory } from "../src/app/api/ai/reviews/[id]/cv/route";
+import { PATCH as cvPatch } from "../src/app/api/ai/cv-drafts/[id]/route";
 import { Prisma } from "@prisma/client";
 import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
@@ -159,6 +166,196 @@ const req = (path: string, method = "GET", body?: unknown) =>
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+function cvOutput() {
+  return {
+    nameId: "R0001",
+    contactIds: ["R0002"],
+    summary: [
+      {
+        text: "Software engineer developing TypeScript services with PostgreSQL and Docker.",
+        sourceIds: ["R0004"],
+      },
+    ],
+    sections: [
+      {
+        heading: "Experience",
+        entries: [
+          {
+            contextIds: ["R0004"],
+            points: [
+              {
+                text: "Developed services with TypeScript, PostgreSQL and Docker.",
+                sourceIds: ["R0004"],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Education",
+        entries: [
+          {
+            contextIds: ["R0007"],
+            points: [
+              {
+                text: "Completed a BSc in Computer Science at Example University in 2020.",
+                sourceIds: ["R0007"],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+test("tailored CV rewrites supported wording, copies source context and rejects unsupported facts", () => {
+  const result = validateCv(cvOutput(), cv);
+  assert.ok(cvText(result).includes("SUMMARY"));
+  assert.equal(result.name.quote, "Alex Example");
+  assert.ok(
+    result.sections[0].entries[0].context[0].quote.includes("2021–2025"),
+  );
+  assert.notEqual(
+    result.sections[0].entries[0].points[0].text,
+    result.sections[0].entries[0].context[0].quote,
+  );
+  const invalid = cvOutput();
+  invalid.nameId = "R9999";
+  assert.throws(() => validateCv(invalid, cv), /cv_unsupported_source/);
+  const metric = cvOutput();
+  metric.summary[0].text = "Improved service performance by 80%.";
+  assert.throws(() => validateCv(metric, cv), /cv_unsupported_number/);
+  const skill = cvOutput();
+  skill.summary[0].text = "Built services using Kubernetes.";
+  assert.throws(() => validateCv(skill, cv), /cv_unsupported_skill/);
+  const context = cvOutput();
+  context.sections[0].entries[0].contextIds = [];
+  assert.throws(() => validateCv(context, cv), /cv_context_required/);
+});
+test("tailored CV versions coalesce requests, share quota, isolate accounts and require exact revision approval", async () => {
+  const target = await job("local");
+  const review = await inWorkspace("local", () =>
+    createPersonalReview(input(target.id), async () => ({ output: output() })),
+  );
+  let calls = 0;
+  const provider = async () => {
+    calls++;
+    await new Promise((r) => setTimeout(r, 40));
+    return { output: cvOutput(), inputTokens: 200, outputTokens: 180 };
+  };
+  const data = {
+    provider: "openai" as const,
+    model: "fixture-model",
+    apiKey: key,
+    requestKey: randomUUID(),
+    consent: true as const,
+  };
+  const drafts = await inWorkspace("local", () =>
+    Promise.all([
+      createCvDraft(review.id, data, provider),
+      createCvDraft(review.id, data, provider),
+    ]),
+  );
+  assert.equal(calls, 1);
+  assert.equal(drafts[0].id, drafts[1].id);
+  const draft = await db.aiCvDraft.findUniqueOrThrow({
+    where: { id: drafts[0].id },
+  });
+  assert.equal(draft.state, "succeeded");
+  assert.ok(!JSON.stringify(draft).includes(key));
+  assert.equal(
+    await inWorkspace("other", () =>
+      db.aiCvDraft.findUnique({ where: { id: draft.id } }),
+    ),
+    null,
+  );
+  await assert.rejects(
+    inWorkspace("other", () => createCvDraft(review.id, data, provider)),
+    /review_not_found/,
+  );
+  const request = (revision: number) =>
+    req(
+      `/api/ai/cv-drafts/${draft.id}/download?format=txt&revision=${revision}`,
+    );
+  assert.equal(
+    (
+      await cvDownload(request(1), {
+        params: Promise.resolve({ id: draft.id }),
+      })
+    ).status,
+    409,
+  );
+  const approved = await saveCvDraft(draft.id, {
+    content: draft.content!,
+    revision: 1,
+    approved: true,
+  });
+  const download = await cvDownload(request(approved.revision), {
+    params: Promise.resolve({ id: draft.id }),
+  });
+  assert.equal(download.status, 200);
+  assert.equal(await download.text(), draft.content);
+  assert.equal(
+    (
+      await cvDownload(request(1), {
+        params: Promise.resolve({ id: draft.id }),
+      })
+    ).status,
+    409,
+  );
+  const edited = await saveCvDraft(draft.id, {
+    content: draft.content + "\nManual edit",
+    revision: approved.revision,
+    approved: false,
+  });
+  assert.equal(edited.approvedHash, null);
+  assert.equal(
+    (
+      await cvDownload(request(edited.revision), {
+        params: Promise.resolve({ id: draft.id }),
+      })
+    ).status,
+    409,
+  );
+  await assert.rejects(
+    saveCvDraft(draft.id, {
+      content: draft.content!,
+      revision: 1,
+      approved: true,
+    }),
+    /revision_conflict/,
+  );
+  process.env.BYOK_DAILY_LIMIT = "2";
+  await assert.rejects(
+    createCvDraft(review.id, { ...data, requestKey: randomUUID() }, provider),
+    /ai_daily_limit/,
+  );
+  await assert.rejects(
+    createPersonalReview(input(target.id), async () => ({ output: output() })),
+    /ai_daily_limit/,
+  );
+  await db.aiReview.delete({ where: { id: review.id } });
+  assert.equal(await db.aiCvDraft.count(), 0);
+});
+test("tailored Word export preserves Unicode, XML escapes, headings and a single-column layout", async () => {
+  const text =
+    cvText(validateCv(cvOutput(), cv)) + "\nA & B <platform> C++ £50 €60 ≥80%";
+  const bytes = await cvDocumentBytes(text);
+  const zip = await JSZip.loadAsync(bytes);
+  const document = await zip.file("word/document.xml")!.async("string");
+  assert.ok(document.includes("&amp; B &lt;platform&gt;"));
+  assert.ok(document.includes('w:pStyle w:val="Heading1"'));
+  assert.ok(!document.includes("<w:tbl"));
+  assert.ok(
+    !(await zip.file("word/_rels/document.xml.rels")!.async("string")).includes(
+      "External",
+    ),
+  );
+  const extracted = await extractCv(bytes, "tailored.docx");
+  assert.ok(
+    JSON.stringify(extracted).includes("A & B <platform> C++ £50 €60 ≥80%"),
+  );
+});
 test("AI modes default closed, isolate owner preview and allow an explicit personal-key release", async () => {
   delete process.env.AI_MODE;
   assert.equal(aiMode(), "off");
@@ -830,6 +1027,27 @@ test("owner preview uses actual sessions; personal reports remain exportable and
   const run = await inWorkspace(accounts[0].id, () =>
     createPersonalReview(input(target.id), async () => ({ output: output() })),
   );
+  const draft = await inWorkspace(accounts[0].id, () =>
+    createCvDraft(
+      run.id,
+      {
+        provider: "openai",
+        model: "fixture-model",
+        apiKey: key,
+        consent: true,
+        requestKey: randomUUID(),
+      },
+      async () => ({ output: cvOutput() }),
+    ),
+  );
+  assert.equal(
+    (
+      await cvHistory(make(1, `/api/ai/reviews/${run.id}/cv`), {
+        params: Promise.resolve({ id: run.id }),
+      })
+    ).status,
+    403,
+  );
   assert.equal(
     (
       await reviewGet(make(1, "/api/ai/reviews/" + run.id), {
@@ -839,6 +1057,36 @@ test("owner preview uses actual sessions; personal reports remain exportable and
     403,
   );
   process.env.AI_MODE = "byok";
+  assert.equal(
+    (
+      await cvHistory(make(1, `/api/ai/reviews/${run.id}/cv`), {
+        params: Promise.resolve({ id: run.id }),
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await cvPatch(
+        make(1, `/api/ai/cv-drafts/${draft.id}`, "PATCH", {
+          content: draft.content,
+          revision: 1,
+          approved: true,
+        }),
+        { params: Promise.resolve({ id: draft.id }) },
+      )
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await cvDownload(
+        make(1, `/api/ai/cv-drafts/${draft.id}/download?format=txt&revision=1`),
+        { params: Promise.resolve({ id: draft.id }) },
+      )
+    ).status,
+    404,
+  );
   assert.equal(
     (
       await reviewGet(make(1, "/api/ai/reviews/" + run.id), {
@@ -860,6 +1108,7 @@ test("owner preview uses actual sessions; personal reports remain exportable and
   });
   const data = await exported.json();
   assert.equal(data.aiReviews.length, 1);
+  assert.equal(data.cvDrafts.length, 1);
   assert.ok(!JSON.stringify(data).includes(key));
   assert.ok(!JSON.stringify(data).includes("keyCiphertext"));
   const cleared = await workspaceDelete(
@@ -868,6 +1117,10 @@ test("owner preview uses actual sessions; personal reports remain exportable and
   );
   assert.equal(cleared.status, 200);
   assert.equal(await inWorkspace(accounts[0].id, () => db.aiReview.count()), 0);
+  assert.equal(
+    await inWorkspace(accounts[0].id, () => db.aiCvDraft.count()),
+    0,
+  );
   assert.equal(
     await inWorkspace(accounts[0].id, () => db.aiConnection.count()),
     0,

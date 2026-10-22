@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { Run } from "./ai-studio-types";
 import { Checks } from "./AiReviewChecks";
+import { TailoredCv } from "./TailoredCv";
 
 const labels = {
   supported: "Matching experience",
@@ -54,12 +55,14 @@ export function ReviewResult({
   onNew,
   onEdit,
   errorMessage,
+  onConnect,
 }: {
   run: Run;
   onDelete: () => Promise<void>;
   onNew: () => void;
   onEdit: () => void;
   errorMessage: (code: string) => string;
+  onConnect: () => void;
 }) {
   const [tab, setTab] = useState("overview");
   const [filter, setFilter] = useState("all");
@@ -161,6 +164,7 @@ export function ReviewResult({
             {[
               ["overview", "Overview & action plan"],
               ["requirements", "Requirements & evidence"],
+              ["cv", "Tailored CV"],
               ["outline", "Tailored evidence outline"],
               ["checks", "Text checks"],
             ].map(([value, label]) => (
@@ -387,6 +391,14 @@ export function ReviewResult({
             </div>
           )}
           {tab === "checks" && <Checks checks={run.checks} />}
+          {tab === "cv" && (
+            <TailoredCv
+              key={run.id}
+              review={run}
+              onConnect={onConnect}
+              errorMessage={errorMessage}
+            />
+          )}
           <button onClick={onEdit}>
             Improve this CV <ArrowUpRight size={15} />
           </button>

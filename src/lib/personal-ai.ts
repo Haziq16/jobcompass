@@ -52,6 +52,13 @@ export async function reviewTarget(
   };
 }
 export async function expireReviews() {
+  await db.aiCvDraft.updateMany({
+    where: {
+      state: "pending",
+      createdAt: { lt: new Date(Date.now() - REVIEW_INTERRUPTED_AFTER_MS) },
+    },
+    data: { state: "uncertain", error: "interrupted", completedAt: new Date() },
+  });
   await db.aiReview.updateMany({
     where: {
       state: "pending",
@@ -97,7 +104,10 @@ export async function createPersonalReview(
           throw new AppError("idempotency_conflict", 409);
         return { run: existing, owner: false };
       }
-      if (await tx.aiReview.count({ where: { state: "pending" } }))
+      if (
+        (await tx.aiReview.count({ where: { state: "pending" } })) ||
+        (await tx.aiCvDraft.count({ where: { state: "pending" } }))
+      )
         throw new AppError("ai_review_in_progress", 409);
       const day = new Date();
       day.setUTCHours(0, 0, 0, 0);
@@ -106,7 +116,8 @@ export async function createPersonalReview(
         Math.max(1, Number(process.env.BYOK_DAILY_LIMIT) || 20),
       );
       if (
-        (await tx.aiReview.count({ where: { createdAt: { gte: day } } })) >=
+        (await tx.aiReview.count({ where: { createdAt: { gte: day } } })) +
+          (await tx.aiCvDraft.count({ where: { createdAt: { gte: day } } })) >=
         limit
       )
         throw new AppError("ai_daily_limit", 429);

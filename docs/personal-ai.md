@@ -10,6 +10,16 @@ The studio starts with the selected job and the user's saved CV. Job switching, 
 
 Completed and historical reviews open with evidence counts and a prioritized action plan, followed by matching experience. Required requirements appear first in the action plan; related experience and missing evidence remain distinct. Users can filter the requirement evidence, download the application review, inspect the original excerpts in a conventional outline, and restore a review's exact CV and job for editing. Restoring inputs clears approval and provider-usage consent, and sends no AI request. These views use the existing grounded report, so opening tabs, downloading or improving the input never consumes another provider call. Counts summarize the reviewed requirements, not the entire posting or an ATS score.
 
+## Full tailored CV drafts
+
+Open **Tailored CV** on a completed review and explicitly approve a separate provider request. The selected saved connection is reused. The model rewrites a professional summary and supported bullets, organizes conventional sections, and cites original CV blocks for each paragraph. Name, contact and role/qualification context blocks are copied from the original snapshot. The saved profile is never overwritten.
+
+Each generation creates a private version linked to the review. Preview, edit the complete CV, compare generated wording with sources, and save edits without another AI call. Word and text downloads require confirmation of the exact saved revision; edits clear confirmation and concurrent edits are rejected. Word export uses a single-column A4 layout with conventional headings and no tables, images, external relationships or macros. This does not guarantee compatibility with every employer's ATS.
+
+Source IDs, unsupported numbers and recognized added skills are checked server-side. These guards do not prove semantic correctness, completeness, chronology or that a claim preserves its original level of responsibility. The user must check employers, roles, dates, qualifications, metrics and wording before using a draft. Failed checks reject the generated draft without automatic retry; any reported usage is retained.
+
+Reviews and CV generations share the same daily attempt allowance, per-account pending-request lock, timeout and idempotency protections. Failed and uncertain generations remain counted. Opening tabs, saving edits and downloading do not generate text. Deleting a parent review cascades to its CV versions; workspace export includes the user's drafts and profile clearing removes them. Disabling `AI_MODE` also disables CV routes. Implementation lives in `src/lib/tailored-cv*`, `TailoredCv.tsx`, and the private CV API routes, alongside the existing AI module.
+
 ## Access and removal
 
 Set `AI_MODE` in the **production** Vercel environment and redeploy:
