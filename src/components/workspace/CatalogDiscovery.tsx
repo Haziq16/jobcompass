@@ -255,7 +255,6 @@ export default function CatalogDiscovery() {
     >
       <header className="catalog-heading">
         <div>
-          <p className="eyebrow">YOUR NEXT OPPORTUNITY, WORLDWIDE</p>
           <h1 id="catalog-title">Discover jobs</h1>
           <p>
             Explore opportunities straight from employers. Find your fit and
@@ -383,75 +382,88 @@ export default function CatalogDiscovery() {
           ))}
         </div>
       )}
-      <div className="catalog-filters">
-        <label>
-          Company
-          <select
-            value={params.get("employer") || ""}
-            onChange={(e) => update({ employer: e.target.value })}
-          >
-            <option value="">All companies</option>
-            {data?.employers.map((name) => (
-              <option key={name}>{name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Freshness
-          <select
-            value={params.get("since") || ""}
-            onChange={(e) => update({ since: e.target.value })}
-          >
-            <option value="">Any time</option>
-            <option value="1h">Last hour</option>
-            <option value="24h">Last 24 hours</option>
-            <option value="7d">Last 7 days</option>
-          </select>
-        </label>
-        <label>
-          Date filter uses
-          <select
-            value={params.get("freshness") || "posted"}
-            onChange={(e) => update({ freshness: e.target.value })}
-          >
-            <option value="posted">Employer publication date</option>
-            <option value="found">Newly discovered after initial import</option>
-          </select>
-        </label>
-        <label>
-          Source
-          <select
-            value={params.get("platform") || ""}
-            onChange={(e) => update({ platform: e.target.value })}
-          >
-            <option value="">All sources</option>
-            <option value="greenhouse">Greenhouse</option>
-            <option value="lever">Lever</option>
-            <option value="ashby">Ashby</option>
-          </select>
-        </label>
-        <label className="catalog-remote">
-          <input
-            type="checkbox"
-            checked={params.get("remote") === "true"}
-            onChange={(e) => update({ remote: e.target.checked ? "true" : "" })}
-          />
-          Remote roles
-        </label>
-        {activeFilters && (
-          <button
-            className="catalog-clear"
-            onClick={() => router.replace("/discover", { scroll: false })}
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-      <p className="catalog-freshness-note">
-        Feeds are checked about every 30 minutes in the background, and as often
-        as every 5 minutes while browsing. Source availability and scheduler
-        delays can affect timing. Remote roles may have location restrictions.
-      </p>
+      <details className="catalog-filter-disclosure">
+        <summary>Filters{activeFilters ? " · Active" : ""}</summary>
+        <div className="catalog-filters">
+          <label>
+            Company
+            <select
+              value={params.get("employer") || ""}
+              onChange={(e) => update({ employer: e.target.value })}
+            >
+              <option value="">All companies</option>
+              {data?.employers.map((name) => (
+                <option key={name}>{name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Freshness
+            <select
+              value={params.get("since") || ""}
+              onChange={(e) => update({ since: e.target.value })}
+            >
+              <option value="">Any time</option>
+              <option value="1h">Last hour</option>
+              <option value="24h">Last 24 hours</option>
+              <option value="7d">Last 7 days</option>
+            </select>
+          </label>
+          <label>
+            Date filter uses
+            <select
+              value={params.get("freshness") || "posted"}
+              onChange={(e) => update({ freshness: e.target.value })}
+            >
+              <option value="posted">Employer publication date</option>
+              <option value="found">
+                Newly discovered after initial import
+              </option>
+            </select>
+          </label>
+          <label>
+            Source
+            <select
+              value={params.get("platform") || ""}
+              onChange={(e) => update({ platform: e.target.value })}
+            >
+              <option value="">All sources</option>
+              <option value="greenhouse">Greenhouse</option>
+              <option value="lever">Lever</option>
+              <option value="ashby">Ashby</option>
+            </select>
+          </label>
+          <label className="catalog-remote">
+            <input
+              type="checkbox"
+              checked={params.get("remote") === "true"}
+              onChange={(e) =>
+                update({ remote: e.target.checked ? "true" : "" })
+              }
+            />
+            Remote roles
+          </label>
+          {activeFilters && (
+            <button
+              className="catalog-clear"
+              onClick={() => router.replace("/discover", { scroll: false })}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+        <p className="catalog-freshness-note">
+          Feeds are checked about every 30 minutes in the background, and as
+          often as every 5 minutes while browsing. Source availability and
+          scheduler delays can affect timing. Remote roles may have location
+          restrictions.
+        </p>
+        <p className="catalog-date-note">
+          Latest uses publication dates when supplied, or discovery time for
+          newly detected roles. Initial imports are labelled “First indexed” and
+          aren’t counted as newly posted.
+        </p>
+      </details>
       <div className="catalog-results-heading">
         <h2>
           {loading
@@ -461,7 +473,7 @@ export default function CatalogDiscovery() {
               : "Opportunities"}
         </h2>
         <label>
-          Sort by{" "}
+          <span>Sort by</span>
           <select
             value={
               params.get("sort") || (params.get("q") ? "relevance" : "latest")
@@ -477,11 +489,6 @@ export default function CatalogDiscovery() {
           </select>
         </label>
       </div>
-      <p className="catalog-date-note">
-        Latest uses publication dates when supplied, or discovery time for newly
-        detected roles. Initial imports are labelled “First indexed” and aren’t
-        counted as newly posted.
-      </p>
       {error && (
         <div role="alert" className="catalog-empty">
           <p>Could not load discovery. Your saved jobs are still available.</p>

@@ -84,7 +84,6 @@ export default function ProfileEditor() {
     <>
       <div className="upgrade-heading">
         <div>
-          <span className="eyebrow">MAKE IT PERSONAL</span>
           <h1>Your profile</h1>
           <p>A few preferences help you spot the right opportunities.</p>
         </div>

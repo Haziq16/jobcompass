@@ -10,6 +10,7 @@ import {
   Upload,
   CheckCircle2,
   ArrowRight,
+  X,
 } from "lucide-react";
 import { api, useResource } from "./client";
 import { usePersonalAi } from "./PersonalAiContext";
@@ -469,7 +470,6 @@ export default function AiStudio() {
     <section id="ai-studio" aria-labelledby="ai-studio-title">
       <header className="ai-heading">
         <div>
-          <p className="eyebrow">YOUR APPLICATION WORKSPACE</p>
           <h1 id="ai-studio-title">AI studio</h1>
           <p>
             Your original CV. Clear ATS checks. Jobs matched to your experience.
@@ -493,7 +493,7 @@ export default function AiStudio() {
             <FileText size={21} />
           </span>
           <span>
-            <small>YOUR CV</small>
+            <small>Your CV</small>
             <strong>
               {sourceDocument ? "Original Word format" : "Add your original CV"}
             </strong>
@@ -513,7 +513,7 @@ export default function AiStudio() {
             <CheckCircle2 size={21} />
           </span>
           <span>
-            <small>ATS READINESS</small>
+            <small>ATS readiness</small>
             <strong>
               {sourceDocument
                 ? `${sourceDocument.passed} of ${sourceDocument.total} checks passed`
@@ -533,7 +533,7 @@ export default function AiStudio() {
             <Search size={21} />
           </span>
           <span>
-            <small>PERSONALIZED DISCOVERY</small>
+            <small>Discovery</small>
             <strong>Find jobs for you</strong>
             <em>Ranked using your CV and preferred roles</em>
           </span>
@@ -1087,7 +1087,7 @@ export default function AiStudio() {
                 aria-label="Close AI settings"
                 onClick={() => setProviderOpen(false)}
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
             <div className="ai-provider-content">

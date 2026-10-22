@@ -62,8 +62,7 @@ export default function DirectDiscovery() {
   }
   return (
     <section className="direct-discovery" aria-labelledby="direct-heading">
-      <p className="eyebrow">FIND YOUR NEXT OPPORTUNITY</p>
-      <h1 id="direct-heading">Discover jobs</h1>
+      <h2 id="direct-heading">Import a company board</h2>
       <p>
         Search a company's public careers board, then keep the opportunities
         that fit. No API key needed.

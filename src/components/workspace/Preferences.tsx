@@ -34,7 +34,6 @@ export default function Preferences() {
     <>
       <div className="upgrade-heading">
         <div>
-          <span className="eyebrow">YOUR ACCOUNT</span>
           <h1>Settings</h1>
           <p>Manage your account, data and workspace.</p>
         </div>

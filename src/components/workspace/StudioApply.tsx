@@ -51,7 +51,6 @@ export function StudioApply({
   }
   return (
     <section className="studio-apply">
-      <span className="studio-kicker">FINAL STEP</span>
       <h2>{recorded ? "Application recorded" : "Ready to apply?"}</h2>
       <p>
         {recorded

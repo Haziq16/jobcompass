@@ -13,6 +13,8 @@ import {
   Moon,
   Radio,
   Sparkles,
+  Menu,
+  X,
 } from "lucide-react";
 import { SignOut } from "../AccountControls";
 import { usePersonalAi } from "./PersonalAiContext";
@@ -36,6 +38,7 @@ export default function Shell({
   const pathname = usePathname();
   const { enabled: ai } = usePersonalAi();
   const [dark, setDark] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     const value = localStorage.getItem("jobcompass-theme") === "dark";
     setDark(value);
@@ -51,12 +54,36 @@ export default function Shell({
       <a className="skip-link" href="#workspace-content">
         Skip to content
       </a>
-      <aside className="upgrade-sidebar">
-        <Link className="brand" href="/jobs">
-          <Compass /> JobCompass<span>.</span>
-        </Link>
-        <p className="workspace-label">YOUR WORKSPACE</p>
-        <nav aria-label="Main navigation">
+      <aside className="upgrade-sidebar" data-expanded={menuOpen}>
+        <div className="sidebar-brand-row">
+          <Link className="brand" href="/jobs">
+            <Compass /> JobCompass<span>.</span>
+          </Link>
+          <button
+            className="mobile-menu-button"
+            aria-expanded={menuOpen}
+            aria-controls="workspace-navigation"
+            aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            Menu
+          </button>
+        </div>
+        <p className="workspace-label">Workspace</p>
+        <nav
+          id="workspace-navigation"
+          aria-label="Main navigation"
+          onClick={() => setMenuOpen(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setMenuOpen(false);
+              document
+                .querySelector<HTMLButtonElement>(".mobile-menu-button")
+                ?.focus();
+            }
+          }}
+        >
           {navigation.map(([href, label, Icon]) => (
             <Link
               key={href}
@@ -79,15 +106,6 @@ export default function Shell({
             </Link>
           )}
         </nav>
-        <div className="upgrade-sidebar-note">
-          <Compass />
-          <h3>Your search, organized.</h3>
-          <p>
-            Find opportunities. Save the good ones. Keep track of your next
-            step.
-          </p>
-          <small>{hosted ? "Personal account" : "Local workspace"}</small>
-        </div>
         <div className="account-chip">
           <span className="account-avatar">
             {(name || "My").slice(0, 1).toUpperCase()}

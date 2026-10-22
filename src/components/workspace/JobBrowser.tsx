@@ -148,7 +148,6 @@ export default function JobBrowser({ saved = false }: { saved?: boolean }) {
     <>
       <div className="upgrade-heading">
         <div>
-          <span className="eyebrow">YOUR OPPORTUNITIES</span>
           <h1 ref={heading} tabIndex={-1}>
             {saved ? "Saved jobs" : "My jobs"}
           </h1>

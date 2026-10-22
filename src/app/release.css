@@ -1,19 +1,25 @@
 /* Unified workspace and account typography. No network-loaded fonts. */
 :root {
-  --serif: Inter, "Segoe UI", Arial, sans-serif;
-  --release-ink: #1b2835;
-  --release-muted: #647180;
-  --release-line: #e3e8ed;
+  --workspace-selected: #e7ece8;
+  --workspace-action: #252d28;
+  --workspace-action-hover: #3a463e;
+  --serif: "Segoe UI", Arial, sans-serif;
+  --release-ink: #202622;
+  --release-muted: #59635e;
+  --release-line: #e0e5e1;
   --release-surface: #fff;
-  --release-bg: #f6f8fa;
+  --release-bg: #f5f7f5;
   --release-accent: #24735b;
 }
 html[data-theme="dark"] {
-  --release-ink: #e7edf2;
-  --release-muted: #a1adba;
-  --release-line: #35424c;
-  --release-surface: #1c2731;
-  --release-bg: #131e27;
+  --workspace-selected: #2c332e;
+  --workspace-action: #dce8df;
+  --workspace-action-hover: #c4d6c9;
+  --release-ink: #edf0ee;
+  --release-muted: #b0bab4;
+  --release-line: #363d38;
+  --release-surface: #1e221f;
+  --release-bg: #141715;
   --release-accent: #7fd2b0;
 }
 body,
@@ -21,7 +27,7 @@ button,
 input,
 select,
 textarea {
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-family: "Segoe UI", Arial, sans-serif;
 }
 body {
   font-size: 15px;
@@ -34,7 +40,7 @@ body h1,
 body h2,
 body h3,
 body .brand {
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-family: "Segoe UI", Arial, sans-serif;
   letter-spacing: -0.035em;
   font-weight: 650;
 }
@@ -45,10 +51,10 @@ body .brand {
 .upgrade-body .detail-heading h2,
 .auth-layout h1,
 .auth-layout h2 {
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-family: "Segoe UI", Arial, sans-serif;
 }
 body h1 {
-  font-size: 36px;
+  font-size: 28px;
   line-height: 1.2;
 }
 body h2 {
@@ -90,10 +96,11 @@ summary:focus-visible {
   background: var(--release-bg);
 }
 .upgrade-sidebar {
-  background: var(--release-surface);
+  background: var(--release-bg);
   color: var(--release-ink);
   border-right: 1px solid var(--release-line);
-  padding: 32px 18px 20px;
+
+  padding: 28px 16px 20px;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -102,10 +109,12 @@ summary:focus-visible {
 }
 .upgrade-sidebar .brand {
   color: var(--release-ink);
-  font-size: 21px;
+
+  font-size: 20px;
   gap: 10px;
-  margin: 0 12px 44px;
-  letter-spacing: -0.04em;
+
+  margin: 0 10px 32px;
+  letter-spacing: -0.025em;
 }
 .upgrade-sidebar .brand svg {
   color: var(--release-accent);
@@ -114,11 +123,14 @@ summary:focus-visible {
   display: none;
 }
 .upgrade-sidebar .workspace-label {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 12px;
+
+  font-weight: 500;
   color: var(--release-muted);
-  letter-spacing: 0.13em;
-  margin: 0 15px 13px;
+
+  letter-spacing: 0;
+
+  margin: 0 12px 10px;
 }
 .upgrade-sidebar nav {
   display: flex;
@@ -129,21 +141,28 @@ summary:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
+
   font-size: 14px;
-  font-weight: 550;
+
+  font-weight: 500;
   color: var(--release-muted);
-  padding: 11px 14px;
-  border-radius: 8px;
-  min-height: 43px;
+
+  padding: 9px 12px;
+
+  border-radius: 6px;
+
+  min-height: 40px;
 }
 .upgrade-sidebar nav a[aria-current="page"] {
-  background: #e8f3ee;
-  color: #1c6049;
+  background: var(--workspace-selected);
+
+  color: var(--release-ink);
   box-shadow: none;
 }
 .upgrade-sidebar nav a:hover {
-  background: var(--release-bg);
-  color: var(--release-accent);
+  background: var(--workspace-selected);
+
+  color: var(--release-ink);
 }
 .upgrade-sidebar-note {
   margin: auto 4px 20px;
@@ -176,6 +195,7 @@ summary:focus-visible {
   padding: 14px 10px 0;
   border-top: 1px solid var(--release-line);
   min-width: 0;
+  margin-top: auto;
 }
 .account-avatar {
   background: #e3eee9;
@@ -205,10 +225,13 @@ summary:focus-visible {
   min-width: 0;
 }
 .upgrade-topbar {
-  height: 76px;
-  padding: 0 42px;
-  border-bottom: 1px solid var(--release-line);
-  background: var(--release-surface);
+  height: 52px;
+
+  padding: 0 32px;
+
+  border-bottom: 0;
+
+  background: var(--release-bg);
   color: var(--release-muted);
   font-size: 13px;
 }
@@ -221,27 +244,34 @@ summary:focus-visible {
 }
 .upgrade-topbar .text-button {
   font-size: 12px;
+  color: var(--release-muted);
+  opacity: 1;
+  min-height: 44px;
 }
 .upgrade-body {
-  padding: 40px 42px 64px;
+  padding: 24px 32px 56px;
   max-width: 1560px;
   margin: 0 auto;
 }
 .upgrade-body .eyebrow,
 .direct-discovery .eyebrow {
-  color: var(--release-accent);
-  font-size: 10px;
-  letter-spacing: 0.13em;
-  font-weight: 700;
+  color: var(--release-muted);
+
+  font-size: 13px;
+
+  letter-spacing: 0;
+
+  font-weight: 500;
 }
 .upgrade-heading {
   margin-bottom: 28px;
   gap: 24px;
 }
 .upgrade-heading h1 {
-  font-size: 34px;
-  letter-spacing: -0.045em;
-  margin: 9px 0 10px;
+  font-size: 28px;
+  letter-spacing: -0.025em;
+
+  margin: 0 0 8px;
 }
 .upgrade-heading p {
   color: var(--release-muted);
@@ -253,9 +283,9 @@ summary:focus-visible {
 }
 .upgrade-body .primary,
 .primary {
-  background: #256e56;
+  background: var(--workspace-action);
   color: #fff;
-  border: 1px solid #256e56;
+  border: 1px solid var(--workspace-action);
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
@@ -269,7 +299,7 @@ summary:focus-visible {
 }
 .upgrade-body .primary:hover,
 .primary:hover {
-  background: #1c5945;
+  background: var(--workspace-action-hover);
   color: #fff;
 }
 .upgrade-body button {
@@ -309,7 +339,7 @@ summary:focus-visible {
   background: var(--release-surface);
   border: 1px solid var(--release-line);
   border-radius: 12px;
-  box-shadow: 0 2px 5px #162f441f;
+  box-shadow: none;
 }
 .upgrade-panel {
   padding: 26px;
@@ -334,9 +364,11 @@ summary:focus-visible {
   padding: 9px 13px;
 }
 .upgrade-body button[aria-pressed="true"] {
-  color: #216247;
-  background: #eaf4ee;
-  border-color: #bedacc;
+  color: var(--release-ink);
+
+  background: var(--workspace-selected);
+
+  border-color: var(--release-line);
 }
 .upgrade-filters {
   padding: 18px;
@@ -425,8 +457,8 @@ summary:focus-visible {
   box-shadow: none;
 }
 .direct-discovery h1 {
-  font-size: 36px;
-  letter-spacing: -0.045em;
+  font-size: 24px;
+  letter-spacing: -0.025em;
 }
 .direct-discovery > p {
   font-size: 14px;
@@ -645,19 +677,19 @@ summary:focus-visible {
   gap: 10px;
   font-size: 23px;
   font-weight: 650;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.025em;
   color: #fff;
   text-decoration: none;
 }
 .auth-story .eyebrow {
-  font-size: 10px;
-  letter-spacing: 0.18em;
+  font-size: 12px;
+  letter-spacing: 0;
   color: #b3d2c0;
 }
 .auth-story h1 {
   font-size: clamp(36px, 4.1vw, 62px);
   line-height: 1.13;
-  letter-spacing: -0.055em;
+  letter-spacing: -0.025em;
   font-weight: 600;
   margin: 20px 0 25px;
 }
@@ -702,16 +734,16 @@ summary:focus-visible {
   max-width: 385px;
 }
 .auth-kicker {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
-  letter-spacing: 0.13em;
+  letter-spacing: 0;
   color: var(--release-accent);
 }
 .auth-card h2 {
   font-size: 30px;
   font-weight: 650;
   margin: 14px 0 12px;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.025em;
 }
 .auth-card > p {
   font-size: 14px;
@@ -776,10 +808,13 @@ summary:focus-visible {
 }
 @media (max-width: 1100px) {
   .upgrade-body {
-    padding: 30px 24px 50px;
+    padding: 24px 32px 56px;
   }
   .upgrade-topbar {
-    padding: 0 24px;
+    padding: 0 32px;
+    height: 52px;
+    background: var(--release-bg);
+    border-bottom: 0;
   }
   .upgrade-shell {
     grid-template-columns: 210px minmax(0, 1fr);
@@ -802,12 +837,15 @@ summary:focus-visible {
   .upgrade-sidebar {
     position: static;
     height: auto;
-    padding: 19px 18px 0;
+
+    padding: 28px 16px 20px;
     border-right: 0;
     border-bottom: 1px solid var(--release-line);
+    background: var(--release-bg);
   }
   .upgrade-sidebar .brand {
-    margin: 0 0 18px;
+    margin: 0 10px 32px;
+
     font-size: 20px;
   }
   .upgrade-sidebar nav {
@@ -819,9 +857,14 @@ summary:focus-visible {
   .upgrade-sidebar nav a {
     justify-content: flex-start;
     gap: 8px;
-    padding: 9px 7px;
-    font-size: 12px;
-    min-height: 39px;
+
+    padding: 9px 12px;
+
+    font-size: 14px;
+
+    min-height: 40px;
+    font-weight: 500;
+    border-radius: 6px;
   }
   .upgrade-sidebar nav a svg {
     width: 16px;
@@ -830,17 +873,21 @@ summary:focus-visible {
   .upgrade-sidebar-note,
   .account-chip {
     display: none;
+    margin-top: auto;
   }
   .upgrade-topbar {
-    height: 59px;
-    padding: 0 19px;
+    height: 52px;
+
+    padding: 0 32px;
     font-size: 12px;
+    background: var(--release-bg);
+    border-bottom: 0;
   }
   .upgrade-topbar .text-button {
     font-size: 11px;
   }
   .upgrade-body {
-    padding: 25px 17px 42px;
+    padding: 24px 32px 56px;
   }
   .upgrade-heading {
     flex-direction: column;
@@ -848,7 +895,8 @@ summary:focus-visible {
     gap: 16px;
   }
   .upgrade-heading h1 {
-    font-size: 29px;
+    font-size: 28px;
+    margin: 0 0 8px;
   }
   .upgrade-heading p {
     font-size: 13px;
@@ -872,7 +920,7 @@ summary:focus-visible {
     padding: 23px 19px;
   }
   .direct-discovery h1 {
-    font-size: 30px;
+    font-size: 24px;
   }
   .direct-discovery > p {
     font-size: 13px;
@@ -963,5 +1011,144 @@ summary:focus-visible {
   }
   .job-select h3 {
     font-size: 16px;
+  }
+}
+/* Shared workspace interaction and navigation. A 232px sidebar + two 32px gutters
+   leaves the remaining canvas for the current task; tablet/phone fold the sidebar. */
+::selection {
+  background: #cde3d5;
+  color: #162a1d;
+}
+input,
+textarea {
+  caret-color: var(--release-accent);
+}
+.upgrade-body {
+  font-variant-numeric: tabular-nums;
+}
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mobile-menu-button {
+  display: none;
+}
+.upgrade-body .primary,
+.primary {
+  box-shadow: none;
+}
+html[data-theme="dark"] .upgrade-body .primary,
+html[data-theme="dark"] .primary {
+  color: #17231b;
+}
+.upgrade-body button,
+.upgrade-body a {
+  transition:
+    background-color 160ms ease-out,
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+.upgrade-body button:disabled {
+  cursor: not-allowed;
+}
+.upgrade-body .eyebrow {
+  text-transform: none;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.direct-discovery h2 {
+  font-size: 22px;
+  margin: 0 0 12px;
+}
+@media (max-width: 1100px) {
+  .upgrade-shell {
+    display: block;
+  }
+  .upgrade-sidebar {
+    position: static;
+    height: auto;
+    padding: 12px 20px;
+    border-right: 0;
+    border-bottom: 1px solid var(--release-line);
+  }
+  .upgrade-sidebar .brand {
+    margin: 0;
+    font-size: 20px;
+  }
+  .mobile-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 1px solid var(--release-line);
+    border-radius: 6px;
+    color: var(--release-ink);
+    background: var(--release-surface);
+    font-size: 14px;
+  }
+  .upgrade-sidebar nav {
+    display: none;
+  }
+  .upgrade-sidebar[data-expanded="true"] nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding: 16px 0 4px;
+  }
+  .upgrade-sidebar nav a {
+    min-height: 44px;
+  }
+  .upgrade-sidebar .workspace-label,
+  .upgrade-sidebar .account-chip {
+    display: none;
+  }
+  .upgrade-topbar {
+    height: 44px;
+    padding: 0 20px;
+  }
+  .upgrade-body {
+    padding: 24px 20px 48px;
+  }
+}
+@media (max-width: 600px) {
+  .upgrade-sidebar {
+    padding: 8px 16px;
+  }
+  .upgrade-sidebar[data-expanded="true"] nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .upgrade-body {
+    padding: 20px 16px 40px;
+  }
+  .upgrade-topbar {
+    padding: 0 16px;
+  }
+  .upgrade-topbar > span {
+    font-size: 12px;
+  }
+  .upgrade-topbar .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .upgrade-topbar > div {
+    gap: 8px;
+  }
+  .upgrade-body h1,
+  .upgrade-heading h1 {
+    font-size: 24px;
+  }
+  .upgrade-body input:not([type="checkbox"]):not([type="file"]),
+  .upgrade-body select,
+  .upgrade-body textarea {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .upgrade-body button,
+  .upgrade-body a {
+    transition: none;
   }
 }

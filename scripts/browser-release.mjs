@@ -15,6 +15,30 @@ import { setTimeout as delay } from "node:timers/promises";
 import JSZip from "jszip";
 import { cvLayoutFixture } from "./cv-layout-fixture.mjs";
 const origin = "http://127.0.0.1:3000";
+// Fixture-only visual artifacts: inline the actual loaded CSS so design tools
+// can inspect responsive layouts without a session or a running test server.
+async function designSnapshot(page, name) {
+  const html = await page.evaluate(() => {
+    const css = [...document.styleSheets]
+      .map((sheet) => {
+        try {
+          return [...sheet.cssRules].map((rule) => rule.cssText).join("\n");
+        } catch {
+          return "";
+        }
+      })
+      .join("\n");
+    const body = document.body.cloneNode(true);
+    body
+      .querySelectorAll("script,link,iframe,[hidden],[style*='display: none']")
+      .forEach((node) => node.remove());
+    body
+      .querySelectorAll("input[type='password']")
+      .forEach((node) => node.removeAttribute("value"));
+    return `<!doctype html><html lang="en" data-theme="${document.documentElement.dataset.theme || "light"}"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head>${body.outerHTML}</html>`;
+  });
+  writeFileSync(`test-results/design-${name}.html`, html);
+}
 const source = new URL(process.env.DATABASE_URL);
 if (!["localhost", "127.0.0.1"].includes(source.hostname))
   throw new Error("Local test database only");
@@ -323,6 +347,14 @@ try {
   check(
     "Board selection is free of requests; discovery dispatch is explicit (mocked import)",
   );
+  if (
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .isVisible()
+  )
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .click();
   await page.getByRole("link", { name: "My jobs", exact: true }).click();
   await page
     .getByRole("button", { name: /Product Designer/ })
@@ -332,7 +364,17 @@ try {
     path: "test-results/release-jobs-desktop.png",
     fullPage: true,
   });
+  await page
+    .getByLabel("Search stored jobs", { exact: true })
+    .fill("Product Designer");
+  await page
+    .getByRole("button", { name: "Apply Search stored jobs", exact: true })
+    .click();
+  await page.waitForURL(/q=Product\+Designer/);
   await page.getByRole("button", { name: "Quick Browse", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Product Designer", exact: true })
+    .waitFor();
   await page.getByRole("button", { name: /^Save/ }).first().click();
   await page.getByRole("link", { name: "Saved", exact: true }).click();
   await page
@@ -340,7 +382,17 @@ try {
     .first()
     .waitFor();
   check("Imported jobs can be saved and found in the private shortlist");
+  await page
+    .getByLabel("Search stored jobs", { exact: true })
+    .fill("Product Designer");
+  await page
+    .getByRole("button", { name: "Apply Search stored jobs", exact: true })
+    .click();
+  await page.waitForURL(/q=Product\+Designer/);
   await page.getByRole("button", { name: "Quick Browse", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Product Designer", exact: true })
+    .waitFor();
   await page
     .getByRole("button", { name: "Track application", exact: true })
     .click();
@@ -434,6 +486,14 @@ try {
     403,
   );
   check("Owner AI preview is hidden and refused for the second account");
+  if (
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .isVisible()
+  )
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .click();
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
   await page.getByRole("heading", { name: "AI studio", exact: true }).waitFor();
   let providerRequests = 0;
@@ -983,6 +1043,31 @@ try {
     path: "test-results/ai-studio-mobile.png",
     fullPage: true,
   });
+  await designSnapshot(page, "studio");
+  await page.setViewportSize({ width: 768, height: 1024 });
+  assert.ok(
+    await page
+      .locator("#ai-studio:visible .studio-queue")
+      .evaluate((node) => node.getBoundingClientRect().width >= 180),
+  );
+  await page.screenshot({
+    path: "test-results/ai-studio-tablet.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("button", { name: "Use dark theme", exact: true })
+    .click();
+  assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
+  await designSnapshot(page, "studio-dark");
+  await page.screenshot({
+    path: "test-results/ai-studio-dark-mobile.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page
+    .getByRole("button", { name: "Use light theme", exact: true })
+    .click();
   check("AI studio remains usable without horizontal overflow on mobile");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(origin + "/discover");
@@ -1008,7 +1093,21 @@ try {
   check(
     "Mobile catalogue cards and native detail-dialog keyboard controls work",
   );
+  if (
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .isVisible()
+  )
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .click();
   await page.getByRole("link", { name: "My jobs", exact: true }).click();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .getAttribute("aria-expanded"),
+    "false",
+  );
   await page
     .getByRole("button", { name: /Product Designer/ })
     .first()
@@ -1029,8 +1128,16 @@ try {
     size: parseFloat(getComputedStyle(e).fontSize),
   }));
   assert.ok(!typography.family.includes("Georgia"));
-  assert.ok(typography.size >= 28);
+  assert.ok(typography.size >= 24);
   check("Workspace headings use readable sans-serif typography");
+  if (
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .isVisible()
+  )
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .click();
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
   await page.getByRole("button", { name: "AI settings", exact: true }).click();
   await page
@@ -1049,6 +1156,14 @@ try {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL("**/discover");
   check("Sign-out and returning-account sign-in work");
+  if (
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .isVisible()
+  )
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .click();
   await page.getByRole("link", { name: "AI studio", exact: true }).click();
   await page
     .getByRole("button", { name: "AI settings", exact: true })

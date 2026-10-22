@@ -62,7 +62,6 @@ export function Applications() {
     <>
       <div className="upgrade-heading">
         <div>
-          <span className="eyebrow">YOUR APPLICATION PIPELINE</span>
           <h1>Applications</h1>
           <p>Track progress, add notes and keep your follow-ups in view.</p>
         </div>

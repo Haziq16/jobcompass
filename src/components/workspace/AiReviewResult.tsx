@@ -102,7 +102,6 @@ export function ReviewResult({
     <section className="ai-report" aria-labelledby="ai-report-title">
       <div className="ai-section-top">
         <div>
-          <p className="eyebrow">YOUR APPLICATION REVIEW</p>
           <h2 id="ai-report-title">{run.jobSnapshot.title}</h2>
           <p>{run.jobSnapshot.employer}</p>
         </div>
