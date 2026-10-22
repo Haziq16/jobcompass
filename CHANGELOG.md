@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-22 — Catalogue expansion
+
+- Added Workable, Recruitee and Lever EU employer-board adapters.
+- Imported an attributed MIT-licensed candidate board registry; enable sources only after successful validation and storage admission.
+- Added bounded source expansion, leases, backoff and free-database capacity guards to the existing scheduler.
+- Cached exact skill mentions with content-hash provenance to reduce repeated description scanning in profile recommendations.
+- Preserved private account boundaries, indexed keyword filtering and original listing dates.
+- Verified 78 automated tests and 36 browser acceptance checks without paid provider calls.
+
 ## 1.2.0 — 2026-10-21
 
 - Added an optional personal-key AI studio with off, owner-only and signed-in BYOK access modes.
