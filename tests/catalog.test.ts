@@ -13,6 +13,7 @@ import {
 } from "../src/lib/catalog";
 import { GET as catalogGet } from "../src/app/api/catalog/route";
 import { POST as catalogSave } from "../src/app/api/catalog/[id]/route";
+import { catalogSkillKeys } from "../src/lib/catalog-skill-signals";
 import {
   seedCatalogCandidates,
   expandCatalog,
@@ -52,6 +53,69 @@ beforeEach(async () => {
   await authDb.catalogBoard.create({ data: fixture });
 });
 after(() => db.$disconnect());
+
+test("derived mention keys preserve punctuation, overlapping skills and non-Latin boundaries", () => {
+  const keys = catalogSkillKeys(
+    "JavaScript, React Native, Kotlin开发 and C++.",
+  );
+  assert.ok(keys.includes("javascript"));
+  assert.ok(!keys.includes("java"));
+  assert.ok(keys.includes("react") && keys.includes("react native"));
+  assert.ok(keys.includes("kotlin") && keys.includes("c++"));
+  assert.ok(!catalogSkillKeys("JavaScript alone").includes("java"));
+});
+
+test("cached and legacy recommendation rows rank consistently and cache-only updates preserve content time", async () => {
+  const jobs = parse([
+    {
+      ...rawJob(801, "Role one"),
+      content: "JavaScript React Native QuantumFlux",
+    },
+    { ...rawJob(802, "Role two"), content: "Java only" },
+  ]);
+  await publishCatalogBoard(fixture.id, jobs);
+  await inWorkspace("signals", () =>
+    db.profile.create({
+      data: { skills: ["JavaScript", "React Native", "QuantumFlux"] },
+    }),
+  );
+  const warm = await inWorkspace("signals", () =>
+    listCatalog(new URLSearchParams("forYou=true")),
+  );
+  assert.equal(warm.jobs[0].id, jobs[0].id);
+  const before = await authDb.catalogJob.findUniqueOrThrow({
+    where: { id: jobs[0].id },
+  });
+  await authDb.$executeRaw`UPDATE "CatalogJob" SET "skillKeysVersion"=0,"skillKeys"=ARRAY[]::text[]`;
+  const cold = await inWorkspace("signals", () =>
+    listCatalog(new URLSearchParams("forYou=true")),
+  );
+  assert.deepEqual(
+    cold.jobs.map((j) => j.id),
+    warm.jobs.map((j) => j.id),
+  );
+  await publishCatalogBoard(fixture.id, jobs);
+  const after = await authDb.catalogJob.findUniqueOrThrow({
+    where: { id: jobs[0].id },
+  });
+  assert.equal(after.lastChangedAt.valueOf(), before.lastChangedAt.valueOf());
+  assert.equal(after.skillKeysVersion, 1);
+  assert.ok(after.skillKeys.includes("javascript"));
+  assert.equal(after.skillKeysHash, after.hash);
+  // A request served by an older deployment may change public content without
+  // updating its derived keys. Such a row must use exact fallback checks.
+  await authDb.$executeRaw`UPDATE "CatalogJob" SET "searchText"='Java only',hash='changed-public-content' WHERE id=${jobs[0].id}`;
+  await authDb.$executeRaw`UPDATE "CatalogJob" SET "searchText"='React Native',hash='changed-second-content' WHERE id=${jobs[1].id}`;
+  const changed = await inWorkspace("signals", () =>
+    listCatalog(new URLSearchParams("forYou=true")),
+  );
+  assert.equal(changed.jobs[0].id, jobs[1].id);
+  assert.ok(
+    !changed.jobs
+      .find((j) => j.id === jobs[0].id)
+      ?.recommendation.skills.includes("JavaScript"),
+  );
+});
 
 test("additional public adapters validate full snapshots, preserve unknowns and regional identity", async () => {
   const work = parseCatalog(

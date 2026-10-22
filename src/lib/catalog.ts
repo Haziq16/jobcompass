@@ -8,6 +8,10 @@ import { workspaceId } from "./workspace-context";
 import { lock } from "./discovery";
 import { hasTerm } from "./matching";
 import {
+  catalogSkillKeys,
+  CATALOG_SKILL_VERSION,
+} from "./catalog-skill-signals";
+import {
   recommendationProfile,
   recommendationSql,
   recommendationReasons,
@@ -53,26 +57,33 @@ export async function publishCatalogBoard(
       });
       const baseline = Boolean(board.initialIndexedAt);
       for (let start = 0; start < jobs.length; start += 100) {
-        const json = JSON.stringify(jobs.slice(start, start + 100));
+        const json = JSON.stringify(
+          jobs.slice(start, start + 100).map((job) => ({
+            ...job,
+            skillKeys: catalogSkillKeys(job.searchText),
+            skillKeysVersion: CATALOG_SKILL_VERSION,
+          })),
+        );
         await tx.$executeRaw`
         INSERT INTO "CatalogJob" (
           "id","boardId","providerId","title","employer","location","country","remote",
           "employmentType","department","description","salaryText","sourceUrl","applyUrl",
-          "publishedAt","firstSeen","lastChangedAt","discoveredAfterBaseline","active","hash","searchText"
+          "publishedAt","firstSeen","lastChangedAt","discoveredAfterBaseline","active","hash","searchText","skillKeys","skillKeysVersion","skillKeysHash"
         ) SELECT j.id,${boardId},j."providerId",j.title,j.employer,j.location,j.country,j.remote,
           j."employmentType",j.department,j.description,j."salaryText",j."sourceUrl",j."applyUrl",
-          j."publishedAt",${now.toISOString()}::timestamp,${now.toISOString()}::timestamp,${baseline},true,j.hash,j."searchText"
+          j."publishedAt",${now.toISOString()}::timestamp,${now.toISOString()}::timestamp,${baseline},true,j.hash,j."searchText",j."skillKeys",j."skillKeysVersion",j.hash
         FROM jsonb_to_recordset(${json}::jsonb) AS j(
           id text,"providerId" text,title text,employer text,location text,country text,remote boolean,
           "employmentType" text,department text,description text,"salaryText" text,"sourceUrl" text,
-          "applyUrl" text,"publishedAt" timestamp,hash text,"searchText" text
+          "applyUrl" text,"publishedAt" timestamp,hash text,"searchText" text,"skillKeys" text[],"skillKeysVersion" int
         ) ON CONFLICT ("id") DO UPDATE SET
           "title"=EXCLUDED."title","employer"=EXCLUDED."employer","location"=EXCLUDED."location",
           "country"=EXCLUDED."country","remote"=EXCLUDED."remote","employmentType"=EXCLUDED."employmentType",
           "department"=EXCLUDED."department","description"=EXCLUDED."description","salaryText"=EXCLUDED."salaryText",
           "sourceUrl"=EXCLUDED."sourceUrl","applyUrl"=EXCLUDED."applyUrl","publishedAt"=EXCLUDED."publishedAt",
-          "lastChangedAt"=EXCLUDED."lastChangedAt","active"=true,"hash"=EXCLUDED."hash","searchText"=EXCLUDED."searchText"
-        WHERE "CatalogJob"."hash" IS DISTINCT FROM EXCLUDED."hash" OR NOT "CatalogJob"."active"
+          "lastChangedAt"=CASE WHEN "CatalogJob"."hash" IS DISTINCT FROM EXCLUDED."hash" OR NOT "CatalogJob"."active" THEN EXCLUDED."lastChangedAt" ELSE "CatalogJob"."lastChangedAt" END,
+          "active"=true,"hash"=EXCLUDED."hash","searchText"=EXCLUDED."searchText","skillKeys"=EXCLUDED."skillKeys","skillKeysVersion"=EXCLUDED."skillKeysVersion","skillKeysHash"=EXCLUDED."hash"
+        WHERE "CatalogJob"."hash" IS DISTINCT FROM EXCLUDED."hash" OR NOT "CatalogJob"."active" OR "CatalogJob"."skillKeysVersion"<EXCLUDED."skillKeysVersion" OR "CatalogJob"."skillKeysHash" IS DISTINCT FROM EXCLUDED."hash"
       `;
       }
       await tx.catalogJob.updateMany({
@@ -265,7 +276,9 @@ export async function listCatalog(params: URLSearchParams) {
   const personalization = await recommendationProfile();
   const useProfile = params.get("forYou") === "true";
   const query = (params.get("q") || "").trim().slice(0, 200);
-  const relevance = Prisma.sql`ts_rank_cd(setweight(to_tsvector('simple',j.title),'A') || setweight(to_tsvector('simple',j.employer),'B') || setweight(to_tsvector('simple',j."searchText"),'D'),websearch_to_tsquery('simple',${smartQuery(query)}))`;
+  // The indexed full-text predicate still searches descriptions. Rank short
+  // title/company fields; description-only matches use the honest date tie-break.
+  const relevance = Prisma.sql`ts_rank_cd(setweight(to_tsvector('simple',j.title),'A') || setweight(to_tsvector('simple',j.employer),'B'),websearch_to_tsquery('simple',${smartQuery(query)}))`;
   const requested = Number(params.get("page"));
   const page =
     Number.isSafeInteger(requested) && requested > 0

@@ -213,3 +213,4 @@ export function cvSkillSignals(text: string) {
     .slice(0, 28);
 }
 export type ResumeChecks = ReturnType<typeof resumeChecks>;
+export const resumeSkillTerms = Object.keys(vocabulary);

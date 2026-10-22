@@ -48,6 +48,9 @@ model CatalogJob {
   active Boolean @default(true)
   hash String
   searchText String
+  skillKeys String[] @default([])
+  skillKeysVersion Int @default(0)
+  skillKeysHash String?
   @@index([active,publishedAt])
   @@index([active,firstSeen])
   @@index([boardId,active])

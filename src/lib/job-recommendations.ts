@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import { db } from "./db";
 import { cvSkillSignals } from "./resume-checks";
 import { hasTerm } from "./matching";
+import {
+  cachedCatalogSkills,
+  CATALOG_SKILL_VERSION,
+} from "./catalog-skill-signals";
 export type SearchProfile = {
   titles: string[];
   skills: { term: string; source: "cv" | "profile" }[];
@@ -72,6 +76,11 @@ export function smartQuery(q: string) {
 }
 const rx = (s: string) =>
   `(^|[^a-z0-9])${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`;
+function catalogMention(term: string) {
+  return cachedCatalogSkills.has(term.toLowerCase())
+    ? Prisma.sql`CASE WHEN j."skillKeysVersion"=${CATALOG_SKILL_VERSION} AND j."skillKeysHash"=j.hash THEN ${term.toLowerCase()}=ANY(j."skillKeys") ELSE j."searchText" ~* ${rx(term)} END`
+    : Prisma.sql`j."searchText" ~* ${rx(term)}`;
+}
 export function recommendationSql(p: SearchProfile) {
   const terms: Prisma.Sql[] = [Prisma.sql`CAST(0 AS double precision)`];
   for (const title of p.titles) {
@@ -87,10 +96,10 @@ export function recommendationSql(p: SearchProfile) {
       )}) THEN 12.0 ELSE 0 END`,
     );
   }
-  for (const skill of p.skills)
-    terms.push(
-      Prisma.sql`CASE WHEN j."searchText" ~* ${rx(skill.term)} THEN 2.0 ELSE 0 END`,
-    );
+  for (const skill of p.skills) {
+    const match = catalogMention(skill.term);
+    terms.push(Prisma.sql`CASE WHEN (${match}) THEN 2.0 ELSE 0 END`);
+  }
   for (const place of p.locations)
     terms.push(
       Prisma.sql`CASE WHEN COALESCE(j.location,'') ~* ${rx(place)} THEN 1.5 ELSE 0 END`,
@@ -107,7 +116,7 @@ export function recommendationSql(p: SearchProfile) {
     );
   for (const term of p.excluded)
     terms.push(
-      Prisma.sql`CASE WHEN j."searchText" ~* ${rx(term)} THEN -30.0 ELSE 0 END`,
+      Prisma.sql`CASE WHEN (${catalogMention(term)}) THEN -30.0 ELSE 0 END`,
     );
   return Prisma.sql`(${Prisma.join(terms, " + ")})`;
 }

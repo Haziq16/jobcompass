@@ -17,9 +17,19 @@ export function GET(req: Request, context: Context) {
       },
     });
     if (!job) return Response.json({ error: "not_found" }, { status: 404 });
-    const { hash: _hash, searchText: _searchText, ...publicJob } = job;
+    const {
+      hash: _hash,
+      searchText: _searchText,
+      skillKeys: _keys,
+      skillKeysVersion: _version,
+      skillKeysHash: _keysHash,
+      ...publicJob
+    } = job;
     void _hash;
     void _searchText;
+    void _keys;
+    void _version;
+    void _keysHash;
     return Response.json(publicJob);
   });
 }
