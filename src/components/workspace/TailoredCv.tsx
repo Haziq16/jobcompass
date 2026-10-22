@@ -7,13 +7,19 @@ import { ReviewWaiting } from "./ReviewWaiting";
 import type { Run } from "./ai-studio-types";
 import type { CvDocument } from "@/lib/tailored-cv-contracts";
 import { evidenceBlocks } from "@/lib/resume-review-contracts";
+import {
+  isOriginalCv,
+  type OriginalCvDocument,
+  type CvSourceDocument,
+} from "@/lib/original-cv-contracts";
+import { OriginalCvEditor } from "./OriginalCvEditor";
 type Draft = {
   id: string;
   state: string;
   error: string | null;
   provider: string;
   model: string;
-  document: CvDocument | null;
+  document: CvDocument | OriginalCvDocument | null;
   content: string | null;
   revision: number;
   approvedHash: string | null;
@@ -75,6 +81,17 @@ export function TailoredCv({
   errorMessage: (code: string) => string;
 }) {
   const { config, loading } = usePersonalAi();
+  const [sourceDocument, setSourceDocument] = useState<CvSourceDocument | null>(
+    (
+      review.checks as typeof review.checks & {
+        sourceDocument?: CvSourceDocument;
+      }
+    ).sourceDocument || null,
+  );
+  const [layout, setLayout] = useState<"original" | "clean">(
+      sourceDocument ? "original" : "clean",
+    ),
+    [attaching, setAttaching] = useState(false);
   const history = useResource<{ drafts: Draft[] }>(
     `ai/reviews/${review.id}/cv`,
   );
@@ -130,6 +147,7 @@ export function TailoredCv({
       review.id,
       config.provider,
       config.model,
+      layout,
     ]);
     if (request.current?.fingerprint !== fingerprint)
       request.current = { fingerprint, key: crypto.randomUUID() };
@@ -141,6 +159,7 @@ export function TailoredCv({
           ? { useSavedConnection: true }
           : { apiKey: config.apiKey }),
         consent: true,
+        layout,
         requestKey: request.current.key,
       });
       choose(value);
@@ -218,26 +237,101 @@ export function TailoredCv({
     }
   }
   const blocks = evidenceBlocks(review.resumeSnapshot);
-  const paragraphs = draft?.document
-    ? [
-        ...draft.document.summary,
-        ...draft.document.sections.flatMap((s) =>
-          s.entries.flatMap((e) => e.points),
-        ),
-      ]
-    : [];
+  const paragraphs =
+    draft?.document && !isOriginalCv(draft.document)
+      ? [
+          ...draft.document.summary,
+          ...draft.document.sections.flatMap((s) =>
+            s.entries.flatMap((e) => e.points),
+          ),
+        ]
+      : [];
   return (
     <div className="ai-tailored-cv">
       <div className="ai-section-top">
         <div>
           <h3>A full CV for this opportunity</h3>
           <p>
-            Rewritten wording and a professional single-column layout, using the
-            original CV saved with this review. Your saved profile stays
-            unchanged.
+            Tailored wording in your chosen layout, using the CV saved with this
+            review. Keep your original Word format or choose a new single-column
+            layout.
           </p>
         </div>
         <FileText size={22} />
+      </div>
+      <div className="cv-template-choice">
+        <div>
+          <strong>
+            {sourceDocument
+              ? sourceDocument.name
+              : "Keep your original Word layout"}
+          </strong>
+          <p>
+            {sourceDocument
+              ? "Original template linked. Fonts, styles, margins and paragraph structure are retained for original-format drafts."
+              : "Attach the same DOCX used for this review to tailor inside its original format. Matching the source does not use AI."}
+          </p>
+        </div>
+        {!sourceDocument && (
+          <label className="ai-upload-button">
+            {attaching ? "Checking original…" : "Attach matching DOCX"}
+            <input
+              type="file"
+              accept=".docx"
+              disabled={busy || attaching}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setAttaching(true);
+                setError("");
+                try {
+                  const form = new FormData();
+                  form.set("file", file);
+                  form.set("reviewId", review.id);
+                  const response = await fetch("/api/ai/cv-source", {
+                    method: "POST",
+                    body: form,
+                  });
+                  const value = await response.json();
+                  if (!response.ok) throw new Error(value.error);
+                  setSourceDocument(value.sourceDocument);
+                  setLayout("original");
+                } catch (err) {
+                  setError(
+                    (err as Error).message === "cv_source_mismatch"
+                      ? "This file’s text does not match the CV saved with this review. Attach its original DOCX or start a new review using the new file."
+                      : "The original DOCX could not be attached. Use a standard Word file under 3 MB.",
+                  );
+                } finally {
+                  setAttaching(false);
+                }
+              }}
+            />
+          </label>
+        )}
+        {sourceDocument && (
+          <a href={`/api/ai/cv-source/${sourceDocument.id}`}>
+            Download original
+          </a>
+        )}
+        {!draft && (
+          <label>
+            Document layout
+            <select
+              aria-label="Document layout"
+              disabled={busy || attaching}
+              value={layout}
+              onChange={(e) =>
+                setLayout(e.target.value as "original" | "clean")
+              }
+            >
+              <option value="original" disabled={!sourceDocument}>
+                Keep original Word format
+              </option>
+              <option value="clean">New single-column format</option>
+            </select>
+          </label>
+        )}
       </div>
       {history.loading && <p role="status">Loading saved CV versions…</p>}
       {history.error && (
@@ -285,10 +379,11 @@ export function TailoredCv({
         <section className="ai-cv-generate">
           <h4>Generate a tailored version</h4>
           <p>
-            The model can rewrite your summary and bullets, emphasize relevant
-            experience, and organize your CV. Role, employer and date blocks are
-            copied from the original. Source links and basic fact checks support
-            your review; they cannot prove that rewritten meaning is accurate.
+            {sourceDocument && layout === "original"
+              ? "The model proposes wording changes inside your original Word paragraphs. Styles, sections, headings and document parts stay in the source template. Longer wording can change page breaks."
+              : "The model can rewrite your summary and bullets, emphasize relevant experience, and organize your CV. Role, employer and date blocks are copied from the original."}{" "}
+            Source links and basic fact checks support your review; they cannot
+            prove that rewritten meaning is accurate.
           </p>
           {!connected ? (
             <button onClick={onConnect}>Connect AI to continue</button>
@@ -341,7 +436,18 @@ export function TailoredCv({
           )}
         </div>
       )}
-      {draft?.state === "succeeded" && (
+      {draft?.state === "succeeded" && isOriginalCv(draft.document) && (
+        <OriginalCvEditor
+          key={draft.id}
+          draft={{ ...draft, document: draft.document }}
+          jobText={review.jobSnapshot.description}
+          onSaved={(value) => {
+            choose(value as Draft);
+            history.refresh();
+          }}
+        />
+      )}
+      {draft?.state === "succeeded" && !isOriginalCv(draft.document) && (
         <>
           <p className="ai-notice">
             AI-assisted draft. Check the wording against the sources before

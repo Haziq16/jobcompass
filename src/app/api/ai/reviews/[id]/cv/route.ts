@@ -39,7 +39,11 @@ export function POST(req: Request, { params }: Context) {
     try {
       const { id } = await params;
       const data = connectionInput
-        .extend({ requestKey: z.string().uuid(), consent: z.literal(true) })
+        .extend({
+          requestKey: z.string().uuid(),
+          consent: z.literal(true),
+          layout: z.enum(["original", "clean"]).optional(),
+        })
         .strict()
         .parse(await readJson(req));
       const config = await resolvePersonalCredentials(data);
@@ -47,6 +51,7 @@ export function POST(req: Request, { params }: Context) {
         ...config,
         requestKey: data.requestKey,
         consent: data.consent,
+        layout: data.layout,
       });
       return Response.json(draft, {
         status: draft.state === "pending" ? 202 : 200,

@@ -40,7 +40,8 @@ globalThis.fetch = async (input, options) => {
       if (typeof value === "string") {
         try {
           const parsed = JSON.parse(value);
-          if (parsed.resumeBlocks && parsed.jobText) data = parsed;
+          if ((parsed.resumeBlocks || parsed.paragraphs) && parsed.jobText)
+            data = parsed;
         } catch {
           /* not an embedded JSON prompt */
         }
@@ -50,100 +51,106 @@ globalThis.fetch = async (input, options) => {
     }
     visit(body);
     if (!data) throw new Error("Missing evidence prompt");
-    const block = data.resumeBlocks.find((b) =>
+    const block = (data.resumeBlocks || data.paragraphs).find((b) =>
       b.text.startsWith("Built Kotlin"),
     );
     if (!block) throw new Error("Missing fixture evidence");
     const report =
-      data.task === "tailored_cv"
+      data.task === "tailored_cv_original"
         ? {
-            nameId: data.resumeBlocks[0].id,
-            contactIds: [data.resumeBlocks[1].id],
-            summary: [
-              {
-                text: "Software engineer developing Kotlin services with PostgreSQL and Docker.",
-                sourceIds: [block.id],
-              },
-            ],
-            sections: [
-              {
-                heading: "Experience",
-                entries: [
-                  {
-                    contextIds: [block.id],
-                    points: [
-                      {
-                        text: "Developed services using Kotlin, PostgreSQL and Docker.",
-                        sourceIds: [block.id],
-                      },
-                    ],
-                  },
-                ],
-              },
-              {
-                heading: "Education",
-                entries: [
-                  {
-                    contextIds: [
-                      data.resumeBlocks.find((b) => b.text.startsWith("BSc"))
-                        .id,
-                    ],
-                    points: [
-                      {
-                        text: "Completed a BSc in Computer Science at Example University in 2020.",
-                        sourceIds: [
-                          data.resumeBlocks.find((b) =>
-                            b.text.startsWith("BSc"),
-                          ).id,
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
+            replacements: [
+              { id: block.id, text: block.text.replace("Built", "Developed") },
             ],
           }
-        : {
-            requirements: [
-              {
-                jobQuote: "Kotlin experience is required.",
-                priority: "required",
-                assessment: "supported",
-                evidence: [{ blockId: block.id, quote: block.text }],
-                question: "",
-              },
-              {
-                jobQuote: "Accessibility experience is required.",
-                priority: "required",
-                assessment: "not_evidenced",
-                evidence: [],
-                question:
-                  "Have you worked on accessibility? Add a truthful example if so.",
-              },
-              {
-                jobQuote:
-                  "Work with a thoughtful team to design reliable APIs and collaborate on product development.",
-                priority: "unspecified",
-                assessment: "transferable",
-                evidence: [
-                  { blockId: block.id, quote: block.text },
-                  {
-                    blockId: block.id,
-                    quote:
-                      "Led 500 fictional engineers; unsupported provider excerpt",
-                  },
-                ],
-                question:
-                  "How does this experience relate to the advertised role?",
-              },
-            ],
-            outline: [
-              {
-                heading: "Experience",
-                excerpts: [{ blockId: block.id, quote: block.text }],
-              },
-            ],
-          };
+        : data.task === "tailored_cv"
+          ? {
+              nameId: data.resumeBlocks[0].id,
+              contactIds: [data.resumeBlocks[1].id],
+              summary: [
+                {
+                  text: "Software engineer developing Kotlin services with PostgreSQL and Docker.",
+                  sourceIds: [block.id],
+                },
+              ],
+              sections: [
+                {
+                  heading: "Experience",
+                  entries: [
+                    {
+                      contextIds: [block.id],
+                      points: [
+                        {
+                          text: "Developed services using Kotlin, PostgreSQL and Docker.",
+                          sourceIds: [block.id],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  heading: "Education",
+                  entries: [
+                    {
+                      contextIds: [
+                        data.resumeBlocks.find((b) => b.text.startsWith("BSc"))
+                          .id,
+                      ],
+                      points: [
+                        {
+                          text: "Completed a BSc in Computer Science at Example University in 2020.",
+                          sourceIds: [
+                            data.resumeBlocks.find((b) =>
+                              b.text.startsWith("BSc"),
+                            ).id,
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            }
+          : {
+              requirements: [
+                {
+                  jobQuote: "Kotlin experience is required.",
+                  priority: "required",
+                  assessment: "supported",
+                  evidence: [{ blockId: block.id, quote: block.text }],
+                  question: "",
+                },
+                {
+                  jobQuote: "Accessibility experience is required.",
+                  priority: "required",
+                  assessment: "not_evidenced",
+                  evidence: [],
+                  question:
+                    "Have you worked on accessibility? Add a truthful example if so.",
+                },
+                {
+                  jobQuote:
+                    "Work with a thoughtful team to design reliable APIs and collaborate on product development.",
+                  priority: "unspecified",
+                  assessment: "transferable",
+                  evidence: [
+                    { blockId: block.id, quote: block.text },
+                    {
+                      blockId: block.id,
+                      quote:
+                        "Led 500 fictional engineers; unsupported provider excerpt",
+                    },
+                  ],
+                  question:
+                    "How does this experience relate to the advertised role?",
+                },
+              ],
+              outline: [
+                {
+                  heading: "Experience",
+                  excerpts: [{ blockId: block.id, quote: block.text }],
+                },
+              ],
+            };
     await delay(1600);
     return Response.json({
       id: "resp_fixture",

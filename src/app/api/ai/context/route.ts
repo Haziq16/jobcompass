@@ -3,6 +3,8 @@ import { aiRequest } from "@/lib/ai-access";
 import { db } from "@/lib/db";
 import { reviewTarget } from "@/lib/personal-ai";
 import { apiError } from "@/lib/http";
+import { sameCv } from "@/lib/cv-source";
+import { inspectDocx } from "@/lib/docx-template";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export function GET(req: Request) {
@@ -20,7 +22,33 @@ export function GET(req: Request) {
         }),
         id ? reviewTarget(source, z.string().min(1).max(150).parse(id)) : null,
       ]);
-      return Response.json({ resumeText: profile?.cvText || "", job });
+      const original = await db.resumeAsset.findFirst({
+        where: {
+          isDefault: true,
+          name: { endsWith: ".docx", mode: "insensitive" },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      const resumeText = profile?.cvText || original?.text || "";
+      const inspection =
+        original && sameCv(resumeText, original.text)
+          ? await inspectDocx(Buffer.from(original.bytes))
+          : null;
+      return Response.json({
+        resumeText,
+        job,
+        sourceDocument:
+          inspection && original
+            ? {
+                id: original.id,
+                name: original.name,
+                sha256: original.sha256,
+                findings: inspection.findings,
+                passed: inspection.passed,
+                total: inspection.total,
+              }
+            : null,
+      });
     } catch (error) {
       return apiError(error);
     }

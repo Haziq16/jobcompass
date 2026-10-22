@@ -20,6 +20,9 @@ import { ReviewResult } from "./AiReviewResult";
 import { ReviewWaiting } from "./ReviewWaiting";
 import { TailoredCv } from "./TailoredCv";
 import { StudioApply } from "./StudioApply";
+import { DocxPreview } from "./DocxPreview";
+import { AtsReport } from "./AtsReport";
+import type { CvSourceDocument } from "@/lib/original-cv-contracts";
 
 const messages: Record<string, string> = {
   model_list_unavailable:
@@ -102,19 +105,37 @@ export default function AiStudio() {
     else p.delete("review");
     router.push(`/assistant?${p}`, { scroll: false });
   }
-  const context = useResource<{ resumeText: string; job: Job | null }>(
-    `ai/context?source=${source}&jobId=${encodeURIComponent(jobId)}`,
-  );
+  const context = useResource<{
+    resumeText: string;
+    job: Job | null;
+    sourceDocument: CvSourceDocument | null;
+  }>(`ai/context?source=${source}&jobId=${encodeURIComponent(jobId)}`);
   const history = useResource<{
     reviews: Omit<Run, "resumeSnapshot" | "report" | "checks">[];
   }>("ai/reviews");
   const [query, setQuery] = useState(""),
     [submittedQuery, setSubmittedQuery] = useState("");
+  const [recommended, setRecommended] = useState(true);
   const jobs = useResource<{
-    jobs: { id: string; title: string; employer: string }[];
+    jobs: {
+      id: string;
+      title: string;
+      employer: string;
+      recommendation?: { label: string; reasons: string[] };
+    }[];
+    personalization?: {
+      hasSignals: boolean;
+      titles: string[];
+      skills: { term: string; source: string }[];
+    };
   }>(
-    `${source === "catalog" ? "catalog" : "jobs"}?q=${encodeURIComponent(submittedQuery)}`,
+    `${source === "catalog" ? "catalog" : "jobs"}?q=${encodeURIComponent(submittedQuery)}${source === "catalog" && recommended ? "&forYou=true" : ""}`,
   );
+  const [sourceDocument, setSourceDocument] = useState<CvSourceDocument | null>(
+      null,
+    ),
+    [saveDefaultCv, setSaveDefaultCv] = useState(false),
+    [cvView, setCvView] = useState("text");
   const [resume, setResume] = useState(""),
     [reviewed, setReviewed] = useState(false),
     [consent, setConsent] = useState(false),
@@ -175,6 +196,7 @@ export default function AiStudio() {
   useEffect(() => {
     if (context.data && !initialised.current) {
       setResume(context.data.resumeText);
+      setSourceDocument(context.data.sourceDocument || null);
       initialised.current = true;
     }
   }, [context.data]);
@@ -186,6 +208,13 @@ export default function AiStudio() {
           if (current) {
             setRun(value);
             setResume(value.resumeSnapshot);
+            setSourceDocument(
+              (
+                value.checks as typeof value.checks & {
+                  sourceDocument?: CvSourceDocument;
+                }
+              ).sourceDocument || null,
+            );
             initialised.current = true;
             const p = new URLSearchParams(window.location.search);
             if (
@@ -207,6 +236,7 @@ export default function AiStudio() {
     };
   }, [selectedReview, router]);
   function changeResume(value: string) {
+    if (value !== resume) setSourceDocument(null);
     if (run && value !== resume) {
       setRun(null);
       request.current = null;
@@ -319,13 +349,21 @@ export default function AiStudio() {
     try {
       const form = new FormData();
       form.set("file", file);
-      const response = await fetch("/api/ai/parse", {
-        method: "POST",
-        body: form,
-      });
+      form.set("default", String(saveDefaultCv));
+      const response = await fetch(
+        file.name.toLowerCase().endsWith(".docx")
+          ? "/api/ai/cv-source"
+          : "/api/ai/parse",
+        {
+          method: "POST",
+          body: form,
+        },
+      );
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       changeResume(result.text);
+      setSourceDocument(result.sourceDocument || null);
+      if (result.sourceDocument) setCvView("preview");
       setNotice(
         result.truncated
           ? "The extracted text exceeds the 40,000-character review limit. Edit it below before running AI."
@@ -363,6 +401,7 @@ export default function AiStudio() {
         source,
         jobId,
         resumeText: resume,
+        ...(sourceDocument ? { sourceAssetId: sourceDocument.id } : {}),
         provider: config.provider,
         model: config.model,
         ...(config.saved
@@ -433,8 +472,8 @@ export default function AiStudio() {
           <p className="eyebrow">YOUR APPLICATION WORKSPACE</p>
           <h1 id="ai-studio-title">AI studio</h1>
           <p>
-            Choose an opportunity. Prepare your documents. Apply with everything
-            in one place.
+            Your original CV. Clear ATS checks. Jobs matched to your experience.
+            Build a stronger application without losing your format.
           </p>
         </div>
         <div className="studio-header-actions">
@@ -448,6 +487,59 @@ export default function AiStudio() {
           </span>
         </div>
       </header>
+      <div className="studio-toolkit" aria-label="Application toolkit">
+        <button onClick={() => navigateStep("cv", run?.id)}>
+          <span className="toolkit-icon">
+            <FileText size={21} />
+          </span>
+          <span>
+            <small>YOUR CV</small>
+            <strong>
+              {sourceDocument ? "Original Word format" : "Add your original CV"}
+            </strong>
+            <em>
+              {sourceDocument?.name || "Keep your document’s look and feel"}
+            </em>
+          </span>
+          <ArrowRight size={17} />
+        </button>
+        <button
+          onClick={() => {
+            setCvView("ats");
+            navigateStep("cv", run?.id);
+          }}
+        >
+          <span className="toolkit-icon">
+            <CheckCircle2 size={21} />
+          </span>
+          <span>
+            <small>ATS READINESS</small>
+            <strong>
+              {sourceDocument
+                ? `${sourceDocument.passed} of ${sourceDocument.total} checks passed`
+                : "Check your document"}
+            </strong>
+            <em>Parsing, structure and job keywords</em>
+          </span>
+          <ArrowRight size={17} />
+        </button>
+        <button
+          onClick={() => {
+            setRecommended(true);
+            navigateStep("opportunity", run?.id);
+          }}
+        >
+          <span className="toolkit-icon">
+            <Search size={21} />
+          </span>
+          <span>
+            <small>PERSONALIZED DISCOVERY</small>
+            <strong>Find jobs for you</strong>
+            <em>Ranked using your CV and preferred roles</em>
+          </span>
+          <ArrowRight size={17} />
+        </button>
+      </div>
       {(notice || error) && (
         <div className="ai-feedback">
           {notice && (
@@ -605,6 +697,27 @@ export default function AiStudio() {
                     <p>{context.data.job.employer}</p>
                   </div>
                 )}
+                {source === "catalog" && (
+                  <div className="studio-recommend-controls">
+                    <button
+                      aria-pressed={recommended}
+                      onClick={() => setRecommended(true)}
+                    >
+                      Recommended for me
+                    </button>
+                    <button
+                      aria-pressed={!recommended}
+                      onClick={() => setRecommended(false)}
+                    >
+                      Search all jobs
+                    </button>
+                    <p>
+                      {jobs.data?.personalization?.hasSignals
+                        ? "Ranked across the catalogue using your saved CV and preferred roles. Open a match to see its requirements."
+                        : "Save your CV or target roles in Profile to personalize these results."}
+                    </p>
+                  </div>
+                )}
                 <details
                   className="ai-job-picker"
                   open={!context.data?.job}
@@ -667,6 +780,13 @@ export default function AiStudio() {
                         <span>
                           <strong>{j.title}</strong>
                           <small>{j.employer}</small>
+                          {recommended && j.recommendation && (
+                            <small className="studio-match-reason">
+                              {j.recommendation.reasons
+                                .slice(0, 2)
+                                .join(" · ") || j.recommendation.label}
+                            </small>
+                          )}
                         </span>
                         <ArrowRight size={16} />
                       </button>
@@ -729,7 +849,7 @@ export default function AiStudio() {
                       }}
                     />
                   </label>
-                  <span>Up to 3 MB · text extraction only</span>
+                  <span>Up to 3 MB · DOCX layout preserved</span>
                   <button
                     disabled={busy || !context.data?.resumeText}
                     onClick={() => changeResume(context.data?.resumeText || "")}
@@ -737,21 +857,77 @@ export default function AiStudio() {
                     Use saved CV
                   </button>
                 </div>
-                <label>
-                  Résumé text to review
-                  <textarea
-                    id="ai-resume-text"
-                    aria-label="Résumé text to review"
-                    value={resume}
-                    onChange={(e) => changeResume(e.target.value)}
-                    rows={8}
-                    disabled={busy}
-                    placeholder="Paste or import your résumé. Keep roles, employers, dates, skills and achievements truthful."
+                <label className="ai-consent">
+                  <input
+                    type="checkbox"
+                    checked={saveDefaultCv}
+                    disabled={busy || uploading}
+                    onChange={(e) => setSaveDefaultCv(e.target.checked)}
                   />
+                  <span>
+                    Use my next upload as my saved CV for future applications
+                    and job recommendations.
+                  </span>
                 </label>
+                <div
+                  className="ai-report-tabs"
+                  role="group"
+                  aria-label="Source CV views"
+                >
+                  {[
+                    ["text", "CV text"],
+                    ["preview", "Original layout"],
+                    ["ats", "ATS readiness"],
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      aria-pressed={cvView === key}
+                      disabled={key === "preview" && !sourceDocument}
+                      onClick={() => setCvView(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {sourceDocument && cvView === "preview" && (
+                  <DocxPreview
+                    url={`/api/ai/cv-source/${sourceDocument.id}`}
+                    title="Original CV Word layout"
+                  />
+                )}
+                {cvView === "ats" && (
+                  <AtsReport
+                    text={resume}
+                    jobText={context.data?.job?.description || ""}
+                    findings={sourceDocument?.findings}
+                  />
+                )}
+                <div hidden={cvView !== "text"}>
+                  <label>
+                    Résumé text to review
+                    <textarea
+                      id="ai-resume-text"
+                      aria-label="Résumé text to review"
+                      value={resume}
+                      onChange={(e) => changeResume(e.target.value)}
+                      rows={8}
+                      disabled={busy}
+                      placeholder="Paste or import your résumé. Keep roles, employers, dates, skills and achievements truthful."
+                    />
+                  </label>
+                </div>
                 <p className="ai-character-count">
                   {resume.length.toLocaleString()} / 40,000 characters
                 </p>
+                {sourceDocument && (
+                  <p className="cv-linked-notice">
+                    Original Word template linked:{" "}
+                    <strong>{sourceDocument.name}</strong>.{" "}
+                    {sourceDocument.passed}/{sourceDocument.total} document
+                    checks passed. Editing plain text detaches the template;
+                    original-format tailoring edits paragraphs instead.
+                  </p>
+                )}
                 {resume.trim() && (
                   <details className="ai-free-checks">
                     <summary>

@@ -12,6 +12,14 @@ const vocabulary: Record<string, string[]> = {
   Go: ["golang", "go programming"],
   Rust: ["rust"],
   Kotlin: ["kotlin"],
+  Android: ["android"],
+  "Jetpack Compose": ["jetpack compose"],
+  Flutter: ["flutter"],
+  Dart: ["dart"],
+  "React Native": ["react native"],
+  "Kotlin Coroutines": ["kotlin coroutines", "coroutines"],
+  JUnit: ["junit"],
+  Espresso: ["espresso"],
   Swift: ["swift"],
   SQL: ["sql"],
   React: ["react", "react.js", "reactjs"],
@@ -179,5 +187,29 @@ export function resumeChecks(resume: string, jobText = "") {
       "Plain text cannot reliably assess columns, tables, graphics, page count or an employer's parser.",
     ],
   };
+}
+export function cvSkillSignals(text: string) {
+  const lines = text
+    .split(/[\n.!?]/)
+    .filter(
+      (line) =>
+        !/(?:\bno\b|\bnot\b|without|learning|interested in|want to learn|seeking to learn)/i.test(
+          line,
+        ),
+    );
+  return Object.entries(vocabulary)
+    .filter(
+      ([name, aliases]) =>
+        ![
+          "Leadership",
+          "Communication",
+          "Problem solving",
+          "Training",
+          "Negotiation",
+        ].includes(name) &&
+        aliases.some((alias) => lines.some((line) => hasTerm(line, alias))),
+    )
+    .map(([name]) => name)
+    .slice(0, 28);
 }
 export type ResumeChecks = ReturnType<typeof resumeChecks>;

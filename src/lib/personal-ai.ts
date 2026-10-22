@@ -11,6 +11,8 @@ import {
 } from "./resume-review-contracts";
 import { resumeChecks } from "./resume-checks";
 import { REVIEW_INTERRUPTED_AFTER_MS } from "./personal-ai-timing";
+import { ownedCvSource } from "./cv-source";
+import { inspectDocx } from "./docx-template";
 import {
   personalProviderError,
   runPersonalReview,
@@ -76,6 +78,17 @@ export async function createPersonalReview(
   if (job.description.trim().length < 100)
     throw new AppError("job_description_required", 409);
   const checks = resumeChecks(input.resumeText, job.description);
+  const sourceAsset = input.sourceAssetId
+    ? await ownedCvSource(input.sourceAssetId, input.resumeText)
+    : null;
+  const sourceDocument = sourceAsset
+    ? {
+        id: sourceAsset.id,
+        name: sourceAsset.name,
+        sha256: sourceAsset.sha256,
+        ...(await inspectDocx(sourceAsset.bytes)),
+      }
+    : null;
   const fingerprint = createHash("sha256")
     .update(
       JSON.stringify({
@@ -84,6 +97,9 @@ export async function createPersonalReview(
         provider: input.provider,
         model: input.model,
         prompt: 1,
+        ...(sourceAsset
+          ? { sourceAssetId: sourceAsset.id, sourceSha256: sourceAsset.sha256 }
+          : {}),
       }),
     )
     .digest("hex");
@@ -129,7 +145,21 @@ export async function createPersonalReview(
           model: input.model,
           jobSnapshot: json(job),
           resumeSnapshot: input.resumeText,
-          checks: json(checks),
+          checks: json({
+            ...checks,
+            ...(sourceDocument
+              ? {
+                  sourceDocument: {
+                    id: sourceDocument.id,
+                    name: sourceDocument.name,
+                    sha256: sourceDocument.sha256,
+                    findings: sourceDocument.findings,
+                    passed: sourceDocument.passed,
+                    total: sourceDocument.total,
+                  },
+                }
+              : {}),
+          }),
         },
       });
       return { run, owner: true };

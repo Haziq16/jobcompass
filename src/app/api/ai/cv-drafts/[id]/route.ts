@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { AppError } from "@/lib/contracts";
 import { apiError, readJson } from "@/lib/http";
 import { saveCvDraft } from "@/lib/tailored-cv";
+import { paragraphEdits } from "@/lib/original-cv-contracts";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 type Context = { params: Promise<{ id: string }> };
@@ -16,6 +17,7 @@ export function PATCH(req: Request, { params }: Context) {
           content: z.string().min(50).max(50000),
           revision: z.number().int().min(1),
           approved: z.boolean(),
+          paragraphEdits: paragraphEdits.optional(),
         })
         .strict()
         .parse(await readJson(req));

@@ -30,6 +30,7 @@ export const reviewInput = credentials
     consent: z.literal(true),
     reviewed: z.literal(true),
     requestKey: z.string().uuid(),
+    sourceAssetId: z.string().min(1).max(150).optional(),
   })
   .strict();
 const excerpt = z

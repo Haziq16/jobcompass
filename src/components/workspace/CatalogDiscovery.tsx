@@ -34,6 +34,7 @@ type Listing = {
   saved: boolean;
   personalJobId: string | null;
   board: { platform: string; lastSuccessAt: string | null };
+  recommendation?: { label: string; reasons: string[]; skills: string[] };
 };
 type Result = {
   jobs: Listing[];
@@ -41,6 +42,13 @@ type Result = {
   page: number;
   pages: number;
   employers: string[];
+  personalization: {
+    active: boolean;
+    hasSignals: boolean;
+    titles: string[];
+    skills: { term: string; source: string }[];
+    hasCv: boolean;
+  };
   stats: {
     total: number;
     companies: number;
@@ -325,6 +333,56 @@ export default function CatalogDiscovery() {
         </label>
         <button className="primary">Search jobs</button>
       </form>
+      <div className="catalog-personalization">
+        <div
+          className="catalog-mode-tabs"
+          role="group"
+          aria-label="Discovery mode"
+        >
+          <button
+            aria-pressed={params.get("forYou") === "true"}
+            onClick={() => update({ forYou: "true", sort: "match" })}
+          >
+            For you
+          </button>
+          <button
+            aria-pressed={params.get("forYou") !== "true"}
+            onClick={() => update({ forYou: "", sort: "latest" })}
+          >
+            All opportunities
+          </button>
+        </div>
+        <div>
+          <strong>
+            {params.get("forYou") === "true"
+              ? "Your CV. Your preferences. Better matches."
+              : "Search roles, skills and companies"}
+          </strong>
+          <p>
+            {params.get("forYou") === "true"
+              ? data?.personalization.hasSignals
+                ? "Ranked across every matching employer listing using your saved CV and target roles. Location and recency help break ties."
+                : "Add a CV or target roles to your profile to personalize this feed."
+              : "Search understands common role variants such as developer and engineer. Results prioritize relevant titles."}
+          </p>
+        </div>
+        <Link href="/profile">Edit my job preferences ↗</Link>
+      </div>
+      {params.get("forYou") === "true" && data?.personalization.hasSignals && (
+        <div
+          className="catalog-signal-chips"
+          aria-label="Your matching signals"
+        >
+          {data.personalization.titles.slice(0, 4).map((t) => (
+            <span key={t}>Role · {t}</span>
+          ))}
+          {data.personalization.skills.slice(0, 8).map((s) => (
+            <span key={s.term}>
+              {s.source === "cv" ? "CV" : "Profile"} · {s.term}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="catalog-filters">
         <label>
           Company
@@ -405,9 +463,15 @@ export default function CatalogDiscovery() {
         <label>
           Sort by{" "}
           <select
-            value={params.get("sort") || "latest"}
+            value={
+              params.get("sort") || (params.get("q") ? "relevance" : "latest")
+            }
             onChange={(e) => update({ sort: e.target.value })}
           >
+            <option value="match" disabled={params.get("forYou") !== "true"}>
+              Best match for me
+            </option>
+            <option value="relevance">Search relevance</option>
             <option value="latest">Latest opportunities</option>
             <option value="found">Most recently indexed</option>
           </select>
@@ -486,6 +550,27 @@ export default function CatalogDiscovery() {
                   <p className="catalog-salary">{job.salaryText}</p>
                 )}
                 <div className="catalog-card-bottom">
+                  {params.get("forYou") === "true" && job.recommendation && (
+                    <details className="catalog-match-details">
+                      <summary>{job.recommendation.label}</summary>
+                      <ul>
+                        {job.recommendation.reasons.length ? (
+                          job.recommendation.reasons.map((reason) => (
+                            <li key={reason}>{reason}</li>
+                          ))
+                        ) : (
+                          <li>
+                            No direct profile terms found. You can still explore
+                            this role.
+                          </li>
+                        )}
+                      </ul>
+                      <p>
+                        Text overlap is not a qualification or work-eligibility
+                        decision.
+                      </p>
+                    </details>
+                  )}
                   <small>{freshness(job)}</small>
                   <button onClick={() => setSelected(job)}>
                     View job <ArrowUpRight size={15} />

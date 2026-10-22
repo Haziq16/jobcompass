@@ -6,6 +6,13 @@ import { fetchCatalogBoard, type PublicJob } from "./catalog-provider";
 import { AppError, normalizedUrl } from "./contracts";
 import { workspaceId } from "./workspace-context";
 import { lock } from "./discovery";
+import { hasTerm } from "./matching";
+import {
+  recommendationProfile,
+  recommendationSql,
+  recommendationReasons,
+  smartQuery,
+} from "./job-recommendations";
 
 export const CATALOG_INTERVAL_MS = 5 * 60_000;
 export async function seedCatalog() {
@@ -190,8 +197,15 @@ export function catalogFilters(params: URLSearchParams) {
   ];
   if (q)
     clauses.push(
-      Prisma.sql`to_tsvector('simple',j."searchText") @@ websearch_to_tsquery('simple',${q})`,
+      Prisma.sql`to_tsvector('simple',j."searchText") @@ websearch_to_tsquery('simple',${smartQuery(q)})`,
     );
+  for (const [term, pattern] of [
+    ["C++", "(^|[^a-z0-9])c\\+\\+($|[^a-z0-9])"],
+    ["C#", "(^|[^a-z0-9])c#($|[^a-z0-9])"],
+    [".NET", "(^|[^a-z0-9])\\.net($|[^a-z0-9])"],
+  ])
+    if (!/["|():]|\bOR\b|(?:^|\s)-\w/.test(q) && hasTerm(q, term))
+      clauses.push(Prisma.sql`j."searchText" ~* ${pattern}`);
   if (location)
     clauses.push(
       Prisma.sql`j.location ILIKE ${"%" + location.replace(/[\\%_]/g, "\\$&") + "%"}`,
@@ -214,15 +228,24 @@ export function catalogFilters(params: URLSearchParams) {
 }
 export async function listCatalog(params: URLSearchParams) {
   const where = catalogFilters(params);
+  const personalization = await recommendationProfile();
+  const useProfile = params.get("forYou") === "true";
+  const query = (params.get("q") || "").trim().slice(0, 200);
+  const relevance = Prisma.sql`ts_rank_cd(setweight(to_tsvector('simple',j.title),'A') || setweight(to_tsvector('simple',j.employer),'B') || setweight(to_tsvector('simple',j."searchText"),'D'),websearch_to_tsquery('simple',${smartQuery(query)}))`;
   const requested = Number(params.get("page"));
   const page =
     Number.isSafeInteger(requested) && requested > 0
       ? Math.min(requested, 10000)
       : 1;
-  const order =
+  const dateOrder =
     params.get("sort") === "found"
       ? Prisma.sql`j."firstSeen" DESC,j.id`
       : Prisma.sql`COALESCE(j."publishedAt",CASE WHEN j."discoveredAfterBaseline" THEN j."firstSeen" END) DESC NULLS LAST,j."firstSeen" DESC,j.id`;
+  const order = useProfile
+    ? Prisma.sql`${recommendationSql(personalization)} DESC,${dateOrder}`
+    : query && (!params.get("sort") || params.get("sort") === "relevance")
+      ? Prisma.sql`${relevance} DESC,${dateOrder}`
+      : dateOrder;
   const [ids, count, boards, sync] = await Promise.all([
     authDb.$queryRaw<
       { id: string }[]
@@ -252,6 +275,7 @@ export async function listCatalog(params: URLSearchParams) {
     select: {
       id: true,
       providerId: true,
+      searchText: true,
       title: true,
       employer: true,
       location: true,
@@ -284,9 +308,25 @@ export async function listCatalog(params: URLSearchParams) {
     jobs: ids.map(({ id }) => {
       const j = rowsById.get(id)!;
       const p = personalById.get(j.providerId);
-      return { ...j, personalJobId: p?.id || null, saved: Boolean(p?.saved) };
+      const { searchText, ...listing } = j;
+      return {
+        ...listing,
+        recommendation: recommendationReasons(
+          { ...j, searchText },
+          personalization,
+        ),
+        personalJobId: p?.id || null,
+        saved: Boolean(p?.saved),
+      };
     }),
     total,
+    personalization: {
+      active: useProfile,
+      hasSignals: Boolean(
+        personalization.titles.length || personalization.skills.length,
+      ),
+      ...personalization,
+    },
     page,
     pages: Math.ceil(total / 30),
     stats: {

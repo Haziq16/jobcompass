@@ -13,6 +13,7 @@ import {
 import { chromium } from "playwright-core";
 import { setTimeout as delay } from "node:timers/promises";
 import JSZip from "jszip";
+import { cvLayoutFixture } from "./cv-layout-fixture.mjs";
 const origin = "http://127.0.0.1:3000";
 const source = new URL(process.env.DATABASE_URL);
 if (!["localhost", "127.0.0.1"].includes(source.hostname))
@@ -505,37 +506,53 @@ try {
       .isVisible(),
     false,
   );
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "Search all jobs", exact: true })
+    .click();
   await page
     .locator(
       `.studio-job-choice[data-job-id="${createHash("sha256").update("catalog-fixture-0").digest("hex")}"]`,
     )
     .click();
-  const zip = new JSZip();
-  zip.file("[Content_Types].xml", "<Types/>");
-  const resumeLines = [
-    "Alex Morgan",
-    "alex@release.example",
-    "EXPERIENCE",
-    "Built Kotlin services with PostgreSQL and Docker at Example Studio, 2021–2025.",
-    "EDUCATION",
-    "BSc Computer Science, Example University, 2020.",
-    "SKILLS",
-    "Kotlin, PostgreSQL, Docker",
-  ];
-  zip.file(
-    "word/document.xml",
-    `<w:document xmlns:w="urn:test">${resumeLines.map((line) => `<w:p><w:r><w:t>${line}</w:t></w:r></w:p>`).join("")}</w:document>`,
-  );
+  const sourceBytes = await cvLayoutFixture();
+  await page
+    .getByRole("checkbox", { name: /Use my next upload as my saved CV/ })
+    .check();
   await page.locator('input[type="file"]').setInputFiles({
     name: "fixture-resume.docx",
     mimeType:
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    buffer: await zip.generateAsync({ type: "nodebuffer" }),
+    buffer: sourceBytes,
   });
   await page.waitForFunction(() =>
     document.querySelector("textarea")?.value.includes("Built Kotlin"),
   );
   assert.equal(providerRequests, 1);
+  await page.getByTitle("Original CV Word layout", { exact: true }).waitFor();
+  await page
+    .getByRole("group", { name: "Source CV views" })
+    .getByRole("button", { name: "ATS readiness", exact: true })
+    .click();
+  await page.getByRole("region", { name: "ATS readiness report" }).waitFor();
+  assert.ok(
+    (
+      await page
+        .getByRole("region", { name: "ATS readiness report" })
+        .innerText()
+    ).includes("Reading order"),
+  );
+  await page.screenshot({
+    path: "test-results/ai-ats-desktop.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("group", { name: "Source CV views" })
+    .getByRole("button", { name: "CV text", exact: true })
+    .click();
+  check(
+    "Original DOCX upload preserves its private template, renders a sandboxed preview and runs document-level ATS checks without AI",
+  );
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: "test-results/ai-studio-desktop.png",
@@ -700,65 +717,92 @@ try {
     .getByRole("button", { name: "Generate tailored CV", exact: true })
     .click();
   await cvWorkspace
-    .getByLabel("Tailored CV preview")
+    .getByTitle("Tailored CV in original Word format", { exact: true })
     .waitFor({ timeout: 30000 });
   assert.equal(providerRequests, 3);
-  assert.ok(
-    (await cvWorkspace.getByLabel("Tailored CV preview").innerText()).includes(
-      "Developed services using Kotlin",
-    ),
-  );
   assert.equal(
     await cvWorkspace
-      .getByRole("button", { name: "Download Word CV", exact: true })
+      .getByRole("button", {
+        name: "Download original-format Word CV",
+        exact: true,
+      })
       .isDisabled(),
     true,
   );
   await cvWorkspace
-    .getByRole("button", { name: "Compare with sources", exact: true })
-    .click();
-  await cvWorkspace
-    .getByText("Show original evidence (1)", { exact: true })
-    .first()
+    .getByRole("button", { name: "Compare changes", exact: true })
     .click();
   assert.ok(
-    (await cvWorkspace.locator("blockquote").first().innerText()).includes(
+    (await cvWorkspace.locator(".cv-change-list").innerText()).includes(
+      "Developed Kotlin",
+    ),
+  );
+  assert.ok(
+    (await cvWorkspace.locator(".cv-change-list").innerText()).includes(
       "Built Kotlin",
     ),
   );
   await cvWorkspace
-    .getByRole("button", { name: "Edit CV", exact: true })
+    .getByRole("button", { name: "Edit wording", exact: true })
     .click();
-  const cvEditor = cvWorkspace.getByLabel("Tailored CV text", { exact: true });
-  const cvContent =
-    (await cvEditor.inputValue()) + "\nReviewed manually for this opportunity.";
-  await cvEditor.fill(cvContent);
+  const paragraph = cvWorkspace.getByLabel("CV paragraph P0005", {
+    exact: true,
+  });
+  await paragraph.fill(
+    (await paragraph.inputValue()) + " Reviewed manually for this opportunity.",
+  );
   await cvWorkspace
-    .getByRole("button", { name: "Save edits", exact: true })
+    .getByRole("button", { name: "Save wording", exact: true })
     .click();
   await cvWorkspace.getByText(/Revision 2/).waitFor();
+  await cvWorkspace
+    .getByRole("button", { name: "ATS check", exact: true })
+    .click();
+  await cvWorkspace
+    .getByRole("region", { name: "ATS readiness report" })
+    .waitFor();
   await cvWorkspace
     .getByRole("checkbox", { name: /I have checked the wording/ })
     .check();
   const wordDownload = page.waitForEvent("download");
   await cvWorkspace
-    .getByRole("button", { name: "Download Word CV", exact: true })
+    .getByRole("button", {
+      name: "Download original-format Word CV",
+      exact: true,
+    })
     .click();
   await (await wordDownload).saveAs("test-results/ai-tailored-cv.docx");
   await cvWorkspace.getByText(/Revision 3/).waitFor();
+  const originalZip = await JSZip.loadAsync(sourceBytes),
+    tailoredZip = await JSZip.loadAsync(
+      readFileSync("test-results/ai-tailored-cv.docx"),
+    );
+  for (const name of Object.keys(originalZip.files).filter(
+    (n) => !originalZip.files[n].dir && n !== "word/document.xml",
+  ))
+    assert.deepEqual(
+      await tailoredZip.file(name).async("uint8array"),
+      await originalZip.file(name).async("uint8array"),
+      name,
+    );
   const textDownload = page.waitForEvent("download");
   await cvWorkspace
     .getByRole("button", { name: "Download CV text", exact: true })
     .click();
   await (await textDownload).saveAs("test-results/ai-tailored-cv.txt");
-  assert.equal(
-    readFileSync("test-results/ai-tailored-cv.txt", "utf8"),
-    cvContent,
+  assert.ok(
+    readFileSync("test-results/ai-tailored-cv.txt", "utf8").includes(
+      "Reviewed manually for this opportunity.",
+    ),
   );
   assert.equal(providerRequests, 3);
   await cvWorkspace
-    .getByRole("button", { name: "CV preview", exact: true })
+    .getByRole("button", { name: "Document preview", exact: true })
     .click();
+  await cvWorkspace
+    .frameLocator('iframe[title="Tailored CV in original Word format"]')
+    .getByText(/Developed Kotlin services/)
+    .waitFor();
   await page.screenshot({ path: "test-results/ai-tailored-cv-desktop.png" });
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(
@@ -769,7 +813,7 @@ try {
   await page.screenshot({ path: "test-results/ai-tailored-cv-mobile.png" });
   await page.setViewportSize({ width: 1440, height: 1000 });
   check(
-    "Tailored CV generation rewrites supported content, compares sources, saves edits and downloads reviewed Word/text without extra inference",
+    "Original-format CV generation retains source styles/margins/header/footer, supports paragraph edits, ATS checks and exact reviewed downloads without extra inference",
   );
   await page
     .getByRole("navigation", { name: "Application steps" })
@@ -833,10 +877,17 @@ try {
   await page
     .getByRole("link", { name: "Open tailored CV & downloads", exact: false })
     .click();
-  await page.locator("#ai-studio:visible .ai-cv-paper").waitFor();
+  await page
+    .locator("#ai-studio:visible")
+    .getByTitle("Tailored CV in original Word format", { exact: true })
+    .waitFor();
+  await page
+    .locator("#ai-studio:visible")
+    .getByRole("button", { name: "Compare changes", exact: true })
+    .click();
   assert.ok(
     (
-      await page.locator("#ai-studio:visible .ai-cv-paper").innerText()
+      await page.locator("#ai-studio:visible .cv-change-list").innerText()
     ).includes("Reviewed manually for this opportunity."),
   );
   assert.equal(providerRequests, 3);
@@ -1041,6 +1092,29 @@ try {
   );
   check(
     "Forget key removes the encrypted account connection and prevents it restoring after refresh",
+  );
+  await page.keyboard.press("Escape");
+  await page.goto(origin + "/discover");
+  await page.getByRole("button", { name: "For you", exact: true }).click();
+  await page.locator(".catalog-match-details").first().waitFor();
+  const personalized = await page.request.get(
+    origin + "/api/catalog?forYou=true",
+  );
+  const personalizedData = await personalized.json();
+  assert.equal(personalizedData.personalization.hasCv, true);
+  assert.ok(
+    personalizedData.personalization.skills.some((s) => s.term === "Kotlin"),
+  );
+  const unpersonalized = await second.request.get(
+    origin + "/api/catalog?forYou=true",
+  );
+  assert.equal((await unpersonalized.json()).personalization.hasSignals, false);
+  await page.screenshot({
+    path: "test-results/discovery-for-you-mobile.png",
+    fullPage: false,
+  });
+  check(
+    "For-you discovery uses saved CV signals, explains job matches and isolates recommendations between accounts without AI requests",
   );
   assert.deepEqual(errors, []);
   assert.equal(await db.apiRequestLedger.count(), 0);

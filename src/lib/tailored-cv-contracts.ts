@@ -83,6 +83,19 @@ const numbers = (text: string) =>
   [...text.matchAll(/\d+(?:[.,]\d+)*(?:\s*%)?/g)].map((m) =>
     m[0].replaceAll(",", "").replaceAll(" ", ""),
   );
+export function validateRewrite(text: string, evidence: string) {
+  const allowed = new Set(numbers(evidence));
+  if (numbers(text).some((n) => !allowed.has(n)))
+    throw new AppError("cv_unsupported_number", 422);
+  if (resumeChecks(evidence, text).keywords.some((k) => !k.mentioned))
+    throw new AppError("cv_unsupported_skill", 422);
+  if (
+    (text.match(/[^\s@]+@[^\s@]+\.[a-z]{2,}|https?:\/\/\S+/gi) || []).some(
+      (value) => !evidence.includes(value),
+    )
+  )
+    throw new AppError("cv_unsupported_source", 422);
+}
 export function validateCv(raw: unknown, resume: string): CvDocument {
   const selected = cvModelDocument.parse(raw);
   const blocks = new Map(evidenceBlocks(resume).map((b) => [b.id, b.text]));

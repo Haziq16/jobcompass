@@ -16,7 +16,7 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 - **Your job library:** search stored opportunities, filter metadata, browse details, and skip or restore roles.
 - **A focused shortlist:** save jobs and keep private notes and tags.
 - **Application tracking:** maintain stages, notes, dates and an event timeline. Employer links never automatically mark a role Applied.
-- **Personal matching:** set target roles, skills, locations and work preferences for deterministic matches.
+- **Personal matching:** a **For you** feed ranks the whole catalogue using saved CV skill mentions, target roles, declared experience, locations and work preferences, with visible reasons for each match.
 - **Separate accounts:** hosted signup and sign-in with account-scoped data, exports and deletion controls.
 - **Responsive interface:** consistent typography, desktop and mobile navigation, keyboard-accessible job details, and light/dark themes.
 
@@ -27,6 +27,8 @@ The legacy gateway tools and assisted form filling remain disabled. Public accou
 ## How discovery works
 
 Discover searches a shared index of public employer listings. Search by title, skill or company, add a location, then filter by employer, remote work, source or freshness. Results are paginated in the database; saving creates an independent copy in your private workspace. Jobs are never copied into every account automatically.
+
+Switch between **For you** and all opportunities. Recommendations use only your account's saved CV and profile; mentions do not establish proficiency. Search expands common role variants such as developer/engineer and ranks title matches above incidental description mentions. Explicit freshness sorts remain available. AI Studio also offers recommended jobs and an original-DOCX workflow with document preview, paragraph comparisons and structural ATS readiness findings. These free checks and recommendations do not call a model.
 
 The included GitHub workflow checks due feeds about every 30 minutes. Signed-in browsing can trigger checks as often as every five minutes. These are polling targets, not instant-delivery guarantees; GitHub can delay schedules and sources may update late. Check **Actions → Refresh job catalogue** for scheduler health. The workflow uses hosted-runner minutes; monitor the repository owner's included allowance and spending settings. There is no new paid scheduler subscription.
 
