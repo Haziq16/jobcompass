@@ -48,6 +48,7 @@ async function pendingHeartbeat() {
     method: "POST",
     headers: {
       Authorization: "Bearer " + secret,
+      Origin: origin,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ mode: "local" }),
