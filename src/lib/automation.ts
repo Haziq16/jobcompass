@@ -1,3 +1,4 @@
+import { authorizedAutomaticApplication } from "./swipe-application-consent";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { db, authDb } from "./db";
@@ -180,6 +181,14 @@ export async function enqueueAutomation(catalogId: string) {
     where: { workspaceId_catalogId: { workspaceId: workspaceId(), catalogId } },
   });
   if (decision?.state !== "queued") return { enqueued: false };
+  if (
+    !(await authorizedAutomaticApplication(
+      decision,
+      values.resumeAssetId,
+      values.submit,
+    ))
+  )
+    return { enqueued: false, needsAuthorization: true };
   const info = targetInfo(decision.applyUrl);
   if (!info || !values.platforms.includes(info.platform))
     return { enqueued: false };
@@ -336,6 +345,23 @@ export async function reserveSubmission(id: string, input: unknown) {
     const values = automationSettingsSchema.parse(setting.values);
     if (!values.enabled || !values.submit)
       throw new AppError("submission_not_authorized", 403);
+    const approvedDecision = await db.matchDecision.findUnique({
+      where: {
+        workspaceId_catalogId: {
+          workspaceId: workspaceId(),
+          catalogId: session.catalogId,
+        },
+      },
+    });
+    if (
+      !approvedDecision ||
+      !(await authorizedAutomaticApplication(
+        approvedDecision,
+        session.resumeAssetId,
+        true,
+      ))
+    )
+      throw new AppError("recipient_authorization_required", 403);
   }
   const profile = await getCandidate();
   if (profile.revision !== session.profileRevision)
@@ -651,6 +677,23 @@ export async function claimAutomation() {
     const leased = await claimAutomationForWorkspace();
     if (!leased) return null;
     try {
+      const decision = await db.matchDecision.findUnique({
+        where: {
+          workspaceId_catalogId: {
+            workspaceId: workspaceId(),
+            catalogId: leased.task.catalogId,
+          },
+        },
+      });
+      if (
+        !decision ||
+        !(await authorizedAutomaticApplication(
+          decision,
+          leased.task.resumeAssetId,
+          leased.task.submit,
+        ))
+      )
+        throw new AppError("recipient_authorization_required", 409);
       const grant = await startFill({
         catalogId: leased.task.catalogId,
         resumeAssetId: leased.task.resumeAssetId,
@@ -757,6 +800,25 @@ export async function withWorkerLease<T>(
       (!setting || !automationSettingsSchema.parse(setting.values).enabled)
     )
       throw new AppError("automation_paused", 409);
+    if (!receipt) {
+      const approvedDecision = await db.matchDecision.findUnique({
+        where: {
+          workspaceId_catalogId: {
+            workspaceId: workspaceId(),
+            catalogId: task.catalogId,
+          },
+        },
+      });
+      if (
+        !approvedDecision ||
+        !(await authorizedAutomaticApplication(
+          approvedDecision,
+          task.resumeAssetId,
+          task.submit,
+        ))
+      )
+        throw new AppError("recipient_authorization_required", 403);
+    }
     return action(task.sessionId!);
   });
 }

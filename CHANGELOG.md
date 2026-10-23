@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-23 - Automatic processing from authorised right swipes
+
+- Added visible employer/CV/data disclosure before a supported job card and a clear Authorise & apply action.
+- Bound each right-swipe permission to the exact recipient, CV hash, profile and processing rules using an expiring signed disclosure.
+- Blocked unapproved old jobs, altered disclosures, stale facts and revoked approvals before the worker can receive CV data or request submission.
+- Kept missing-answer, CAPTCHA, limits and uncertain-submission safeguards in place.
+
 ## 2026-10-23 - Companion 2.0.1 form compatibility fixes
 
 - Read Lever question labels separately from location-helper text and radio option labels.

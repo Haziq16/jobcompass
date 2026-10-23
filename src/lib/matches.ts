@@ -1,3 +1,8 @@
+import {
+  swipeApplicationContext,
+  swipeApplicationConsent,
+  verifySwipeApplicationConsent,
+} from "./swipe-application-consent";
 import { enqueueAutomation } from "./automation";
 import { Prisma } from "@prisma/client";
 import { authDb, db } from "./db";
@@ -252,6 +257,7 @@ export async function matchDeck(params: URLSearchParams) {
   const decisions = await db.matchDecision.findMany({
     where: { catalogId: { in: result.jobs.map((j) => j.id) } },
   });
+  const applicationContext = await swipeApplicationContext();
   return {
     ...result,
     jobs: result.jobs.map((j) => {
@@ -312,6 +318,7 @@ export async function matchDeck(params: URLSearchParams) {
         otherSkills,
         requirements,
         warnings,
+        applicationConsent: swipeApplicationConsent(j, applicationContext),
         decisionRevision:
           decisions.find((d) => d.catalogId === j.id)?.revision || 0,
       };
@@ -365,6 +372,10 @@ export async function decideMatch(input: unknown) {
         job.board.lastSuccessAt.valueOf() > Date.now() - 48 * 3600000;
       if (!available && data.state === "queued")
         throw new AppError("listing_unavailable", 409);
+      const applicationAuthorization =
+        data.applicationConsent && data.state === "queued" && job
+          ? await verifySwipeApplicationConsent(data.applicationConsent, job)
+          : null;
       const snapshot = job
         ? json({
             id: job.id,
@@ -377,6 +388,7 @@ export async function decideMatch(input: unknown) {
             sourceUrl: job.sourceUrl,
             firstSeen: job.firstSeen,
             publishedAt: job.publishedAt,
+            ...(applicationAuthorization ? { applicationAuthorization } : {}),
           })
         : (old!.snapshot as Prisma.InputJsonValue);
       const decision = await tx.matchDecision.upsert({

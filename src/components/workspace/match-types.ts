@@ -1,5 +1,11 @@
 import type { MatchPreferences } from "@/lib/match-contracts";
 export type MatchListing = {
+  applicationConsent?: {
+    token: string;
+    cvName: string;
+    submit: boolean;
+    recipient: string;
+  } | null;
   id: string;
   title: string;
   employer: string;

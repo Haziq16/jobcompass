@@ -1,4 +1,8 @@
-﻿import { z } from "zod";
+import {
+  swipeApplicationContext,
+  swipeApplicationConsent,
+} from "@/lib/swipe-application-consent";
+import { z } from "zod";
 import { accountRequest } from "@/lib/account-request";
 import { authorize } from "@/lib/authorization";
 import { AppError } from "@/lib/contracts";
@@ -20,6 +24,20 @@ function handler(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
     if (!canUseAutomation(user))
       throw new AppError("automation_unavailable", 403);
     const path = (await ctx.params).path?.join("/") || "overview";
+    if (req.method === "GET" && path === "consent") {
+      const id = z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .parse(new URL(req.url).searchParams.get("job"));
+      const job = await db.catalogJob.findUnique({ where: { id } });
+      if (!job) throw new AppError("not_found", 404);
+      return Response.json({
+        applicationConsent: swipeApplicationConsent(
+          job,
+          await swipeApplicationContext(),
+        ),
+      });
+    }
     if (req.method === "GET" && path === "overview")
       return Response.json(await automationOverview());
     if (req.method === "POST") {

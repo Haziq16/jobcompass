@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -29,6 +29,8 @@ import { useMatchAccess } from "./MatchAccess";
 type Deck = { jobs: MatchListing[]; total: number };
 const errorText = (e: unknown) => {
   const text = (e as Error).message;
+  if (text === "application_consent_stale")
+    return "Your CV, profile or processing rules changed. Refresh the deck before authorising this application.";
   return text === "revision_conflict"
     ? "This changed in another tab. Reload to use the latest version."
     : text === "listing_unavailable"
@@ -92,6 +94,9 @@ function Deck({
           state,
           reason: state === "passed" ? reason : null,
           expectedRevision: target.decisionRevision,
+          ...(state === "queued" && target.applicationConsent
+            ? { applicationConsent: target.applicationConsent.token }
+            : {}),
         },
       );
       pending.current = null;
@@ -100,7 +105,9 @@ function Deck({
       onDecided(
         result.actionId,
         state === "queued"
-          ? `Added ${target.title} to your application queue. Nothing submitted.`
+          ? target.applicationConsent
+            ? `Authorised ${target.employer} to receive your selected CV and confirmed profile. Automatic processing queued.`
+            : `Added ${target.title} to your application queue. Nothing submitted.`
           : state === "saved"
             ? `Saved ${target.title} for later.`
             : `Passed ${target.title}.`,

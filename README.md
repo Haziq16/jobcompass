@@ -26,7 +26,7 @@ The legacy gateway tools remain disabled. The owner-only **Fill application** pr
 
 ## How discovery works
 
-The owner-only **Swipe** preview adds a personalised card deck, three-step preference setup, explicit match reasons, pass feedback, undo and a persistent application queue. Right swipe queues a listing. When the owner explicitly enables automatic rules, supported queued jobs can be processed offline. Queue priorities, saved-for-later and passed collections remain private to the account. Other accounts retain List discovery. `MATCH_MODE=owner` is the default; `off` disables matching and `all` explicitly opens it to signed-in accounts. See [swipe matching](docs/swipe-matching.md) for filters and unknown-data handling.
+The owner-only **Swipe** preview adds a personalised card deck, three-step preference setup, explicit match reasons, pass feedback, undo and a persistent application queue. Right swipe queues a listing. When the owner enables automatic rules, supported cards name the recipient and CV. A right swipe authorises that specific application for offline processing. Old queued jobs are not silently released. Queue priorities, saved-for-later and passed collections remain private to the account. Other accounts retain List discovery. `MATCH_MODE=owner` is the default; `off` disables matching and `all` explicitly opens it to signed-in accounts. See [swipe matching](docs/swipe-matching.md) for filters and unknown-data handling.
 
 The owner preview also includes a verified application profile, conservative CV extraction, a contextual answer library and an inbox for missing or stale questions. Original CV files stay unchanged; only explicitly confirmed facts supply answers. See [application memory](docs/application-memory.md) for expiry and account controls.
 
@@ -149,7 +149,7 @@ npm run test:browser
 
 The browser suite uses two fictional accounts and a dedicated test database. It mocks the direct-import response and checks real account sessions, stored workflows and mobile layout. Configure `CHROME_EXECUTABLE_PATH` if Chrome is installed outside the default Windows location.
 
-The current release passed **132 fixture/database tests**, **45 browser acceptance checks**, **5 real-extension flow checks** and **10 offline-worker/browser checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
+The current release passed **138 fixture/database tests**, **45 browser acceptance checks**, **5 real-extension flow checks** and **11 offline-worker/browser checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
 
 ## Project layout
 

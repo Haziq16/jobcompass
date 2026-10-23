@@ -1,4 +1,4 @@
-﻿# Automatic applications
+# Automatic applications
 
 This owner-only website feature processes deliberately queued jobs on supported Greenhouse, Lever (including EU) and Ashby hosted forms. It is paused by default. Other users keep ordinary discovery and tracking.
 
@@ -6,7 +6,7 @@ This owner-only website feature processes deliberately queued jobs on supported 
 
 1. Confirm Contact, work eligibility and other reusable answers in Application profile. Pick an original PDF or DOCX CV under 2 MiB. Separate names are explicit; no name splitting or invented qualifications.
 2. Open **Automatic applications**. Select the CV, fallback hiring country, supported platforms and UTC limits. Default limits are 3 tasks daily and 30 monthly; maximums are 20 and 60.
-3. Choose automatic submission or fill-only processing. Explicitly authorize the rules and enable processing. New right swipes enter the offline queue; optionally enroll up to 200 already queued jobs.
+3. Choose automatic submission or fill-only processing. Explicitly authorize the rules and enable processing. For supported jobs, each card shows the named employer, selected CV and data being sent. A right swipe or Authorise & apply records permission for that specific application and enters it into the offline queue. Existing jobs require their own recorded permission; the optional batch setting only enrolls previously authorised jobs.
 4. Results and missing-input notifications remain in this page while away. Email notifications are not configured. Pause cancels waiting/pre-submission leases. A submission already dispatched may finish and must be checked.
 
 The existing GitHub catalogue workflow checks approximately every 30 minutes and starts one browser worker only when enabled work is pending. Schedules can be delayed. Private-repository runner minutes consume the account's existing included allowance; free infrastructure is bounded, not unlimited capacity.
@@ -33,3 +33,9 @@ Profile clearing removes automation settings, tasks and notifications and revoke
 ## Verification
 
 `npm test` checks permissions, rule revisions, owner/workspace boundaries, concurrency, limits, duplicate guards, receipt validation and recovery. `npm run test:automation` runs the real standalone worker against intercepted fictional Greenhouse, Lever and Ashby forms in an isolated local database. Tests cover conditional fields, comboboxes, exact uploads, confirmed and uncertain receipts, CAPTCHA, no replay and responsive UI. No real employer applications are submitted by these checks. Fixture coverage does not establish universal live-form compatibility.
+
+## Recipient-specific swipe authorisation
+
+Enabling rules does not grant permission to send data to arbitrary employers. The deck issues a signed, expiring disclosure bound to the workspace, exact job identity, named employer, CV asset/hash, profile revision and processing-rule revision. The disclosure appears before the draggable card. The user's right swipe, keyboard action or Authorise & apply action records that specific approval in the private decision snapshot. Saving or passing never authorises an application.
+
+Enrolment, worker claims, leased requests and final submit permission all require current recipient approval. Old queued jobs and old browser clients without the disclosure do not silently dispatch. Profile/CV changes invalidate approval; rule changes invalidate a previously displayed disclosure. The task waits for fresh approval rather than sharing changed data. Submission receipts and uncertain-outcome protections remain in force.

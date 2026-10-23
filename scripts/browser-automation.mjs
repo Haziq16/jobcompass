@@ -274,6 +274,26 @@ try {
         },
       },
     });
+    const disclosure = await context.request.get(
+      origin + "/api/automation/consent?job=" + id,
+    );
+    assert.equal(disclosure.status(), 200);
+    const consent = (await disclosure.json()).applicationConsent;
+    assert.ok(consent?.token);
+    const authorised = await context.request.post(
+      origin + "/api/matches/decision",
+      {
+        headers: { origin },
+        data: {
+          requestId: randomUUID(),
+          catalogId: id,
+          state: "queued",
+          expectedRevision: 1,
+          applicationConsent: consent.token,
+        },
+      },
+    );
+    assert.equal(authorised.status(), 200, await authorised.text());
     assert.equal(
       (
         await context.request.post(origin + "/api/automation/enqueue", {
@@ -348,6 +368,85 @@ try {
   assert.equal(await db.applicationSubmission.count(), 4);
   check(
     "Subsequent worker does not retry completed, uncertain or blocked tasks",
+  );
+  const uiId = "7".repeat(64),
+    uiTarget = "https://job-boards.greenhouse.io/jobcompass-fixture/jobs/777";
+  await db.catalogJob.create({
+    data: {
+      id: uiId,
+      boardId: "auto-board-1",
+      providerId: "ui-consent:777",
+      title: "Kotlin Engineer - Swipe consent",
+      employer: "Named Fixture Employer",
+      sourceUrl: uiTarget,
+      applyUrl: uiTarget,
+      hash: "fixture",
+      searchText: "kotlin engineer",
+      country: "Singapore",
+      location: "Singapore",
+    },
+  });
+  assert.equal(
+    (
+      await context.request.post(origin + "/api/matches/preferences", {
+        headers: { origin },
+        data: {
+          values: {
+            titles: ["Kotlin Engineer"],
+            skills: ["Kotlin"],
+            reviewed: true,
+          },
+          expectedRevision: 0,
+        },
+      })
+    ).status(),
+    200,
+  );
+  await page.goto(origin + "/discover");
+  await page
+    .getByRole("button", { name: "Authorise & apply", exact: true })
+    .waitFor();
+  await page
+    .getByText("fictional-original.docx", { exact: false })
+    .first()
+    .waitFor();
+  for (const [name, width, height] of [
+    ["desktop", 1440, 1100],
+    ["tablet", 768, 1024],
+    ["phone", 390, 844],
+  ]) {
+    await page.setViewportSize({ width, height });
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    );
+    await page.screenshot({
+      path: `test-results/swipe-consent-${name}.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  const decisionResponse = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/matches/decision") &&
+      r.request().method() === "POST",
+  );
+  await page
+    .getByRole("button", { name: "Authorise & apply", exact: true })
+    .click();
+  assert.equal((await decisionResponse).status(), 200);
+  assert.equal(
+    (await db.automationTask.findFirstOrThrow({ where: { catalogId: uiId } }))
+      .state,
+    "queued",
+  );
+  assert.ok(
+    (await db.matchDecision.findFirstOrThrow({ where: { catalogId: uiId } }))
+      .snapshot.applicationAuthorization,
+  );
+  check(
+    "A real named-employer disclosure and authorise action queues one recipient-scoped automatic application",
   );
   await page.goto(origin + "/automation");
   await page.getByRole("heading", { name: "Your application rules" }).waitFor();

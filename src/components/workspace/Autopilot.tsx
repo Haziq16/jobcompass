@@ -202,7 +202,8 @@ function Settings({
               setConfirmed(false);
             }}
           />
-          Also add up to 200 jobs already in my application queue
+          Also add up to 200 previously authorised jobs from my application
+          queue
         </label>
         <label className="candidate-checkbox">
           <input

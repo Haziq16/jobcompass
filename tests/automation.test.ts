@@ -1,3 +1,9 @@
+import {
+  swipeApplicationContext,
+  swipeApplicationConsent,
+  verifySwipeApplicationConsent,
+} from "../src/lib/swipe-application-consent";
+import { decideMatch } from "../src/lib/matches";
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -14,7 +20,7 @@ import {
 } from "../src/lib/application-filling";
 import { targetInfo } from "../src/lib/application-fill-contracts";
 import {
-  saveAutomation,
+  saveAutomation as rawSaveAutomation,
   enqueueAutomation,
   claimAutomation,
   automationOverview,
@@ -48,6 +54,47 @@ const config = (extra = {}) => ({
   consent: true,
   ...extra,
 });
+async function consentFixture(id: string) {
+  const job = await authDb.catalogJob.findUniqueOrThrow({ where: { id } });
+  const consent = await run(async () =>
+    swipeApplicationConsent(job, await swipeApplicationContext()),
+  );
+  if (!consent) return;
+  const row = await authDb.matchDecision.findUniqueOrThrow({
+    where: { workspaceId_catalogId: { workspaceId: "alice", catalogId: id } },
+  });
+  const applicationAuthorization = await run(() =>
+    verifySwipeApplicationConsent(consent.token, job),
+  );
+  await authDb.matchDecision.update({
+    where: { id: row.id },
+    data: {
+      snapshot: { ...(row.snapshot as object), applicationAuthorization },
+    },
+  });
+}
+async function saveAutomation(
+  input: unknown,
+  revision: number,
+  includeExisting = false,
+) {
+  const result = await rawSaveAutomation(input, revision, false);
+  const config = input as { enabled: boolean };
+  if (config.enabled) {
+    const rows = await authDb.matchDecision.findMany({
+      where: { workspaceId: "alice", state: "queued" },
+    });
+    for (const row of rows) {
+      if (
+        !(row.snapshot as { applicationAuthorization?: unknown })
+          .applicationAuthorization
+      )
+        await consentFixture(row.catalogId);
+      if (includeExisting) await enqueueAutomation(row.catalogId);
+    }
+  }
+  return result;
+}
 async function seed(id = catalogId, url = target) {
   await authDb.catalogJob.create({
     data: {
@@ -79,6 +126,7 @@ async function seed(id = catalogId, url = target) {
       },
     },
   });
+  await consentFixture(id);
 }
 async function ready(
   submit = true,
@@ -492,4 +540,107 @@ test("pause blocks new work but accepts an already-dispatched worker receipt", a
     true,
   );
   assert.equal((await authDb.application.findFirstOrThrow()).status, "Applied");
+});
+
+test("enabling automatic rules never grants employer permission to an old queued job", async () => {
+  await run(() => rawSaveAutomation(config(), 0, true));
+  assert.equal(await authDb.automationTask.count(), 0);
+  assert.equal((await run(() => enqueueAutomation(catalogId))).enqueued, false);
+});
+test("a signed employer-and-CV disclosure makes the named right swipe runnable", async () => {
+  await run(() => rawSaveAutomation(config(), 0));
+  const job = await authDb.catalogJob.findUniqueOrThrow({
+    where: { id: catalogId },
+  });
+  const consent = await run(async () =>
+    swipeApplicationConsent(job, await swipeApplicationContext()),
+  );
+  assert.ok(consent);
+  await run(() =>
+    decideMatch({
+      requestId: randomUUID(),
+      catalogId,
+      state: "queued",
+      expectedRevision: 1,
+      applicationConsent: consent.token,
+    }),
+  );
+  assert.equal(await authDb.automationTask.count(), 1);
+  assert.ok(await claimAutomation());
+});
+test("disclosure tokens reject tampering, another recipient and another account", async () => {
+  await run(() => rawSaveAutomation(config(), 0));
+  const job = await authDb.catalogJob.findUniqueOrThrow({
+    where: { id: catalogId },
+  });
+  const consent = await run(async () =>
+    swipeApplicationConsent(job, await swipeApplicationContext()),
+  );
+  assert.ok(consent);
+  await assert.rejects(
+    run(() => verifySwipeApplicationConsent(consent.token + "x", job)),
+  );
+  await assert.rejects(
+    run(() =>
+      verifySwipeApplicationConsent(consent.token, {
+        ...job,
+        id: "f".repeat(64),
+      }),
+    ),
+  );
+  await assert.rejects(
+    run(() => verifySwipeApplicationConsent(consent.token, job), "bob"),
+  );
+});
+test("profile edits invalidate queued recipient approval before a worker gets CV data", async () => {
+  await run(() => saveAutomation(config(), 0, true));
+  const p = await authDb.candidateProfile.findUniqueOrThrow({
+    where: { workspaceId: "alice" },
+  });
+  await run(() =>
+    saveCandidate({
+      values: { ...(p.values as object), skills: ["Kotlin"] },
+      expectedRevision: p.revision,
+      confirmSections: [],
+    }),
+  );
+  assert.equal(await claimAutomation(), null);
+  assert.equal(
+    (await authDb.automationTask.findFirstOrThrow()).state,
+    "needs_input",
+  );
+  assert.equal(await authDb.applicationFillSession.count(), 0);
+});
+test("changing processing rules invalidates a previously displayed swipe disclosure", async () => {
+  await run(() => rawSaveAutomation(config(), 0));
+  const job = await authDb.catalogJob.findUniqueOrThrow({
+    where: { id: catalogId },
+  });
+  const consent = await run(async () =>
+    swipeApplicationConsent(job, await swipeApplicationContext()),
+  );
+  assert.ok(consent);
+  await run(() => rawSaveAutomation(config({ submit: false }), 1));
+  await assert.rejects(
+    run(() => verifySwipeApplicationConsent(consent.token, job)),
+    /application_consent_stale/,
+  );
+});
+test("revoking the per-job approval stops an existing lease before it can request CV data", async () => {
+  await run(() => saveAutomation(config(), 0, true));
+  const leased = await claimAutomation();
+  assert.ok(leased);
+  const decision = await authDb.matchDecision.findFirstOrThrow({
+    where: { workspaceId: "alice" },
+  });
+  await authDb.matchDecision.update({
+    where: { id: decision.id },
+    data: {
+      snapshot: { title: "Kotlin Engineer", employer: "Fictional Labs" },
+    },
+  });
+  await assert.rejects(
+    withWorkerLease(leased.taskId, leased.leaseToken, async () => true),
+    /recipient_authorization_required/,
+  );
 });

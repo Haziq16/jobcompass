@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowUpRight,
@@ -33,6 +33,7 @@ export function MatchDetails({
     recommendation?: MatchListing["recommendation"];
     requirements?: string[];
     warnings?: string[];
+    applicationConsent?: MatchListing["applicationConsent"];
   };
   onClose: () => void;
   onQueue?: () => void;
@@ -125,6 +126,15 @@ export function MatchDetails({
           )}
         </>
       )}
+      {job.applicationConsent && (
+        <p className="match-application-consent">
+          Authorising sends {job.applicationConsent.cvName} and your confirmed
+          contact details and application answers to {job.employer}
+          {job.applicationConsent.submit
+            ? " for automatic submission when complete."
+            : " to fill the form."}
+        </p>
+      )}
       <div className="match-detail-footer">
         {onQueue && (
           <button
@@ -133,7 +143,9 @@ export function MatchDetails({
             disabled={busy || detail.data?.active === false}
           >
             <Check size={17} />
-            Add to queue
+            {job.applicationConsent
+              ? "Authorise this application"
+              : "Add to queue"}
           </button>
         )}
         {onSave && (
@@ -205,6 +217,23 @@ export default function MatchCard({
   return (
     <div className="match-deck-column" ref={container}>
       <p className="match-deck-caption">One opportunity. Your next move.</p>
+      {job.applicationConsent && (
+        <p
+          className="match-application-consent"
+          id="match-application-disclosure"
+          role="note"
+        >
+          Swipe right to authorise sending{" "}
+          <strong>{job.applicationConsent.cvName}</strong> and your confirmed
+          contact details and application answers to{" "}
+          <strong>{job.employer}</strong>
+          {job.applicationConsent.submit
+            ? ", and submit this application automatically when complete."
+            : " to fill this application."}{" "}
+          Missing answers or CAPTCHA pause processing.
+        </p>
+      )}
+
       <div className="match-card-stage">
         <div className="match-next-card" aria-hidden="true">
           <span>
@@ -217,6 +246,9 @@ export default function MatchCard({
           key={job.id}
           className="match-card"
           aria-labelledby="swipe-job-title"
+          aria-describedby={
+            job.applicationConsent ? "match-application-disclosure" : undefined
+          }
           aria-busy={busy}
           data-dragging={dragging}
           style={
@@ -378,12 +410,21 @@ export default function MatchCard({
           onClick={() => onDecision("queued")}
         >
           <Check size={23} />
-          <span>{busy ? "Saving…" : "Interested"}</span>
+          <span>
+            {busy
+              ? "Saving..."
+              : job.applicationConsent
+                ? job.applicationConsent.submit
+                  ? "Authorise & apply"
+                  : "Authorise & fill"
+                : "Interested"}
+          </span>
         </button>
       </div>
       <p className="match-shortcuts">
-        Drag a card or use ← to pass and → to queue. No applications are
-        submitted.
+        {job.applicationConsent
+          ? "Swipe right or use the right arrow to authorise sending the shown CV and confirmed profile to this employer for processing under your saved rules."
+          : "Drag a card or use the left arrow to pass and the right arrow to queue. No applications are submitted."}
       </p>
       <aside className="match-bottom-note">
         <AlertCircle size={16} />

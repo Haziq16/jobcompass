@@ -57,6 +57,7 @@ export const passReasons = [
 export const matchActionSchema = z
   .object({
     requestId: z.string().uuid(),
+    applicationConsent: z.string().max(5000).optional(),
     catalogId: z.string().regex(/^[a-f0-9]{64}$/),
     state: z.enum(["queued", "saved", "passed", "removed"]),
     reason: z.enum(passReasons).nullable().default(null),

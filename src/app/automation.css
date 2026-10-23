@@ -110,3 +110,11 @@
   color: var(--release-ink);
   border-color: var(--release-line);
 }
+.match-application-consent {
+  margin: 18px 0 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--release-line);
+  color: var(--release-ink);
+  font-size: 13px;
+  line-height: 1.55;
+}
