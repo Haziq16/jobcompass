@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-23 - Fairer automatic-processing allowances
+
+- Release a reserved daily/monthly slot when preparation fails before the worker receives a filling grant.
+- Retain preparation failures in the attempt audit and recovery bounds; actual browser attempts and uncertain submissions still consume allowance.
+- Verify that a blocked first job cannot prevent a valid second job from starting under a one-attempt allowance.
+
 ## 2026-10-23 - Automatic processing from authorised right swipes
 
 - Added visible employer/CV/data disclosure before a supported job card and a clear Authorise & apply action.

@@ -311,7 +311,7 @@ export async function reconcileAutomation() {
       },
     });
     const attempts = await db.automationEvent.count({
-      where: { taskId: t.id, kind: "lease" },
+      where: { taskId: t.id, kind: { in: ["lease", "preparation_blocked"] } },
     });
     await db.automationTask.updateMany({
       where: { id: t.id, state: "leased", revision: t.revision },
@@ -650,7 +650,7 @@ export async function claimAutomationForWorkspace() {
         revision: { increment: 1 },
       },
     });
-    await tx.automationEvent.create({
+    const leaseEvent = await tx.automationEvent.create({
       data: {
         workspaceId: workspaceId(),
         taskId: task.id,
@@ -662,6 +662,7 @@ export async function claimAutomationForWorkspace() {
     return {
       task: { ...task, submit: task.submit && config.submit },
       leaseToken: token,
+      leaseEventId: leaseEvent.id,
     };
   });
 }
@@ -711,18 +712,35 @@ export async function claimAutomation() {
       });
       return { taskId: leased.task.id, leaseToken: leased.leaseToken, grant };
     } catch (e) {
-      await db.automationTask.update({
-        where: { id: leased.task.id },
-        data: {
-          state: "needs_input",
-          detail:
-            e instanceof AppError
-              ? e.code
-              : "Preparation failed before submission.",
-          leaseHash: null,
-          leaseUntil: null,
-          revision: { increment: 1 },
-        },
+      await db.$transaction(async (tx) => {
+        await tx.automationTask.update({
+          where: { id: leased.task.id },
+          data: {
+            state: "needs_input",
+            detail:
+              e instanceof AppError
+                ? e.code
+                : "Preparation failed before submission.",
+            leaseHash: null,
+            leaseUntil: null,
+            revision: { increment: 1 },
+          },
+        });
+        // No worker received the grant: retain the attempt audit without charging
+        // the daily/monthly browser-processing allowance. A successfully issued
+        // grant, CAPTCHA, uncertain result or browser failure still counts.
+        await tx.automationEvent.updateMany({
+          where: {
+            id: leased.leaseEventId,
+            taskId: leased.task.id,
+            kind: "lease",
+          },
+          data: {
+            kind: "preparation_blocked",
+            message:
+              "Preparation stopped before a worker received CV access; no application quota used.",
+          },
+        });
       });
       await event(
         "needs_input",

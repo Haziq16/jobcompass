@@ -320,6 +320,51 @@ test("concurrent claims grant one lease and daily limits stop later jobs", async
   assert.equal(await workerPending(), false);
   assert.equal(await claimAutomation(), null);
 });
+test("blocked preparation releases daily and monthly quota while preserving its attempt audit", async () => {
+  await run(() =>
+    saveAutomation(config({ dailyLimit: 1, monthlyLimit: 1 }), 0, true),
+  );
+  const decision = await authDb.matchDecision.findFirstOrThrow({
+    where: { workspaceId: "alice", catalogId },
+  });
+  await authDb.matchDecision.update({
+    where: { id: decision.id },
+    data: {
+      snapshot: { title: "Kotlin Engineer", employer: "Fictional Labs" },
+    },
+  });
+  assert.equal(await claimAutomation(), null);
+  assert.equal(await authDb.applicationFillSession.count(), 0);
+  assert.equal(
+    await authDb.automationEvent.count({ where: { kind: "lease" } }),
+    0,
+  );
+  assert.equal(
+    await authDb.automationEvent.count({
+      where: { kind: "preparation_blocked" },
+    }),
+    1,
+  );
+  const other = "d".repeat(64);
+  await seed(
+    other,
+    "https://job-boards.greenhouse.io/automation-fixture/jobs/124",
+  );
+  await run(() => enqueueAutomation(other));
+  assert.equal(await workerPending(), true);
+  assert.ok(await claimAutomation());
+  assert.equal(await workerPending(), false);
+  assert.equal(
+    await authDb.automationEvent.count({ where: { kind: "lease" } }),
+    1,
+  );
+  assert.equal(
+    await authDb.automationEvent.count({
+      where: { kind: "preparation_blocked" },
+    }),
+    1,
+  );
+});
 test("pausing cancels unsent leases and stops further worker requests", async () => {
   await run(() => saveAutomation(config(), 0, true));
   const task = await claimAutomation();

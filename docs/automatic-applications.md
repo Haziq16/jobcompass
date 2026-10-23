@@ -11,6 +11,8 @@ This owner-only website feature processes deliberately queued jobs on supported 
 
 The existing GitHub catalogue workflow checks approximately every 30 minutes and starts one browser worker only when enabled work is pending. Schedules can be delayed. Private-repository runner minutes consume the account's existing included allowance; free infrastructure is bounded, not unlimited capacity.
 
+Daily and monthly allowances count worker starts that successfully issue a filling grant. Preparation rejected before the worker receives CV access is recorded as `preparation_blocked` and releases its reserved allowance. Actual browser attempts, including missing answers, CAPTCHA and uncertain submissions, still count. Preparation failures remain in the audit and retry bounds; this does not grant retry permission or erase an uncertain outcome.
+
 For temporary immediate processing, an operator can run `scripts/automation-watch.mjs` with the existing private hosted and worker environment files and Chrome executable configured. It checks the production queue every five seconds and runs the same worker sequentially. `--check` verifies availability without dispatching anything. A loopback-only exclusive port (32149) prevents duplicate local watchers. The server still enforces recipient approval, daily/monthly limits, leases and submission deduplication across local and scheduled workers. This fast lane requires the operator's computer to remain awake and online; the cloud schedule stays as fallback. Stopping the watcher does not disable the production rules or retry uncertain applications. Never commit the environment files or supply secrets in command arguments.
 
 ## Submission and recovery
