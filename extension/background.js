@@ -36,3 +36,5 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     .catch((error) => respond({ error: error.message }));
   return true;
 });
+/* global importScripts */
+importScripts("fill-background.js");

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
-    "build": "prisma generate && next build",
+    "build": "node scripts/package-companion.mjs && prisma generate && next build",
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint .",
     "check:secrets": "node scripts/check-secrets.mjs",
@@ -19,7 +19,9 @@
     "db:generate": "prisma generate",
     "test:migration": "node --env-file=.env scripts/check-migration.mjs",
     "test:browser": "node --env-file=.env scripts/browser-release.mjs",
-    "extension:id": "node scripts/companion-key.mjs"
+    "extension:id": "node scripts/companion-key.mjs",
+    "package:companion": "node scripts/package-companion.mjs",
+    "test:filling": "node --env-file=.env scripts/browser-filling.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.85",

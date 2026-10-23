@@ -1,0 +1,129 @@
+﻿.fill-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 24px;
+  margin: 12px 0 24px;
+}
+.fill-heading h1 {
+  font-size: 28px;
+  margin: 16px 0 8px;
+}
+.fill-heading a {
+  font-size: 13px;
+}
+.fill-heading p {
+  color: var(--release-muted);
+}
+.fill-intro {
+  max-width: 760px;
+  margin-bottom: 30px;
+}
+.fill-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 285px;
+  gap: 40px;
+}
+.fill-setup h2,
+.fill-report h2,
+.fill-install h2 {
+  font-size: 20px;
+}
+.fill-setup > p {
+  margin: 12px 0 22px;
+}
+.fill-setup form {
+  margin-top: 24px;
+}
+.fill-setup a {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+.fill-install {
+  border-left: 1px solid var(--release-line);
+  padding-left: 28px;
+}
+.fill-install > p,
+.fill-install li {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.fill-install ol {
+  padding-left: 20px;
+  margin: 20px 0;
+}
+.fill-install li {
+  margin-bottom: 12px;
+}
+.fill-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--release-line);
+  padding: 11px 14px;
+  font-size: 14px;
+}
+.fill-report {
+  border-top: 1px solid var(--release-line);
+  margin-top: 30px;
+  padding-top: 28px;
+}
+.fill-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  margin: 20px 0;
+}
+.fill-counts p {
+  font-size: 12px;
+  color: var(--release-muted);
+}
+.fill-counts strong {
+  display: block;
+  font-size: 28px;
+  color: var(--release-ink);
+}
+.fill-missing {
+  padding: 14px 0;
+  border-top: 1px solid var(--release-line);
+  font-size: 14px;
+}
+.fill-state {
+  font-weight: 600;
+}
+.fill-report > a {
+  display: inline-block;
+  margin: 10px 18px 10px 0;
+}
+.fill-workspace button,
+.fill-download {
+  min-height: 44px;
+}
+.fill-install code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .fill-layout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .fill-install {
+    border-left: 0;
+    border-top: 1px solid var(--release-line);
+    padding: 24px 0 0;
+  }
+}
+@media (max-width: 600px) {
+  .fill-heading {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .fill-heading h1 {
+    font-size: 24px;
+  }
+  .fill-layout {
+    gap: 18px;
+  }
+}

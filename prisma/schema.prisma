@@ -544,3 +544,26 @@ model RateLimit {
   count Int
   lastRequest BigInt
 }
+
+model ApplicationFillSession {
+ id String @id @default(cuid())
+ workspaceId String
+ catalogId String
+ targetUrl String
+ resumeAssetId String
+ resumeHash String
+ profileRevision Int
+ country String
+ grantHash String @unique
+ state String @default("ready")
+ scanHash String?
+ scan Json?
+ report Json?
+ revision Int @default(1)
+ expiresAt DateTime
+ revokedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([workspaceId,id])
+ @@index([workspaceId,catalogId,createdAt])
+}

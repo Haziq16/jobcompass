@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { companionId } from "./lib/application-fill-contracts";
 import { accessAllowed, companionOrigin } from "./lib/access";
 export function proxy(request: NextRequest) {
   const scopedExtension =
-    request.nextUrl.pathname.startsWith("/api/companion/") &&
-    companionOrigin(request.headers);
+    (request.nextUrl.pathname.startsWith("/api/companion/") &&
+      companionOrigin(request.headers)) ||
+    (request.nextUrl.pathname.startsWith("/api/fill-companion/") &&
+      request.headers.get("origin") === "chrome-extension://" + companionId);
   const accessHeaders = new Headers(request.headers);
   if (scopedExtension) {
     accessHeaders.delete("sec-fetch-site");

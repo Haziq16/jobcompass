@@ -22,7 +22,7 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 **Optional AI studio:** résumé text checks, job-keyword coverage, evidence-linked AI reviews and full tailored CV drafts using the user's own provider key. Compare rewritten wording with original sources, edit private versions, and download a reviewed Word or text CV. The initial release is an owner-only preview; `AI_MODE=off` removes the feature, and `AI_MODE=byok` enables it for signed-in users with their own keys. See [personal-key AI](docs/personal-ai.md) and [research notes](docs/ai-research.md).
 
-The legacy gateway tools and assisted form filling remain disabled. Public accounts do not use the shared paid JSearch connection.
+The legacy gateway tools remain disabled. The owner-only **Fill application** preview connects queued Greenhouse jobs to a desktop Chrome companion, uses confirmed profile/answer memory, uploads the selected original CV unchanged, and reports missing or rejected values. Install it once from the queue setup screen. Employer submission remains manual. See [application filling](docs/application-filling.md). Public accounts do not use the shared paid JSearch connection.
 
 ## How discovery works
 
@@ -149,7 +149,7 @@ npm run test:browser
 
 The browser suite uses two fictional accounts and a dedicated test database. It mocks the direct-import response and checks real account sessions, stored workflows and mobile layout. Configure `CHROME_EXECUTABLE_PATH` if Chrome is installed outside the default Windows location.
 
-The current release passed **107 fixture/database tests** and **45 browser acceptance checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
+The current release passed **118 fixture/database tests**, **45 browser acceptance checks** and **5 real-extension flow checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
 
 ## Project layout
 

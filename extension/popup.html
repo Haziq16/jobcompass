@@ -1,1 +1,25 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>JobCompass Companion</title><link rel="stylesheet" href="popup.css"></head><body><h1>JobCompass</h1><p>Approved facts. A final review. Your submission.</p><form id="connect"><label>Workspace origin<input id="origin" value="http://127.0.0.1:3000" type="url" required></label><label>Attempt ID<input id="attempt" required autocomplete="off"></label><label>10-minute access code<input id="token" type="password" required autocomplete="off"></label><button>Retrieve approved documents & fill</button></form><p id="status" role="status">Open the exact supported application page first.</p><p>Login, CAPTCHA and unknown fields pause assistance. This extension never clicks Submit.</p><script src="popup.js"></script></body></html>
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>JobCompass Companion</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>JobCompass</h1>
+    <p>
+      Start from <strong>Application queue → Fill application</strong> in your
+      JobCompass workspace. Select a CV and connect this browser.
+    </p>
+    <button id="recheck">Recheck connected application</button>
+    <p id="status" role="status">
+      Missing answers return to your private answer inbox. Existing values stay
+      yours.
+    </p>
+    <p>
+      This companion never clicks Submit. Complete login, CAPTCHA and
+      unsupported controls yourself.
+    </p>
+    <script src="popup.js"></script>
+  </body>
+</html>

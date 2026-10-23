@@ -53,6 +53,8 @@ export const candidateValuesSchema = z
     contact: z
       .object({
         name: text(),
+        firstName: text().default(""),
+        lastName: text().default(""),
         email: text().refine(
           (v) => !v || z.email().safeParse(v).success,
           "Check your email",
@@ -165,6 +167,8 @@ export type CandidateValues = z.infer<typeof candidateValuesSchema>;
 export const emptyCandidate: CandidateValues = {
   contact: {
     name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     location: "",

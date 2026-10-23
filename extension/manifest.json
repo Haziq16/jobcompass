@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "JobCompass Companion",
-  "version": "1.0.0",
-  "description": "Fill supported forms with reviewed JobCompass facts and approved documents. Submission stays under your control.",
-  "permissions": ["activeTab", "scripting"],
+  "version": "1.1.0",
+  "description": "Fill supported Greenhouse applications from your confirmed profile and selected CV. Missing answers return to your private inbox; submission stays yours.",
+  "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
     "http://127.0.0.1:3000/*",
     "https://jobcompass-haze-6576.vercel.app/*",
@@ -13,6 +13,14 @@
   "action": {
     "default_popup": "popup.html"
   },
-  "background": { "service_worker": "background.js" },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwtLpAifq9u7xmo/+90DE/8CmmkrHWl5r8z/RCQM4cARn/7Pwxvxt/BrV6CKV9LjQOTSV9U1GeG6/yGf+5pj3Wq2iOqL+toqqSUof/cLl/4csOjrMBONPVyazuKNTvI0Oi4gAn1KORqnHDr/evvqN7cEe1SB43VJxBo0myvN+UPuix8CL4RoiSFESXb+a+gKRw8krnAyyUsYdNHfKn7axd+ynNx8uhJwk2AmLbofkCL4p6z/dlpiKyjXcHyNpxpqgLJMbj9xb0CC9GACLosMewP00VSZ2UnWLLnM8oQMcD4kkpkRJh9KVW5lzMX+A33WjJZKRFITU+ooIeqJKq/1UQIDAQAB"
+  "background": {
+    "service_worker": "background.js"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwtLpAifq9u7xmo/+90DE/8CmmkrHWl5r8z/RCQM4cARn/7Pwxvxt/BrV6CKV9LjQOTSV9U1GeG6/yGf+5pj3Wq2iOqL+toqqSUof/cLl/4csOjrMBONPVyazuKNTvI0Oi4gAn1KORqnHDr/evvqN7cEe1SB43VJxBo0myvN+UPuix8CL4RoiSFESXb+a+gKRw8krnAyyUsYdNHfKn7axd+ynNx8uhJwk2AmLbofkCL4p6z/dlpiKyjXcHyNpxpqgLJMbj9xb0CC9GACLosMewP00VSZ2UnWLLnM8oQMcD4kkpkRJh9KVW5lzMX+A33WjJZKRFITU+ooIeqJKq/1UQIDAQAB",
+  "externally_connectable": {
+    "matches": [
+      "http://127.0.0.1:3000/*",
+      "https://jobcompass-haze-6576.vercel.app/*"
+    ]
+  }
 }

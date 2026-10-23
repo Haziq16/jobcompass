@@ -27,4 +27,4 @@ The authenticated `/api/application-profile` routes reject anonymous, non-owner-
 
 ## Deferred
 
-Browser form detection, automatic filling, employer submission, offline workers and outcome learning are not enabled by this release. The checker currently takes questions pasted by the user. Learned answers mean explicitly confirmed stored answers, not background inference. CV import does not publish a new AI Studio profile or replace discovery preferences.
+The owner-only [application filling preview](application-filling.md) now detects questions and fills supported native Greenhouse controls through the desktop Chrome companion. Manual question paste remains available. Employer submission, offline workers and outcome learning remain deferred. Learned answers mean explicitly confirmed stored answers, not background inference. CV import does not publish a new AI Studio profile or replace discovery preferences.

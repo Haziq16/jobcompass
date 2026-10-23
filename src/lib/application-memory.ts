@@ -210,6 +210,8 @@ export function cvSuggestions(
   return {
     contact: {
       name,
+      firstName: "",
+      lastName: "",
       email,
       phone,
       location: "",

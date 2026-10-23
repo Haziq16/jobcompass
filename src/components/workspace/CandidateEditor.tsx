@@ -365,6 +365,12 @@ export default function CandidateEditor({
               }
               fields={[
                 { key: "name", label: "Full name" },
+                {
+                  key: "firstName",
+                  label: "Given / first name",
+                  hint: "Confirm explicitly; we never split your full name automatically.",
+                },
+                { key: "lastName", label: "Family / last name" },
                 { key: "email", label: "Application email", type: "email" },
                 { key: "phone", label: "Phone number", type: "tel" },
                 { key: "location", label: "Current location" },

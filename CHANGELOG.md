@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-23 - Application filling preview
+
+- Connected queued jobs to a desktop Chrome companion with short-lived, job-scoped access and original-CV selection.
+- Added Greenhouse native-control scanning, confirmed profile/memory filling, exact CV upload, post-fill checks and a real progress report. Missing answers return to the private inbox for recheck.
+- Added explicit given/family-name confirmation, owner/off controls, account export/clearing and a reproducible installer archive. Automatic submission remains deferred.
+
 ## 2026-10-23 - Application profile and answer memory
 
 - Added owner-preview application onboarding with private CV suggestions, seven fact sections and explicit confirmation. Original CV files remain unchanged.

@@ -516,6 +516,9 @@ function Collection({
                 )}
                 {row.state === "queued" && (
                   <>
+                    <Link href={"/apply/" + row.catalogId}>
+                      Fill application
+                    </Link>
                     <a
                       href={row.snapshot.applyUrl}
                       target="_blank"

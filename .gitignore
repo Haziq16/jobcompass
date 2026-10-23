@@ -57,3 +57,6 @@ Thumbs.db
 .idea/
 .vscode/
 .taste-skill/
+
+# Companion archive is rebuilt from the reviewed source during build
+public/downloads/jobcompass-companion.zip

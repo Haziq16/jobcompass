@@ -82,7 +82,7 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: source.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE TABLE "RateLimit", "CandidateProfile", "ApplicationAnswer", "ApplicationQuestion", "MatchPreferences", "MatchDecision", "MatchAction", "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
+  'TRUNCATE TABLE "ApplicationFillSession", "RateLimit", "CandidateProfile", "ApplicationAnswer", "ApplicationQuestion", "MatchPreferences", "MatchDecision", "MatchAction", "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
 );
 const catalogNow = new Date();
 await db.catalogBoard.createMany({
