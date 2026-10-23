@@ -51,7 +51,7 @@ const errors: Record<string, string> = {
   cv_under_2mb_required:
     "Choose an original PDF or DOCX of 2 MB or less for automatic upload. Larger CVs can be attached manually on the employer page.",
   companion_missing:
-    "Install or reload JobCompass Companion 1.1.0 in Chrome, then try again. No filling was started.",
+    "Install or reload JobCompass Companion 2.0.0 in Chrome, then try again. No filling was started.",
   confirmed_contact_required:
     "Confirm the Contact section in your application profile first.",
   listing_unavailable:
@@ -81,6 +81,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
     [resume, setResume] = useState(""),
     [country, setCountry] = useState(""),
     [consent, setConsent] = useState(false),
+    [submit, setSubmit] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -103,16 +104,17 @@ function Workspace({ catalogId }: { catalogId: string }) {
     let grant: Grant | null = null;
     try {
       const extension = await connect(data.companionId, { action: "jc-ping" });
-      if (extension.version !== "1.1.0") throw new Error("companion_missing");
+      if (extension.version !== "2.0.0") throw new Error("companion_missing");
       grant = await api<Grant>("application-fill/start", "POST", {
         catalogId,
         resumeAssetId: resume || data.resumes[0]?.id,
         country,
         consent,
+        submit,
       });
       await connect(data.companionId, { action: "jc-connect-fill", ...grant });
       setNotice(
-        "Employer form opened in the companion. Return here for its latest report. Nothing is submitted automatically.",
+        "Employer form opened in the companion. Return here for its latest report. Only a separately authorised submission can be sent.",
       );
       setConsent(false);
       refresh();
@@ -178,7 +180,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
           <p className="fill-intro">
             Use confirmed facts and your selected CV on the employer form.
             Missing answers return to your inbox; existing entries are
-            preserved. You control submission.
+            preserved. Submission requires your explicit authorisation.
           </p>
           <div className="fill-layout">
             <div>
@@ -290,6 +292,18 @@ function Workspace({ catalogId }: { catalogId: string }) {
                     Use my confirmed profile and matching saved answers for this
                     employer, and upload the CV selected above.
                   </label>
+                  <label className="candidate-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={submit}
+                      onChange={(e) => {
+                        setSubmit(e.target.checked);
+                        setConsent(false);
+                      }}
+                    />
+                    Submit this application automatically when its answers and
+                    CV pass checks. Pause for missing input or CAPTCHA.
+                  </label>
                   <button
                     className="primary"
                     type="submit"
@@ -398,8 +412,8 @@ function Workspace({ catalogId }: { catalogId: string }) {
                       </button>
                     )}
                     <p className="candidate-help">
-                      Nothing has been submitted by JobCompass. Filling a form
-                      never marks this job Applied.
+                      Filling alone does not mark this job Applied. An
+                      authorized submission requires an employer confirmation.
                     </p>
                   </>
                 )}
@@ -417,7 +431,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
                 download
               >
                 <Download size={16} />
-                Download Companion 1.1.0
+                Download Companion 2.0.0
               </a>
               <ol>
                 <li>Extract the downloaded ZIP into a folder you will keep.</li>
@@ -436,8 +450,8 @@ function Workspace({ catalogId }: { catalogId: string }) {
               <p className="candidate-help">
                 Already installed? Reload it from the extensions page after
                 replacing its files. The companion works only with JobCompass
-                and supported Greenhouse hosts. Mobile browsers are not
-                supported in this release.
+                and supported Greenhouse, Lever and Ashby hosts. Mobile browsers
+                are not supported in this release.
               </p>
             </aside>
           </div>

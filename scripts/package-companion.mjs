@@ -5,6 +5,8 @@ const files = [
   "background.js",
   "fill-background.js",
   "fill-content.js",
+  "application-engine.js",
+  "targets.js",
   "popup.html",
   "popup.js",
   "popup.css",

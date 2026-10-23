@@ -1,20 +1,65 @@
 import { z } from "zod";
 export const companionId = "iljjpkhlfijljkfglkpnpmodadeohchi";
-export function fillTarget(value: string) {
+export function targetInfo(value: string) {
   try {
     const u = new URL(value);
-    if (u.username || u.password || (u.port && u.port !== "443")) return null;
     if (
       u.protocol !== "https:" ||
-      !["boards.greenhouse.io", "job-boards.greenhouse.io"].includes(u.hostname)
+      u.username ||
+      u.password ||
+      (u.port && u.port !== "443")
     )
       return null;
-    const m = u.pathname.match(/^\/([a-z0-9_-]+)\/jobs\/(\d+)\/?$/i);
-    return m ? m[1].toLowerCase() + ":" + m[2] : null;
+    let m;
+    if (
+      ["boards.greenhouse.io", "job-boards.greenhouse.io"].includes(u.hostname)
+    ) {
+      m = u.pathname.match(/^\/([a-z0-9_-]+)\/jobs\/(\d+)\/?$/i);
+      return m
+        ? {
+            platform: "greenhouse" as const,
+            identity: m[1].toLowerCase() + ":" + m[2],
+            url: u.href,
+          }
+        : null;
+    }
+    if (["jobs.lever.co", "jobs.eu.lever.co"].includes(u.hostname)) {
+      m = u.pathname.match(
+        /^\/([a-z0-9_-]+)\/([a-f0-9-]{36})(?:\/(?:apply|thanks))?\/?$/i,
+      );
+      return m
+        ? {
+            platform: "lever" as const,
+            identity:
+              "lever:" +
+              u.hostname +
+              ":" +
+              m[1].toLowerCase() +
+              ":" +
+              m[2].toLowerCase(),
+            url: u.href,
+          }
+        : null;
+    }
+    if (u.hostname === "jobs.ashbyhq.com") {
+      m = u.pathname.match(
+        /^\/([a-z0-9_-]+)\/([a-f0-9-]{36})(?:\/application)?\/?$/i,
+      );
+      return m
+        ? {
+            platform: "ashby" as const,
+            identity: "ashby:" + m[1].toLowerCase() + ":" + m[2].toLowerCase(),
+            url: u.href,
+          }
+        : null;
+    }
+    return null;
   } catch {
     return null;
   }
 }
+export const fillTarget = (value: string) =>
+  targetInfo(value)?.identity || null;
 export const fieldSchema = z
   .object({
     id: z.string().min(1).max(100),
@@ -31,6 +76,7 @@ export const fieldSchema = z
       "radio",
       "checkbox",
       "file",
+      "combobox",
       "unsupported",
     ]),
     required: z.boolean(),
@@ -64,6 +110,7 @@ export const startFillSchema = z
     resumeAssetId: z.string().min(1).max(100),
     country: z.string().trim().min(2).max(80),
     consent: z.literal(true),
+    submit: z.boolean().default(false),
   })
   .strict();
 export const reportSchema = z
@@ -82,6 +129,12 @@ export const reportSchema = z
       )
       .max(100),
     blockers: z.array(z.string().max(300)).max(20),
+    fingerprint: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+    uploadVerified: z.boolean().default(false),
+    auditClean: z.boolean().default(false),
   })
   .strict();
 export const questionLabel = (s: string) =>
@@ -101,3 +154,35 @@ export function exactOption(answer: string, options: FillField["options"]) {
   );
   return found.length === 1 ? found[0].value : null;
 }
+
+export const submissionRequest = z
+  .object({ fingerprint: z.string().regex(/^[a-f0-9]{64}$/) })
+  .strict();
+export const outcomeSchema = z
+  .object({
+    submissionId: z.string().max(100),
+    outcome: z.enum(["confirmed", "failed", "uncertain"]),
+    url: z.string().max(2000),
+    marker: z.string().max(300),
+    proof: z.enum([
+      "platform_confirmation",
+      "validation_rejection",
+      "no_receipt",
+    ]),
+  })
+  .strict();
+export const automationSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    submit: z.boolean(),
+    resumeAssetId: z.string().max(100),
+    country: z.string().trim().min(2).max(80),
+    platforms: z
+      .array(z.enum(["greenhouse", "lever", "ashby"]))
+      .min(1)
+      .max(3),
+    dailyLimit: z.number().int().min(1).max(20),
+    monthlyLimit: z.number().int().min(1).max(60),
+    consent: z.literal(true),
+  })
+  .strict();

@@ -22,13 +22,13 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 **Optional AI studio:** résumé text checks, job-keyword coverage, evidence-linked AI reviews and full tailored CV drafts using the user's own provider key. Compare rewritten wording with original sources, edit private versions, and download a reviewed Word or text CV. The initial release is an owner-only preview; `AI_MODE=off` removes the feature, and `AI_MODE=byok` enables it for signed-in users with their own keys. See [personal-key AI](docs/personal-ai.md) and [research notes](docs/ai-research.md).
 
-The legacy gateway tools remain disabled. The owner-only **Fill application** preview connects queued Greenhouse jobs to a desktop Chrome companion, uses confirmed profile/answer memory, uploads the selected original CV unchanged, and reports missing or rejected values. Install it once from the queue setup screen. Employer submission remains manual. See [application filling](docs/application-filling.md). Public accounts do not use the shared paid JSearch connection.
+The legacy gateway tools remain disabled. The owner-only **Fill application** preview connects queued Greenhouse, Lever and Ashby jobs to a desktop Chrome companion, uses confirmed profile/answer memory, uploads the selected original CV unchanged, and reports missing or rejected values. Install it once from the queue setup screen. Submission is separately authorized and receipt checked. Offline processing is available through explicit owner rules; it starts paused. See [automatic applications](docs/automatic-applications.md). See [application filling](docs/application-filling.md). Public accounts do not use the shared paid JSearch connection.
 
 ## How discovery works
 
-The owner-only **Swipe** preview adds a personalised card deck, three-step preference setup, explicit match reasons, pass feedback, undo and a persistent application queue. Right swipe queues a listing; nothing is submitted. Queue priorities, saved-for-later and passed collections remain private to the account. Other accounts retain List discovery. `MATCH_MODE=owner` is the default; `off` disables matching and `all` explicitly opens it to signed-in accounts. See [swipe matching](docs/swipe-matching.md) for filters, unknown-data handling and deferred automation.
+The owner-only **Swipe** preview adds a personalised card deck, three-step preference setup, explicit match reasons, pass feedback, undo and a persistent application queue. Right swipe queues a listing. When the owner explicitly enables automatic rules, supported queued jobs can be processed offline. Queue priorities, saved-for-later and passed collections remain private to the account. Other accounts retain List discovery. `MATCH_MODE=owner` is the default; `off` disables matching and `all` explicitly opens it to signed-in accounts. See [swipe matching](docs/swipe-matching.md) for filters and unknown-data handling.
 
-The owner preview also includes a verified application profile, conservative CV extraction, a contextual answer library and an inbox for missing or stale questions. Original CV files stay unchanged; only explicitly confirmed facts supply answers. See [application memory](docs/application-memory.md) for expiry, account controls and the deferred automation work.
+The owner preview also includes a verified application profile, conservative CV extraction, a contextual answer library and an inbox for missing or stale questions. Original CV files stay unchanged; only explicitly confirmed facts supply answers. See [application memory](docs/application-memory.md) for expiry and account controls.
 
 Discover searches a shared index of public employer listings. Search by title, skill or company, add a location, then filter by employer, remote work, source or freshness. Results are paginated in the database; saving creates an independent copy in your private workspace. Jobs are never copied into every account automatically.
 
@@ -149,7 +149,7 @@ npm run test:browser
 
 The browser suite uses two fictional accounts and a dedicated test database. It mocks the direct-import response and checks real account sessions, stored workflows and mobile layout. Configure `CHROME_EXECUTABLE_PATH` if Chrome is installed outside the default Windows location.
 
-The current release passed **118 fixture/database tests**, **45 browser acceptance checks** and **5 real-extension flow checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
+The current release passed **132 fixture/database tests**, **45 browser acceptance checks**, **5 real-extension flow checks** and **9 offline-worker/browser checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
 
 ## Project layout
 
@@ -161,7 +161,7 @@ prisma/                   Schema and ordered migrations
 tests/                    Contract fixtures and database integration tests
 scripts/                  Local development and verification helpers
 docs/                     Architecture and demonstration screenshots
-extension/                Deferred companion source
+extension/                Owner-only companion and shared browser form engine
 ```
 
 See [architecture](docs/architecture.md) for the data flows and account boundaries, [security](SECURITY.md) for credential handling, and [changelog](CHANGELOG.md) for the release history.

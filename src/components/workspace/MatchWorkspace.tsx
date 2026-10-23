@@ -760,7 +760,11 @@ function EnabledMatchWorkspace() {
         </div>
       </header>
       <div className="match-toolbar">
-        <span>Right swipe queues a job. Nothing is submitted.</span>
+        <span>
+          Right swipe queues a job. Automatic processing follows your saved
+          rules.
+        </span>
+        <Link href="/automation">Automatic application rules</Link>
         <div>
           {!isQueue && settings.data?.preferences && (
             <button onClick={() => setSetup(true)}>

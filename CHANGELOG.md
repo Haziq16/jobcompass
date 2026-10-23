@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-23 - Automatic applications and offline processing
+
+- Added owner-only, default-paused automatic application rules, daily/monthly limits, a pause switch, task history and in-app notifications.
+- Extended the shared browser engine to Greenhouse, Lever/EU and Ashby, with supported comboboxes, conditional-field rescans and original-CV upload verification.
+- Added one-click authorization, a durable duplicate ledger, employer-receipt verification and explicit resolution for uncertain outcomes.
+- Reused the existing GitHub scheduler for leased offline browser work; no paid service or AI call is required.
+- Upgraded the Chrome companion to 2.0.0. Public account automatic applying remains disabled.
+
 ## 2026-10-23 - Application filling preview
 
 - Connected queued jobs to a desktop Chrome companion with short-lived, job-scoped access and original-CV selection.

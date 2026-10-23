@@ -15,7 +15,13 @@ if (!paths.length)
     "No tracked files to scan. Stage the intended source files first.",
   );
 const known = new Set();
-for (const file of [".env", ".env.local", ".env.hosted", ".env.catalog.local"]) {
+for (const file of [
+  ".env",
+  ".env.local",
+  ".env.hosted",
+  ".env.catalog.local",
+  ".env.automation-worker",
+]) {
   if (!existsSync(file)) continue;
   const values = parseEnv(readFileSync(file, "utf8"));
   for (const [name, value] of Object.entries(values)) {

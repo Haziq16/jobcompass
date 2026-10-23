@@ -546,6 +546,8 @@ model RateLimit {
 }
 
 model ApplicationFillSession {
+ submissionAllowed Boolean @default(false)
+ taskId String?
  id String @id @default(cuid())
  workspaceId String
  catalogId String
@@ -566,4 +568,60 @@ model ApplicationFillSession {
  updatedAt DateTime @updatedAt
  @@unique([workspaceId,id])
  @@index([workspaceId,catalogId,createdAt])
+}
+
+model AutomationSettings {
+ workspaceId String @id
+ values Json
+ revision Int @default(1)
+ updatedAt DateTime @updatedAt
+}
+model AutomationTask {
+ id String @id @default(cuid())
+ workspaceId String
+ catalogId String
+ identity String
+ targetUrl String
+ country String
+ resumeAssetId String
+ submit Boolean @default(false)
+ state String @default("queued")
+ leaseHash String?
+ leaseUntil DateTime?
+ sessionId String?
+ detail String?
+ revision Int @default(1)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([workspaceId,identity])
+ @@unique([workspaceId,id])
+ @@index([state,createdAt])
+}
+model ApplicationSubmission {
+ id String @id @default(cuid())
+ workspaceId String
+ identity String
+ catalogId String
+ sessionId String
+ applicationId String
+ state String @default("submitting")
+ fingerprint String
+ evidence Json?
+ revision Int @default(1)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([workspaceId,identity])
+ @@unique([workspaceId,id])
+ @@index([workspaceId,createdAt])
+}
+model AutomationEvent {
+ id String @id @default(cuid())
+ workspaceId String
+ taskId String?
+ kind String
+ message String
+ seenAt DateTime?
+ createdAt DateTime @default(now())
+ @@unique([workspaceId,id])
+ @@index([workspaceId,createdAt])
 }

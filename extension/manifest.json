@@ -1,14 +1,21 @@
 {
   "manifest_version": 3,
   "name": "JobCompass Companion",
-  "version": "1.1.0",
-  "description": "Fill supported Greenhouse applications from your confirmed profile and selected CV. Missing answers return to your private inbox; submission stays yours.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "version": "2.0.0",
+  "description": "Apply to supported Greenhouse, Lever and Ashby forms using confirmed JobCompass facts, with explicit submission authorisation and receipt checks.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
   "host_permissions": [
     "http://127.0.0.1:3000/*",
     "https://jobcompass-haze-6576.vercel.app/*",
     "https://boards.greenhouse.io/*",
-    "https://job-boards.greenhouse.io/*"
+    "https://job-boards.greenhouse.io/*",
+    "https://jobs.lever.co/*",
+    "https://jobs.eu.lever.co/*",
+    "https://jobs.ashbyhq.com/*"
   ],
   "action": {
     "default_popup": "popup.html"

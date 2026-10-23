@@ -1,3 +1,4 @@
+import { enqueueAutomation } from "./automation";
 import { Prisma } from "@prisma/client";
 import { authDb, db } from "./db";
 import { AppError } from "./contracts";
@@ -327,7 +328,7 @@ export async function matchCounts() {
 export async function decideMatch(input: unknown) {
   const data = matchActionSchema.parse(input);
   const workspace = workspaceId();
-  return db.$transaction(
+  const result = await db.$transaction(
     async (tx) => {
       await matchLock(tx);
       const repeated = await tx.matchAction.findUnique({
@@ -418,6 +419,8 @@ export async function decideMatch(input: unknown) {
     },
     { timeout: 15000 },
   );
+  if (data.state === "queued") await enqueueAutomation(data.catalogId);
+  return result;
 }
 export async function undoMatch(actionId: string) {
   return db.$transaction(async (tx) => {

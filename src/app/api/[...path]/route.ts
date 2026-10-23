@@ -321,6 +321,9 @@ async function handler(
             await tx.profileVersion.deleteMany();
             await tx.resumeAsset.deleteMany();
             await tx.matchPreferences.deleteMany();
+            await tx.automationEvent.deleteMany();
+            await tx.automationTask.deleteMany();
+            await tx.automationSettings.deleteMany();
             await tx.applicationFillSession.deleteMany();
             await tx.applicationQuestion.deleteMany();
             await tx.applicationAnswer.deleteMany();
@@ -409,7 +412,36 @@ async function handler(
       const data = {
         exportedAt: new Date().toISOString(),
         profile: await profile(),
-        applicationFillSessions: await db.applicationFillSession.findMany({select:{id:true,catalogId:true,targetUrl:true,resumeAssetId:true,state:true,report:true,createdAt:true,expiresAt:true,revokedAt:true}}),
+        automationSettings: await db.automationSettings.findMany(),
+        automationTasks: await db.automationTask.findMany({
+          select: {
+            id: true,
+            catalogId: true,
+            targetUrl: true,
+            country: true,
+            resumeAssetId: true,
+            submit: true,
+            state: true,
+            detail: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        }),
+        automationEvents: await db.automationEvent.findMany(),
+        applicationSubmissions: await db.applicationSubmission.findMany(),
+        applicationFillSessions: await db.applicationFillSession.findMany({
+          select: {
+            id: true,
+            catalogId: true,
+            targetUrl: true,
+            resumeAssetId: true,
+            state: true,
+            report: true,
+            createdAt: true,
+            expiresAt: true,
+            revokedAt: true,
+          },
+        }),
         applicationProfile: await db.candidateProfile.findMany(),
         applicationAnswers: await db.applicationAnswer.findMany(),
         applicationQuestions: await db.applicationQuestion.findMany(),

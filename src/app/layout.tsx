@@ -5,6 +5,7 @@ import "./catalog.css";
 import "./matches.css";
 import "./application-profile.css";
 import "./application-fill.css";
+import "./automation.css";
 import "./ai-studio.css";
 export const metadata: Metadata = {
   title: "JobCompass — Your next chapter",

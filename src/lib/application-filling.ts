@@ -5,6 +5,7 @@ import { inWorkspace, workspaceId } from "./workspace-context";
 import { AppError } from "./contracts";
 import { getCandidate, lookupApplicationAnswer } from "./application-memory";
 import { ownedCvSource } from "./cv-source";
+import { targetInfo } from "./application-fill-contracts";
 import { canUseMatches } from "./match-access";
 import {
   startFillSchema,
@@ -66,6 +67,7 @@ export async function fillSetup(catalogId: string) {
       state: decision.state,
     },
     supported: Boolean(fillTarget(decision.applyUrl)),
+    platform: targetInfo(decision.applyUrl)?.platform || null,
     profileReady: profile.sections.some(
       (s) => s.section === "contact" && s.confirmed,
     ),
@@ -114,6 +116,7 @@ export async function startFill(input: unknown) {
         resumeHash: cv.sha256,
         profileRevision: setup.profileRevision,
         country: data.country,
+        submissionAllowed: data.submit,
         grantHash: hash(token),
         expiresAt: new Date(Date.now() + 30 * 60000),
       },
@@ -124,6 +127,7 @@ export async function startFill(input: unknown) {
       targetUrl: session.targetUrl,
       expiresAt: session.expiresAt,
       companionId,
+      autoSubmit: data.submit,
     };
   });
 }
@@ -131,6 +135,7 @@ export async function withFillGrant<T>(
   token: string,
   targetUrl: string,
   action: (id: string) => Promise<T>,
+  receipt = false,
 ) {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token))
     throw new AppError("invalid_grant", 401);
@@ -152,6 +157,7 @@ export async function withFillGrant<T>(
   if (!canUseFilling(user || undefined))
     throw new AppError("filling_unavailable", 403);
   return inWorkspace(session.workspaceId, async () => {
+    if (receipt) return action(session.id);
     const profile = await getCandidate();
     if (profile.revision !== session.profileRevision)
       throw new AppError("profile_changed", 409);
@@ -254,7 +260,13 @@ async function answerField(
         lookup?.message || "Confirm this fact in your application profile.",
       questionId: lookup?.questionId,
     };
-  if (["select", "radio"].includes(f.kind)) {
+  if (["select", "radio", "combobox"].includes(f.kind)) {
+    if (f.kind === "combobox")
+      return {
+        status: "fill",
+        value: answer,
+        reason: "Confirmed answer; browser must find an exact option.",
+      };
     const selected = exactOption(answer, f.options);
     return selected !== null
       ? {
@@ -327,6 +339,8 @@ export async function planFill(id: string, input: unknown) {
     revision: session.revision + 1,
     fields,
     blockers: scan.blockers,
+    autoSubmit: session.submissionAllowed,
+    resume: { filename: cv.name, sha256: cv.sha256 },
     document: fields.some((f) => f.status === "file")
       ? {
           filename: cv.name,

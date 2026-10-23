@@ -2,24 +2,10 @@ const workspaces = [
   "http://127.0.0.1:3000",
   "https://jobcompass-haze-6576.vercel.app",
 ];
+/* global importScripts */
+importScripts("targets.js");
 function identity(url) {
-  try {
-    const u = new URL(url);
-    if (
-      u.protocol !== "https:" ||
-      !["boards.greenhouse.io", "job-boards.greenhouse.io"].includes(
-        u.hostname,
-      ) ||
-      u.username ||
-      (u.port && u.port !== "443") ||
-      u.password
-    )
-      return null;
-    const m = u.pathname.match(/^\/([a-z0-9_-]+)\/jobs\/(\d+)\/?$/i);
-    return m ? m[1].toLowerCase() + ":" + m[2] : null;
-  } catch {
-    return null;
-  }
+  return globalThis.JobCompassTargets.identity(url);
 }
 const key = (id) => "fill-tab-" + id;
 async function tabSession(id) {
@@ -79,7 +65,7 @@ async function inject(tabId) {
   }
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ["fill-content.js"],
+    files: ["targets.js", "application-engine.js", "fill-content.js"],
   });
   await saveSession(tabId, { ...session, error: null });
   await chrome.tabs.sendMessage(tabId, { action: "jc-start-fill" });
@@ -93,7 +79,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
   }
   if (!workspaces.includes(origin) || sender.frameId !== 0) return false;
   if (message.action === "jc-ping") {
-    respond({ ok: true, version: "1.1.0" });
+    respond({ ok: true, version: "2.0.0" });
     return false;
   }
   if (message.action !== "jc-connect-fill") return false;
@@ -119,6 +105,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
       origin,
       expiresAt: expiry,
       workspaceTab: sender.tab?.id,
+      autoSubmit: message.autoSubmit === true,
     });
     await chrome.tabs.update(tab.id, { url: message.targetUrl });
     return { ok: true, tabId: tab.id };
@@ -140,9 +127,15 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (
     sender.id !== chrome.runtime.id ||
-    !["jc-scan", "jc-report", "jc-rescan", "jc-status", "jc-inbox"].includes(
-      message.action,
-    )
+    ![
+      "jc-scan",
+      "jc-report",
+      "jc-rescan",
+      "jc-status",
+      "jc-inbox",
+      "jc-submit",
+      "jc-outcome",
+    ].includes(message.action)
   )
     return false;
   (async () => {
@@ -158,7 +151,14 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.tab && identity(sender.tab.url) !== identity(session.targetUrl))
       throw new Error("Application tab changed.");
     if (message.action === "jc-status")
-      return { ok: true, connected: true, error: session.error || null };
+      return {
+        ok: true,
+        connected: true,
+        error: session.error || null,
+        pendingSubmissionId: session.pendingSubmissionId,
+        finalOutcome: session.finalOutcome,
+        autoSubmit: session.autoSubmit,
+      };
     if (message.action === "jc-rescan") {
       await inject(tabId);
       return { ok: true };
@@ -175,9 +175,26 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     const result = await apiFor(
       tab,
       session,
-      message.action === "jc-scan" ? "scan" : "report",
+      message.action === "jc-scan"
+        ? "scan"
+        : message.action === "jc-report"
+          ? "report"
+          : message.action === "jc-submit"
+            ? "submit"
+            : "outcome",
       message.payload,
     );
+    if (message.action === "jc-submit")
+      await saveSession(tabId, {
+        ...session,
+        pendingSubmissionId: result.submissionId,
+      });
+    if (message.action === "jc-outcome")
+      await saveSession(tabId, {
+        ...session,
+        pendingSubmissionId: null,
+        finalOutcome: result.state,
+      });
     if (message.action === "jc-scan")
       return {
         ...result,

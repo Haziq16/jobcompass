@@ -39,3 +39,7 @@ Operate mode: one employer opportunity is the primary decision surface. Preserve
 **Application profile:** confirmation is the signature control. Keep seven sections navigable, drafts visibly distinct from confirmed facts, and CV extraction behind a source review. Use the existing neutral tokens and compact page title. Answer-library rows show question, answer, context and freshness together; expired or changed facts lead to review rather than silent reuse.
 
 **Fill application:** show the queued role, selected CV and hiring country before one explicit Connect and fill action. Put the real employer-form report beside the next steps. Browser setup is a secondary, one-time task; keep unsupported-control and missing-answer explanations precise. The employer overlay must use isolated styles, legible text, labelled recheck/inbox actions and an explicit no-submission status.
+
+## Automatic applications
+
+Operate mode, preserving Achromatic Ledger. A persistent processing status and pause action lead the page; explicit application rules share a responsive grid with four recent notifications. Task rows show actual states, employer context, missing-input links and outcome resolution. Latest 50 tasks are labeled as such. Desktop, tablet, phone and dark theme are verified with fixture-backed task history.
