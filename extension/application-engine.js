@@ -40,9 +40,13 @@
           : String(entry.els[0].value || "");
   function label(el) {
     const cleanText = (node) => {
-      if(!node)return "";
-      const clone=node.cloneNode(true);
-      clone.querySelectorAll?.("input,select,textarea,[role=listbox],[role=option],.error-message,.field-error").forEach(e=>e.remove());
+      if (!node) return "";
+      const clone = node.cloneNode(true);
+      clone
+        .querySelectorAll?.(
+          "input,select,textarea,[role=listbox],[role=option],.error-message,.field-error",
+        )
+        .forEach((e) => e.remove());
       return clone.textContent || "";
     };
     if (
@@ -90,9 +94,17 @@
     const container = root(el),
       single = container?.querySelector(
         '[class*="single-value"],[class*="singleValue"],[data-selected-value]',
-      );
+      ),
+      multiple = [
+        ...(container?.querySelectorAll(
+          '[class*="multi-value__label"],[class*="multiValueLabel"]',
+        ) || []),
+      ]
+        .map((node) => node.textContent.trim())
+        .filter(Boolean);
     return (
       single?.textContent ||
+      multiple.join(" | ") ||
       el.getAttribute("data-selected-value") ||
       el.value ||
       ""
@@ -343,6 +355,14 @@
         accept: el.accept || "",
       });
     }
+    if (
+      lastUpload?.entry &&
+      !entries.some(
+        (entry) => entry.kind === "file" && /resume|\bcv\b/i.test(entry.label),
+      ) &&
+      uploadAck(lastUpload.entry)
+    )
+      entries.push(lastUpload.entry);
     if (entries.length > 100)
       throw new Error("This form exceeds the supported control limit.");
     const out = blockers();
@@ -379,9 +399,11 @@
     if (!lastUpload) return false;
     const el = entry.els[0],
       container =
+        (form?.contains(lastUpload.container) ? lastUpload.container : null) ||
         el.closest(
           '[class*="file-upload"],[class*="upload"],.application-question,.ashby-application-form-field',
-        ) || el.parentElement?.parentElement;
+        ) ||
+        el.parentElement?.parentElement;
     return (
       !!container &&
       container.textContent.includes(lastUpload.filename) &&
@@ -399,7 +421,8 @@
       let status = item?.status === "preserved" ? "preserved" : "needs_input",
         reason = item?.reason || "No confirmed answer.";
       try {
-        if (!el.isConnected) throw new Error("Form changed; rescan.");
+        if (!el.isConnected && !(entry.kind === "file" && uploadAck(entry)))
+          throw new Error("Form changed; rescan.");
         if (has(entry)) {
           const ours = filledControls.get(el) === retainedValue(entry);
           status = ours ? "filled" : "preserved";
@@ -481,7 +504,17 @@
             new File([bytes], doc.filename, { type: doc.mime }),
           );
           el.files = transfer.files;
-          lastUpload = { filename: doc.filename, sha256: doc.sha256 };
+          lastUpload = {
+            filename: doc.filename,
+            sha256: doc.sha256,
+            entry,
+            container:
+              el.closest(
+                ".file-upload,.application-question,.ashby-application-form-field",
+              ) ||
+              el.closest('[class*="file-upload"],[class*="upload"]') ||
+              el.parentElement?.parentElement,
+          };
           el.dispatchEvent(new Event("input", { bubbles: true }));
           el.dispatchEvent(new Event("change", { bubbles: true }));
           status = "filled";
@@ -516,9 +549,10 @@
         el = entry.els[0];
       if (
         r.status === "filled" &&
-        (!el.isConnected ||
+        ((!el.isConnected && !(entry.kind === "file" && uploadAck(entry))) ||
           !has(entry) ||
-          (entry.kind !== "file" && filledControls.get(el) !== retainedValue(entry)))
+          (entry.kind !== "file" &&
+            filledControls.get(el) !== retainedValue(entry)))
       ) {
         r.status = "failed";
         r.reason =

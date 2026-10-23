@@ -299,8 +299,23 @@ async function contextFor(
         },
       },
     });
-    if (!decision) throw new AppError("not_found", 404);
-    const employer = (decision.snapshot as { employer: string }).employer;
+    // Preparation can precede a queue decision. Only this account's completed
+    // catalogue review can establish that job context without creating a swipe.
+    const review = !decision
+      ? await db.aiReview.findFirst({
+          where: {
+            state: "succeeded",
+            AND: [
+              { jobSnapshot: { path: ["id"], equals: raw.catalogId } },
+              { jobSnapshot: { path: ["source"], equals: "catalog" } },
+            ],
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : null;
+    const snapshot = decision?.snapshot || review?.jobSnapshot;
+    if (!snapshot) throw new AppError("not_found", 404);
+    const employer = (snapshot as { employer: string }).employer;
     if (company && company !== normalizeCompany(employer))
       throw new AppError("question_company_mismatch", 400);
     company = normalizeCompany(employer);

@@ -7,6 +7,7 @@ import { ReviewWaiting } from "./ReviewWaiting";
 import type { Run } from "./ai-studio-types";
 import type { CvDocument } from "@/lib/tailored-cv-contracts";
 import { evidenceBlocks } from "@/lib/resume-review-contracts";
+import { keywordEvidenceText } from "@/lib/keyword-evidence";
 import {
   isOriginalCv,
   type OriginalCvDocument,
@@ -75,10 +76,12 @@ export function TailoredCv({
   review,
   onConnect,
   errorMessage,
+  onUseForApplication,
 }: {
   review: Run;
   onConnect: () => void;
   errorMessage: (code: string) => string;
+  onUseForApplication?: (asset: { id: string; name: string }) => void;
 }) {
   const { config, loading } = usePersonalAi();
   const [sourceDocument, setSourceDocument] = useState<CvSourceDocument | null>(
@@ -236,7 +239,29 @@ export function TailoredCv({
       setSaving(false);
     }
   }
-  const blocks = evidenceBlocks(review.resumeSnapshot);
+  async function saveForApplication() {
+    if (!checked || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const current = await save(true);
+      const asset = await api<{ id: string; name: string }>(
+        `ai/cv-drafts/${current.id}/use`,
+        "POST",
+        { revision: current.revision },
+      );
+      onUseForApplication?.(asset);
+    } catch (e) {
+      setError(failed((e as Error).message));
+    } finally {
+      setSaving(false);
+    }
+  }
+  const blocks = evidenceBlocks(
+    [review.resumeSnapshot, keywordEvidenceText(review.checks)]
+      .filter(Boolean)
+      .join("\n"),
+  );
   const paragraphs =
     draft?.document && !isOriginalCv(draft.document)
       ? [
@@ -441,6 +466,7 @@ export function TailoredCv({
           key={draft.id}
           draft={{ ...draft, document: draft.document }}
           jobText={review.jobSnapshot.description}
+          onUseForApplication={onUseForApplication}
           onSaved={(value) => {
             choose(value as Draft);
             history.refresh();
@@ -550,6 +576,14 @@ export function TailoredCv({
             </span>
           </label>
           <div className="ai-cv-downloads">
+            {onUseForApplication && (
+              <button
+                disabled={!checked || saving || !text.trim()}
+                onClick={() => void saveForApplication()}
+              >
+                Use this CV for application
+              </button>
+            )}
             <button
               className="primary"
               disabled={!checked || saving || text.trim().length < 50}

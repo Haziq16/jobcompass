@@ -32,13 +32,20 @@ function handler(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
         .parse(new URL(req.url).searchParams.get("job"));
       const job = await db.catalogJob.findUnique({ where: { id } });
       if (!job) throw new AppError("not_found", 404);
-      const readiness = await resolvedApplicationReadiness(job,id,true);
+      const readiness = await resolvedApplicationReadiness(job, id, true);
+      const params = new URL(req.url).searchParams;
+      const resumeAssetId = params.get("resumeId")
+        ? z.string().min(1).max(150).parse(params.get("resumeId"))
+        : undefined;
+      const submit = params.get("mode") === "fill" ? false : undefined;
       return Response.json({
         readiness,
-        applicationConsent: readiness.automatic ? swipeApplicationConsent(
-          job,
-          await swipeApplicationContext(),
-        ) : null,
+        applicationConsent: readiness.automatic
+          ? swipeApplicationConsent(
+              job,
+              await swipeApplicationContext(resumeAssetId, submit),
+            )
+          : null,
       });
     }
     if (req.method === "GET" && path === "overview")

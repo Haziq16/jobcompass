@@ -19,10 +19,12 @@ export function OriginalCvEditor({
   draft,
   jobText,
   onSaved,
+  onUseForApplication,
 }: {
   draft: Draft;
   jobText: string;
   onSaved: (draft: unknown) => void;
+  onUseForApplication?: (asset: { id: string; name: string }) => void;
 }) {
   const [document, setDocument] = useState(draft.document),
     [view, setView] = useState("preview"),
@@ -51,12 +53,19 @@ export function OriginalCvEditor({
     onSaved(value);
     return value;
   }
-  async function action(format?: "docx" | "txt") {
+  async function action(format?: "docx" | "txt" | "application") {
     setBusy(true);
     setError("");
     try {
       const value = await save(Boolean(format));
-      if (format) {
+      if (format === "application") {
+        const asset = await api<{ id: string; name: string }>(
+          `ai/cv-drafts/${value.id}/use`,
+          "POST",
+          { revision: value.revision },
+        );
+        onUseForApplication?.(asset);
+      } else if (format) {
         const response = await fetch(
           `/api/ai/cv-drafts/${value.id}/download?format=${format}&revision=${value.revision}`,
           { cache: "no-store" },
@@ -210,6 +219,14 @@ export function OriginalCvEditor({
         </span>
       </label>
       <div className="ai-cv-downloads">
+        {onUseForApplication && (
+          <button
+            disabled={!checked || busy}
+            onClick={() => void action("application")}
+          >
+            Use this CV for application
+          </button>
+        )}
         <button
           className="primary"
           disabled={!checked || busy}

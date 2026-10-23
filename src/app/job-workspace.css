@@ -1,0 +1,482 @@
+.job-workspace,
+.application-preparation {
+  color: var(--release-ink);
+  max-width: 1460px;
+  margin: 0 auto;
+}
+.job-workspace-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.job-workspace-heading h1 {
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  margin: 0 0 8px;
+}
+.job-workspace-heading p {
+  margin: 0;
+  color: var(--release-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.job-workspace-heading a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.job-workspace-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.job-workspace button,
+.application-preparation button,
+.job-workspace-primary {
+  min-height: 40px;
+  border: 1px solid var(--release-line);
+  border-radius: 6px;
+  padding: 9px 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--release-surface, var(--surface));
+  color: var(--release-ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.job-workspace button:disabled,
+.application-preparation button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.job-workspace button:focus-visible,
+.application-preparation button:focus-visible,
+.job-workspace a:focus-visible,
+.application-preparation a:focus-visible {
+  outline: 2px solid var(--release-ink);
+  outline-offset: 3px;
+}
+.job-workspace a,
+.application-preparation a {
+  text-underline-offset: 3px;
+}
+.job-workspace-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--release-line);
+  overflow-x: auto;
+  white-space: nowrap;
+  margin-bottom: 24px;
+}
+.job-workspace-tabs a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 0;
+  color: var(--release-muted);
+  font-size: 14px;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.job-workspace-tabs a[aria-current="page"] {
+  color: var(--release-ink);
+  border-bottom-color: var(--release-ink);
+  font-weight: 600;
+}
+.job-workspace-tabs span {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 20px;
+  text-align: center;
+}
+.job-workspace-search {
+  max-width: 640px;
+  margin-bottom: 20px;
+}
+.job-workspace-search > label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.job-workspace-search > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.job-workspace-search input {
+  flex: 1;
+  min-width: 0;
+}
+.job-workspace input,
+.application-preparation input:not([type="checkbox"]),
+.application-preparation select,
+.application-preparation textarea {
+  background: var(--release-surface, var(--surface));
+  color: var(--release-ink);
+  border: 1px solid var(--release-line);
+  border-radius: 5px;
+  padding: 10px 12px;
+  min-height: 42px;
+  font: inherit;
+  max-width: 100%;
+}
+.job-workspace-search small,
+.job-workspace-count {
+  font-size: 13px;
+  color: var(--release-muted);
+  line-height: 1.6;
+}
+.job-workspace-count {
+  margin: 12px 0;
+}
+.job-workspace-split {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.35fr);
+  gap: 0;
+  border: 1px solid var(--release-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--release-surface, var(--surface));
+}
+.job-workspace-list {
+  border-right: 1px solid var(--release-line);
+  max-height: 820px;
+  overflow-y: auto;
+  scrollbar-color: var(--release-muted) transparent;
+}
+.job-workspace .job-workspace-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 7px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--release-line);
+  border-radius: 0;
+  width: 100%;
+  padding: 20px;
+  background: transparent;
+}
+.job-workspace-row[aria-pressed="true"] {
+  background: var(--release-hover, #f0f1ef);
+}
+.job-workspace-row:hover {
+  background: var(--release-hover, #f0f1ef);
+}
+.job-workspace-row strong {
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+.job-workspace-row > span,
+.job-workspace-row small {
+  font-size: 12px;
+  color: var(--release-muted);
+  line-height: 1.5;
+}
+.job-workspace-row .job-workspace-employer {
+  color: var(--release-ink);
+  font-size: 13px;
+}
+.job-workspace-detail {
+  padding: 28px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.job-workspace-detail header h2 {
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 600;
+  margin: 7px 0 10px;
+  letter-spacing: -0.02em;
+}
+.job-workspace-detail header p {
+  margin: 4px 0;
+  color: var(--release-muted);
+  font-size: 14px;
+}
+.job-workspace-detail section {
+  margin-top: 26px;
+}
+.job-workspace-detail h3,
+.preparation-stage h3 {
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 10px;
+}
+.job-workspace-detail p,
+.job-workspace-detail li {
+  font-size: 14px;
+  line-height: 1.7;
+  max-width: 72ch;
+}
+.job-workspace-detail ul {
+  padding-left: 20px;
+  list-style: disc;
+}
+.job-workspace-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0;
+}
+.job-workspace-skills span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--release-line);
+  border-radius: 4px;
+}
+.job-workspace-status {
+  font-weight: 600;
+}
+.job-workspace-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+  font-size: 13px;
+}
+.job-workspace .job-workspace-primary,
+.application-preparation .job-workspace-primary {
+  background: var(--release-ink);
+  color: var(--release-surface, #fff);
+  border-color: var(--release-ink);
+  text-decoration: none;
+}
+.job-workspace-decision {
+  padding: 18px 0;
+  border-top: 1px solid var(--release-line);
+  border-bottom: 1px solid var(--release-line);
+}
+.job-workspace-decision > div {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.job-workspace-decision p {
+  margin: 0 0 14px;
+}
+.job-workspace-description {
+  white-space: pre-line;
+}
+.job-workspace-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.job-workspace-message {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--release-line);
+  padding: 12px 16px;
+  margin: 16px 0;
+  line-height: 1.6;
+  font-size: 14px;
+}
+.job-workspace-empty {
+  padding: 36px 24px;
+  border: 1px solid var(--release-line);
+  border-radius: 8px;
+  max-width: 760px;
+}
+.job-workspace-empty h2 {
+  font-size: 21px;
+  margin: 0 0 12px;
+}
+.job-workspace-empty p {
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.preparation-steps {
+  display: flex;
+  border-bottom: 1px solid var(--release-line);
+  margin: 20px 0 28px;
+  gap: 18px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.application-preparation .preparation-steps button {
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 12px 0;
+  color: var(--release-muted);
+  font-size: 13px;
+}
+.preparation-steps button[aria-current="step"] {
+  border-bottom-color: var(--release-ink);
+  color: var(--release-ink);
+  font-weight: 600;
+}
+.preparation-steps button span {
+  font-size: 12px;
+  min-width: 20px;
+}
+.preparation-stage {
+  max-width: 1100px;
+}
+.preparation-stage h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+.preparation-stage p {
+  line-height: 1.75;
+  font-size: 14px;
+  max-width: 74ch;
+  margin: 10px 0 18px;
+}
+.preparation-stage label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 18px 0;
+  max-width: 850px;
+}
+.preparation-stage .preparation-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+}
+.preparation-check input {
+  accent-color: var(--release-ink);
+  margin-top: 4px;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.preparation-source {
+  max-height: 380px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: inherit;
+  line-height: 1.7;
+  font-size: 13px;
+  padding: 20px;
+  border: 1px solid var(--release-line);
+  margin: 16px 0;
+}
+.preparation-stage details {
+  margin: 20px 0;
+}
+.preparation-stage summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+.preparation-stage textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 100px;
+  caret-color: var(--release-ink);
+}
+.preparation-keyword {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--release-line);
+  max-width: 850px;
+}
+.preparation-letter,
+.preparation-answer {
+  padding: 24px 0;
+  border-top: 1px solid var(--release-line);
+  margin-top: 28px;
+  max-width: 850px;
+}
+.preparation-letter p {
+  max-width: 70ch;
+}
+.preparation-usage {
+  font-variant-numeric: tabular-nums;
+  color: var(--release-muted);
+}
+[data-theme="dark"] .job-workspace-row[aria-pressed="true"],
+[data-theme="dark"] .job-workspace-row:hover {
+  background: #262a28;
+}
+@media (max-width: 1100px) {
+  .job-workspace-heading {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .job-workspace-tools {
+    justify-content: flex-start;
+  }
+  .job-workspace-split {
+    grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.2fr);
+  }
+  .job-workspace-detail {
+    padding: 22px;
+  }
+}
+@media (max-width: 720px) {
+  .job-workspace-heading h1 {
+    font-size: 24px;
+  }
+  .job-workspace-tabs {
+    gap: 20px;
+  }
+  .job-workspace-split {
+    grid-template-columns: 1fr;
+  }
+  .job-workspace-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--release-line);
+    max-height: 300px;
+  }
+  .job-workspace-detail {
+    padding: 20px;
+  }
+  .job-workspace-detail header h2 {
+    font-size: 21px;
+  }
+  .job-workspace button,
+  .application-preparation button {
+    min-height: 44px;
+  }
+  .job-workspace-tools {
+    font-size: 13px;
+    gap: 12px;
+  }
+  .job-workspace-tools button {
+    padding: 8px 10px;
+  }
+  .preparation-steps {
+    gap: 18px;
+  }
+  .job-workspace-empty {
+    padding: 24px 18px;
+  }
+  .preparation-stage h2 {
+    font-size: 20px;
+  }
+}

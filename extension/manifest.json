@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JobCompass Companion",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Apply to supported Greenhouse, Lever and Ashby forms using confirmed JobCompass facts, with explicit submission authorisation and receipt checks.",
   "permissions": ["activeTab", "scripting", "storage", "debugger"],
   "host_permissions": [

@@ -53,7 +53,7 @@ const errors: Record<string, string> = {
   cv_under_2mb_required:
     "Choose an original PDF or DOCX of 2 MB or less for automatic upload. Larger CVs can be attached manually on the employer page.",
   companion_missing:
-    "Install or reload JobCompass Companion 2.1.0 in Chrome, then try again. No filling was started.",
+    "Install or reload JobCompass Companion 2.1.1 in Chrome, then try again. No filling was started.",
   confirmed_contact_required:
     "Confirm the Contact section in your application profile first.",
   listing_unavailable:
@@ -65,9 +65,12 @@ const errors: Record<string, string> = {
     "This application platform is not supported yet. Use the employer posting to apply manually.",
   submission_requires_resolution:
     "An application attempt is already recorded. Check its outcome in Automatic applications before opening another form.",
-  revision_conflict:"This application changed in another tab. Refresh before authorizing it again.",
-  recipient_authorization_required:"Your CV or profile changed. Review and authorize the current details for this employer.",
-  automation_paused:"Automatic processing is paused. Enable your application rules before resuming.",
+  revision_conflict:
+    "This application changed in another tab. Refresh before authorizing it again.",
+  recipient_authorization_required:
+    "Your CV or profile changed. Review and authorize the current details for this employer.",
+  automation_paused:
+    "Automatic processing is paused. Enable your application rules before resuming.",
   eligibility_confirmation_required:
     "Confirm the employer's eligibility requirements in this job's answer inbox before authorizing processing.",
   eligibility_conflict:
@@ -75,10 +78,20 @@ const errors: Record<string, string> = {
   application_consent_stale:
     "Your CV, profile or rules changed. Refresh this page and authorize the current details.",
 };
-export default function ApplicationFill({ catalogId }: { catalogId: string }) {
+export default function ApplicationFill({
+  catalogId,
+  preferredResumeId,
+}: {
+  catalogId: string;
+  preferredResumeId?: string;
+}) {
   const allowed = useMatchAccess();
   return allowed ? (
-    <Workspace catalogId={catalogId} />
+    <Workspace
+      key={`${catalogId}:${preferredResumeId || ""}`}
+      catalogId={catalogId}
+      preferredResumeId={preferredResumeId}
+    />
   ) : (
     <section>
       <h1>Application filling</h1>
@@ -87,11 +100,17 @@ export default function ApplicationFill({ catalogId }: { catalogId: string }) {
     </section>
   );
 }
-function Workspace({ catalogId }: { catalogId: string }) {
+function Workspace({
+  catalogId,
+  preferredResumeId,
+}: {
+  catalogId: string;
+  preferredResumeId?: string;
+}) {
   const resource = useResource<Setup>(
       "application-fill/setup?job=" + catalogId,
     ),
-    [resume, setResume] = useState(""),
+    [resume, setResume] = useState(preferredResumeId || ""),
     [country, setCountry] = useState(""),
     [consent, setConsent] = useState(false),
     [submit, setSubmit] = useState(false),
@@ -107,7 +126,12 @@ function Workspace({ catalogId }: { catalogId: string }) {
       submit: boolean;
       recipient: string;
     } | null;
-  }>("automation/consent?job=" + catalogId);
+  }>(
+    "automation/consent?job=" +
+      catalogId +
+      (resume ? "&resumeId=" + encodeURIComponent(resume) : "") +
+      (submit ? "" : "&mode=fill"),
+  );
   async function authorizeAutomatic() {
     if (!data || !authorization.data?.applicationConsent) return;
     setBusy(true);
@@ -159,7 +183,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
     let grant: Grant | null = null;
     try {
       const extension = await connect(data.companionId, { action: "jc-ping" });
-      if (extension.version !== "2.1.0") throw new Error("companion_missing");
+      if (extension.version !== "2.1.1") throw new Error("companion_missing");
       grant = await api<Grant>("application-fill/start", "POST", {
         catalogId,
         resumeAssetId: resume || data.resumes[0]?.id,
@@ -509,7 +533,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
                 download
               >
                 <Download size={16} />
-                Download Companion 2.1.0
+                Download Companion 2.1.1
               </a>
               <ol>
                 <li>Extract the downloaded ZIP into a folder you will keep.</li>

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { keywordEvidenceText } from "./keyword-evidence";
 import { Prisma } from "@prisma/client";
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -81,6 +82,10 @@ export async function createCvDraft(
   const review = await db.aiReview.findUnique({ where: { id: reviewId } });
   if (!review) throw new AppError("review_not_found", 404);
   const job = review.jobSnapshot as { description: string };
+  const confirmedKeywords = keywordEvidenceText(review.checks);
+  const draftingEvidence = [review.resumeSnapshot, confirmedKeywords]
+    .filter(Boolean)
+    .join("\n");
   const ref = sourceReference(review.checks);
   const asset =
     ref && raw.layout !== "clean"
@@ -93,12 +98,14 @@ export async function createCvDraft(
         sourceAssetId: asset.id,
         sourceSha256: asset.sha256,
         inspection: await inspectDocx(asset.bytes),
+        confirmedKeywords,
       }
     : undefined;
   const fingerprint = cvHash(
     JSON.stringify({
       reviewId,
       resume: review.resumeSnapshot,
+      ...(confirmedKeywords ? { confirmedKeywords } : {}),
       job,
       provider: config.provider,
       model: config.model,
@@ -122,7 +129,8 @@ export async function createCvDraft(
       }
       if (
         (await tx.aiReview.count({ where: { state: "pending" } })) ||
-        (await tx.aiCvDraft.count({ where: { state: "pending" } }))
+        (await tx.aiCvDraft.count({ where: { state: "pending" } })) ||
+        (await tx.aiGeneration.count({ where: { state: "pending" } }))
       )
         throw new AppError("ai_review_in_progress", 409);
       const day = new Date();
@@ -133,7 +141,10 @@ export async function createCvDraft(
       );
       if (
         (await tx.aiReview.count({ where: { createdAt: { gte: day } } })) +
-          (await tx.aiCvDraft.count({ where: { createdAt: { gte: day } } })) >=
+          (await tx.aiCvDraft.count({ where: { createdAt: { gte: day } } })) +
+          (await tx.aiGeneration.count({
+            where: { createdAt: { gte: day } },
+          })) >=
         limit
       )
         throw new AppError("ai_daily_limit", 429);
@@ -157,7 +168,7 @@ export async function createCvDraft(
   try {
     const result = await provider(
       config,
-      review.resumeSnapshot,
+      draftingEvidence,
       job.description,
       template,
     );
@@ -165,7 +176,7 @@ export async function createCvDraft(
     outputTokens = result.outputTokens;
     const document = template
       ? await validateOriginalCv(result.output, template)
-      : validateCv(result.output, review.resumeSnapshot);
+      : validateCv(result.output, draftingEvidence);
     return await db.aiCvDraft.update({
       where: { id: reservation.draft.id },
       data: {

@@ -10,7 +10,10 @@ import {
   fillTarget,
   targetInfo,
 } from "./application-fill-contracts";
-export async function swipeApplicationContext() {
+export async function swipeApplicationContext(
+  resumeAssetId?: string,
+  submit?: boolean,
+) {
   const row = await db.automationSettings.findUnique({
     where: { workspaceId: workspaceId() },
   });
@@ -41,14 +44,15 @@ export async function swipeApplicationContext() {
   const profile = await getCandidate();
   if (!profile.sections.some((s) => s.section === "contact" && s.confirmed))
     return null;
-  const cv = await ownedCvSource(config.resumeAssetId);
+  const cv = await ownedCvSource(resumeAssetId || config.resumeAssetId);
   return {
     assetId: cv.id,
     sha256: cv.sha256,
     cvName: cv.name,
     profileRevision: profile.revision,
     settingsRevision: row.revision,
-    submit: config.submit,
+    submit: submit === undefined ? config.submit : config.submit && submit,
+    selection: resumeAssetId || submit !== undefined ? "job" : "rules",
     platforms: config.platforms,
   };
 }
@@ -106,7 +110,16 @@ export async function verifySwipeApplicationConsent(
   } catch {
     throw fail();
   }
-  const current = await swipeApplicationContext();
+  if (
+    typeof value.assetId !== "string" ||
+    value.assetId.length > 150 ||
+    typeof value.submit !== "boolean"
+  )
+    throw fail();
+  const current = await swipeApplicationContext(
+    value.selection === "job" ? value.assetId : undefined,
+    value.submit,
+  );
   if (
     !current ||
     value.version !== 1 ||
@@ -136,9 +149,30 @@ export async function verifySwipeApplicationConsent(
     sha256: current.sha256,
     profileRevision: current.profileRevision,
     submit: current.submit,
+    selection: current.selection,
     recipient: job.employer,
     approvedAt: new Date().toISOString(),
   };
+}
+export function automaticApplicationChoice(
+  decision: { snapshot: unknown },
+  rules: { resumeAssetId: string; submit: boolean },
+) {
+  const approval = (
+    decision.snapshot as {
+      applicationAuthorization?: {
+        selection?: string;
+        assetId?: string;
+        submit?: boolean;
+      };
+    } | null
+  )?.applicationAuthorization;
+  return approval?.selection === "job" && typeof approval.assetId === "string"
+    ? {
+        resumeAssetId: approval.assetId,
+        submit: rules.submit && approval.submit === true,
+      }
+    : { resumeAssetId: rules.resumeAssetId, submit: rules.submit };
 }
 export async function authorizedAutomaticApplication(
   decision: { applyUrl: string; snapshot: unknown },

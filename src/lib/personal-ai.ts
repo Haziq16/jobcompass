@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { validateKeywordEvidence } from "./keyword-evidence";
 import { Prisma } from "@prisma/client";
 import { authDb, db } from "./db";
 import { AppError } from "./contracts";
@@ -54,6 +55,13 @@ export async function reviewTarget(
   };
 }
 export async function expireReviews() {
+  await db.aiGeneration.updateMany({
+    where: {
+      state: "pending",
+      createdAt: { lt: new Date(Date.now() - REVIEW_INTERRUPTED_AFTER_MS) },
+    },
+    data: { state: "uncertain", error: "interrupted", completedAt: new Date() },
+  });
   await db.aiCvDraft.updateMany({
     where: {
       state: "pending",
@@ -78,6 +86,11 @@ export async function createPersonalReview(
   if (job.description.trim().length < 100)
     throw new AppError("job_description_required", 409);
   const checks = resumeChecks(input.resumeText, job.description);
+  const keywordEvidence = validateKeywordEvidence(
+    input.keywordEvidence,
+    input.resumeText,
+    job.description,
+  );
   const sourceAsset = input.sourceAssetId
     ? await ownedCvSource(input.sourceAssetId, input.resumeText)
     : null;
@@ -97,6 +110,7 @@ export async function createPersonalReview(
         provider: input.provider,
         model: input.model,
         prompt: 1,
+        ...(keywordEvidence.length ? { keywordEvidence } : {}),
         ...(sourceAsset
           ? { sourceAssetId: sourceAsset.id, sourceSha256: sourceAsset.sha256 }
           : {}),
@@ -122,7 +136,8 @@ export async function createPersonalReview(
       }
       if (
         (await tx.aiReview.count({ where: { state: "pending" } })) ||
-        (await tx.aiCvDraft.count({ where: { state: "pending" } }))
+        (await tx.aiCvDraft.count({ where: { state: "pending" } })) ||
+        (await tx.aiGeneration.count({ where: { state: "pending" } }))
       )
         throw new AppError("ai_review_in_progress", 409);
       const day = new Date();
@@ -133,7 +148,10 @@ export async function createPersonalReview(
       );
       if (
         (await tx.aiReview.count({ where: { createdAt: { gte: day } } })) +
-          (await tx.aiCvDraft.count({ where: { createdAt: { gte: day } } })) >=
+          (await tx.aiCvDraft.count({ where: { createdAt: { gte: day } } })) +
+          (await tx.aiGeneration.count({
+            where: { createdAt: { gte: day } },
+          })) >=
         limit
       )
         throw new AppError("ai_daily_limit", 429);
@@ -147,6 +165,7 @@ export async function createPersonalReview(
           resumeSnapshot: input.resumeText,
           checks: json({
             ...checks,
+            ...(keywordEvidence.length ? { keywordEvidence } : {}),
             ...(sourceDocument
               ? {
                   sourceDocument: {

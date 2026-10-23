@@ -1,13 +1,13 @@
 # Application filling companion
 
-The owner-only desktop Chrome companion connects a queued job to supported Greenhouse, Lever/EU and Ashby application forms. Version **2.1.0** shares its browser engine with the offline worker. It uses confirmed facts and saved answers without an AI request. The updated companion uses Chrome's debugger permission narrowly for native keyboard opening of a connected form dropdown; update/reload it to enable that path. See [processing and recovery](application-reliability.md) for permission boundaries, screening and report provenance.
+The owner-only desktop Chrome companion connects a queued job to supported Greenhouse, Lever/EU and Ashby application forms. Version **2.1.1** shares its browser engine with the offline worker. It uses confirmed facts and saved answers without an AI request. The updated companion uses Chrome's debugger permission narrowly for native keyboard opening of a connected form dropdown; update/reload it to enable that path. See [processing and recovery](application-reliability.md) for permission boundaries, screening and report provenance.
 
 ## Connect a job
 
 1. Confirm Contact in Application profile, including given/first and family/last names when required. Name components are never guessed from a full name.
 2. Open a queued job's **Fill application** setup. Download the companion archive, extract it, enable Chrome developer mode at `chrome://extensions` and choose **Load unpacked**. Existing users replace the files and reload the extension. Its stable ID is `iljjpkhlfijljkfglkpnpmodadeohchi`.
-3. Select an owned original PDF or DOCX CV under 2 MiB and explicitly choose the hiring country. No location guessing supplies eligibility answers.
-4. Optionally authorize automatic submission for this job. Confirm use of your facts and selected CV, then connect. The short-lived grant is restricted to this job, profile revision and original CV.
+3. Select an owned original PDF or DOCX CV, or a reviewed tailored Word CV saved from preparation, under 2 MiB. Check the hiring country. An unambiguous listing country can initialize this choice; it never supplies work authorization or citizenship.
+4. Optionally authorize automatic submission for this job. Confirm use of your facts and selected CV, then connect. The short-lived grant is restricted to this job, profile revision and selected CV.
 5. Check the actual progress report. Missing or expired questions appear in the private answer inbox. Confirm an answer there and recheck. Revoking a connection blocks further filling.
 
 The engine preserves existing values, fills supported native controls and ARIA comboboxes, rescans conditional questions, checks browser-retained values and verifies the original CV upload. Required consent checkboxes, CAPTCHA, login, unsupported widgets and ambiguous forms pause for user action. CV bytes and formatting are unchanged; upload checks are not an ATS certification.

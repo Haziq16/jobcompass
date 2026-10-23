@@ -28,6 +28,7 @@ export function POST(req: Request) {
         reviewed: data.reviewed,
         requestKey: data.requestKey,
         sourceAssetId: data.sourceAssetId,
+        keywordEvidence: data.keywordEvidence,
       });
       return Response.json(run, {
         status: run.state === "pending" ? 202 : 200,

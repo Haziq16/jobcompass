@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { keywordEvidenceSchema } from "./keyword-evidence";
 import { AppError } from "./contracts";
 import { resumeChecks } from "./resume-checks";
 export const providerName = z.enum([
@@ -31,6 +32,7 @@ export const reviewInput = credentials
     reviewed: z.literal(true),
     requestKey: z.string().uuid(),
     sourceAssetId: z.string().min(1).max(150).optional(),
+    keywordEvidence: keywordEvidenceSchema.optional(),
   })
   .strict();
 const excerpt = z

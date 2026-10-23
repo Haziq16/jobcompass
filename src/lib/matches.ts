@@ -207,7 +207,7 @@ export async function matchDeck(params: URLSearchParams) {
   const where = Prisma.sql`${preferenceWhere(p, profile)} AND NOT EXISTS (SELECT 1 FROM "MatchDecision" d WHERE d."workspaceId"=${workspace} AND d.state<>'undone' AND (d."catalogId"=j.id OR d."applyUrl"=j."applyUrl")) AND NOT EXISTS (SELECT 1 FROM "JobSource" s JOIN "Job" x ON x.id=s."jobId" AND x."workspaceId"=s."workspaceId" WHERE s."workspaceId"=${workspace} AND (s."providerId"=j."providerId" OR s."primaryUrl"=j."applyUrl") AND (EXISTS(SELECT 1 FROM "SavedJob" z WHERE z."jobId"=x.id AND z."workspaceId"=${workspace}) OR EXISTS(SELECT 1 FROM "Application" a WHERE a."jobId"=x.id AND a."workspaceId"=${workspace})))`;
   const query = new URLSearchParams(params);
   query.set("forYou", "true");
-  query.set("page", "1");
+  query.set("page", params.get("page") || "1");
   const feedback = await db.matchDecision.findMany({
     where: {
       state: "passed",

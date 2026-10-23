@@ -251,6 +251,51 @@ test("three platform targets retain exact job identity and reject forged hosts",
     null,
   );
 });
+test("explicit job CV and fill-only approval enqueue that CV without changing global submission rules", async () => {
+  await run(() => rawSaveAutomation(config(), 0, false));
+  const source = await authDb.resumeAsset.findUniqueOrThrow({
+    where: { id: cvId },
+  });
+  const tailored = await authDb.resumeAsset.create({
+    data: {
+      workspaceId: "alice",
+      name: "Reviewed tailored CV.docx",
+      bytes: new Uint8Array(source.bytes),
+      sha256: source.sha256,
+      text: source.text,
+    },
+  });
+  const context = await run(() => swipeApplicationContext(tailored.id, false));
+  assert.equal(context?.assetId, tailored.id);
+  assert.equal(context?.submit, false);
+  const job = await authDb.catalogJob.findUniqueOrThrow({
+    where: { id: catalogId },
+  });
+  const consent = await run(async () => swipeApplicationConsent(job, context));
+  assert.ok(consent);
+  const result = await run(() =>
+    decideMatch({
+      requestId: randomUUID(),
+      catalogId,
+      state: "queued",
+      reason: null,
+      expectedRevision: 1,
+      applicationConsent: consent.token,
+    }),
+  );
+  assert.equal(result.processing?.enqueued, true);
+  const task = await authDb.automationTask.findFirstOrThrow({
+    where: { workspaceId: "alice", catalogId },
+  });
+  assert.equal(task.resumeAssetId, tailored.id);
+  assert.equal(task.submit, false);
+  const overview = await run(automationOverview);
+  assert.equal(overview.settings.resumeAssetId, cvId);
+  assert.equal(overview.settings.submit, true);
+  await assert.rejects(
+    run(() => verifySwipeApplicationConsent(consent.token, job), "bob"),
+  );
+});
 test("worker heartbeat stays owner scoped, bounded and outside processing usage", async () => {
   await recordWorkerHeartbeat("local");
   await recordWorkerHeartbeat("scheduled");

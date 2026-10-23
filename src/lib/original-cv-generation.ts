@@ -20,6 +20,7 @@ export type OriginalTemplate = {
   sourceAssetId: string;
   sourceSha256: string;
   inspection: DocxInspection;
+  confirmedKeywords?: string;
 };
 export async function generateOriginalCv(
   config: PersonalCredentials,
@@ -32,6 +33,7 @@ export async function generateOriginalCv(
     prompt: JSON.stringify({
       task: "tailored_cv_original",
       paragraphs: template.inspection.paragraphs,
+      confirmedAdditionalExperience: template.confirmedKeywords || "",
       jobText,
     }),
     output: Output.object({ schema: originalOutput }),
@@ -59,7 +61,10 @@ export async function validateOriginalCv(
     if (!p?.editable || seen.has(change.id) || !change.text.trim())
       throw new AppError("cv_unsupported_source", 422);
     seen.add(change.id);
-    validateRewrite(change.text, p.text);
+    validateRewrite(
+      change.text,
+      [p.text, template.confirmedKeywords].filter(Boolean).join("\n"),
+    );
     if (change.text.length > p.text.length * 1.25 + 30)
       throw new AppError("cv_layout_expansion", 422);
     if (

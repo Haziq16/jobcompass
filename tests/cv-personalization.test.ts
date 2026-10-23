@@ -17,6 +17,7 @@ import {
   smartQuery,
 } from "../src/lib/job-recommendations";
 import { cvLayoutFixture } from "../scripts/cv-layout-fixture.mjs";
+import { validateOriginalCv } from "../src/lib/original-cv-generation";
 if (
   process.env.JOBCOMPASS_TEST !== "true" ||
   !process.env.DATABASE_URL?.includes("/jobcompass_test")
@@ -222,6 +223,54 @@ test("original templates stay private, require matching sources, and export exac
   );
   assert.equal(bad.error, "cv_unsupported_number");
 });
+test("confirmed additional skills enter the original Word layout without changing its source or allowing unsupported metrics", async () => {
+  const bytes: Buffer = await cvLayoutFixture();
+  const source = await saveCvSource(bytes, "confirmed-skills.docx", true);
+  const inspection = await inspectDocx(bytes);
+  const paragraph = inspection.paragraphs.find(
+    (p) => p.text === "Kotlin, PostgreSQL, Docker, Android",
+  )!;
+  const template = {
+    sourceAssetId: source.sourceDocument.id,
+    sourceSha256: source.sourceDocument.sha256,
+    inspection,
+    confirmedKeywords:
+      "Confirmed Kubernetes: I used Kubernetes for a personal deployment project.",
+  };
+  const replacement = {
+    replacements: [{ id: paragraph.id, text: paragraph.text + ", Kubernetes" }],
+  };
+  const document = await validateOriginalCv(replacement, template);
+  assert.ok(originalText(document).includes("Android, Kubernetes"));
+  await assert.rejects(
+    validateOriginalCv(replacement, { ...template, confirmedKeywords: "" }),
+    /cv_unsupported_skill/,
+  );
+  await assert.rejects(
+    validateOriginalCv(
+      {
+        replacements: [
+          {
+            id: paragraph.id,
+            text: paragraph.text + ", Kubernetes, 99% improvement",
+          },
+        ],
+      },
+      template,
+    ),
+    /cv_unsupported_number/,
+  );
+  assert.equal(
+    (await ownedCvSource(source.sourceDocument.id)).text,
+    source.text,
+  );
+  const exported = await inspectDocx(
+    await editDocx(bytes, replacement.replacements),
+  );
+  assert.ok(exported.text.includes("Android, Kubernetes"));
+  assert.equal(exported.paragraphs.length, inspection.paragraphs.length);
+});
+
 test("personalized discovery ranks the entire catalogue before pagination and keeps CV signals account scoped", async () => {
   const now = new Date();
   await authDb.catalogBoard.create({

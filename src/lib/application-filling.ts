@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { applicationHiringCountry } from "./application-country";
 import { createHash, randomBytes } from "node:crypto";
 import { db, authDb } from "./db";
 import { inWorkspace, workspaceId } from "./workspace-context";
@@ -80,7 +81,7 @@ export async function fillSetup(catalogId: string) {
     resumes,
     sessions,
     companionId,
-    country: catalog?.country || "",
+    country: applicationHiringCountry(catalog || {}),
     submission: await db.applicationSubmission.findFirst({
       where: { catalogId },
       select: { state: true },

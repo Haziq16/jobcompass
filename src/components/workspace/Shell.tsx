@@ -20,6 +20,7 @@ import { SignOut } from "../AccountControls";
 import { usePersonalAi } from "./PersonalAiContext";
 import { useMatchAccess } from "./MatchAccess";
 const navigation = [
+  ["/my-jobs", "My jobs", BriefcaseBusiness],
   ["/discover", "Discover", Radio],
   ["/queue", "Application queue", BriefcaseBusiness],
   ["/saved", "Shortlist", Bookmark],
@@ -136,7 +137,9 @@ export default function Shell({
               {navigation.find(([url]) => pathname.startsWith(url))?.[1] ||
                 (pathname.startsWith("/assistant")
                   ? "AI studio"
-                  : "Application")}
+                  : pathname.startsWith("/prepare")
+                    ? "Application preparation"
+                    : "Application")}
             </strong>
           </span>
           <div>

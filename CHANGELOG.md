@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-24 - Unified job search and application preparation
+
+- Add My Jobs with real matching, queue, saved, skipped, applied, interview, offer and attention stages, scoped counts and catalogue pagination.
+- Add guided CV selection, confirmed keyword evidence, original-format Word tailoring, editable cover letters and explicitly reviewed screening-answer memory.
+- Reuse saved personal AI connections, shared daily allowances, evidence validation and recorded no-retry outcomes. Opening preparation never starts a provider request.
+- Bind per-job application approval to the selected reviewed CV and fill-only/submission choice without changing global defaults.
+- Release Companion 2.1.1 with verified retained-upload and multi-select fixes. Infer hiring country only from unambiguous listing data; never infer citizenship.
+- Keep employer authorization, receipt verification, account isolation and uncertain-submission restart protection.
+
 ## 2026-10-23 - Application screening, native controls and useful recovery
 
 - Separate requirement conflicts, unknown eligibility, supported forms and authorized processing before automatic CV access.

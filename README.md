@@ -10,6 +10,9 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 ## Features
 
+- **My jobs:** one list-and-detail workspace for matching jobs, queued applications, saved and skipped roles, interviews, offers and issues requiring attention.
+- **Guided preparation:** choose a CV, confirm supporting experience for missing keywords, review a tailored Word CV, edit a cover letter and confirm screening answers before applying. AI preparation remains an owner preview using the saved personal provider connection.
+
 - **Worldwide discovery:** search independently collected employer feeds from Greenhouse, Lever (including EU), Ashby, Workable and Recruitee, with database pagination and company, location, remote and freshness filters.
 - **Automatic feed checks:** scheduled background refreshes and coalesced checks while browsing, without a paid job-search API key.
 - **Direct discovery:** optionally import another Greenhouse or Lever company board into your own workspace.
@@ -22,7 +25,7 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 **Optional AI studio:** résumé text checks, job-keyword coverage, evidence-linked AI reviews and full tailored CV drafts using the user's own provider key. Compare rewritten wording with original sources, edit private versions, and download a reviewed Word or text CV. The initial release is an owner-only preview; `AI_MODE=off` removes the feature, and `AI_MODE=byok` enables it for signed-in users with their own keys. See [personal-key AI](docs/personal-ai.md) and [research notes](docs/ai-research.md).
 
-The legacy gateway tools remain disabled. The owner-only **Fill application** preview connects queued Greenhouse, Lever and Ashby jobs to a desktop Chrome companion, uses confirmed profile/answer memory, uploads the selected original CV unchanged, and reports missing or rejected values. Install it once from the queue setup screen. Submission is separately authorized and receipt checked. Offline processing is available through explicit owner rules; it starts paused. See [automatic applications](docs/automatic-applications.md). See [application filling](docs/application-filling.md). Public accounts do not use the shared paid JSearch connection.
+The legacy gateway tools remain disabled. The owner-only **Fill application** preview connects queued Greenhouse, Lever and Ashby jobs to a desktop Chrome companion, uses confirmed profile/answer memory, uploads the selected original or explicitly reviewed tailored CV unchanged, and reports missing or rejected values. Install it once from the queue setup screen. Submission is separately authorized and receipt checked. Offline processing is available through explicit owner rules; it starts paused. See [automatic applications](docs/automatic-applications.md). See [application filling](docs/application-filling.md). Public accounts do not use the shared paid JSearch connection.
 
 ## How discovery works
 

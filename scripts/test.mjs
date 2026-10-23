@@ -46,6 +46,7 @@ execFileSync(
     "tests/automation.test.ts",
     "tests/personal-ai.test.ts",
     "tests/cv-personalization.test.ts",
+    "tests/job-workspace.test.ts",
   ],
   { env, stdio: "inherit" },
 );

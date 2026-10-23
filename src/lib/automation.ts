@@ -1,4 +1,8 @@
-import { authorizedAutomaticApplication } from "./swipe-application-consent";
+import {
+  authorizedAutomaticApplication,
+  automaticApplicationChoice,
+} from "./swipe-application-consent";
+import { applicationHiringCountry } from "./application-country";
 import { applicationProgress } from "./application-progress";
 import { resolvedApplicationReadiness } from "./application-readiness";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
@@ -259,11 +263,12 @@ export async function enqueueAutomation(catalogId: string) {
     where: { workspaceId_catalogId: { workspaceId: workspaceId(), catalogId } },
   });
   if (decision?.state !== "queued") return { enqueued: false };
+  const choice = automaticApplicationChoice(decision, values);
   if (
     !(await authorizedAutomaticApplication(
       decision,
-      values.resumeAssetId,
-      values.submit,
+      choice.resumeAssetId,
+      choice.submit,
     ))
   )
     return { enqueued: false, needsAuthorization: true };
@@ -283,7 +288,7 @@ export async function enqueueAutomation(catalogId: string) {
     if (old) return { enqueued: true, id: old.id, state: old.state };
     const job = await tx.catalogJob.findUnique({
       where: { id: catalogId },
-      select: { country: true },
+      select: { country: true, location: true },
     });
     const task = await tx.automationTask.create({
       data: {
@@ -291,9 +296,9 @@ export async function enqueueAutomation(catalogId: string) {
         catalogId,
         identity: info.identity,
         targetUrl: decision.applyUrl,
-        country: job?.country || values.country,
-        resumeAssetId: values.resumeAssetId,
-        submit: values.submit,
+        country: applicationHiringCountry(job || {}, values.country),
+        resumeAssetId: choice.resumeAssetId,
+        submit: choice.submit,
       },
     });
     await tx.automationEvent.create({
@@ -336,11 +341,12 @@ export async function retryAutomation(id: string) {
     },
   });
   if (decision?.state !== "queued") throw new AppError("queue_required", 409);
+  const choice = automaticApplicationChoice(decision, config);
   if (
     !(await authorizedAutomaticApplication(
       decision,
-      config.resumeAssetId,
-      config.submit,
+      choice.resumeAssetId,
+      choice.submit,
     ))
   )
     throw new AppError("recipient_authorization_required", 409);
@@ -363,8 +369,9 @@ export async function retryAutomation(id: string) {
   await db.automationTask.update({
     where: { id, revision: task.revision },
     data: {
-      resumeAssetId: config.resumeAssetId,
-      submit: config.submit,
+      resumeAssetId: choice.resumeAssetId,
+      submit: choice.submit,
+      country: applicationHiringCountry(catalog, config.country),
       state: "queued",
       leaseHash: null,
       leaseUntil: null,

@@ -60,13 +60,24 @@ export async function openDocx(bytes: Buffer) {
 }
 export async function inspectDocx(bytes: Buffer): Promise<DocxInspection> {
   const { zip, doc, nodes } = await openDocx(bytes);
+  let skillsSection = false;
   const paragraphs = nodes.map((node, i) => {
     const text = Array.from(node.getElementsByTagNameNS(W, "t"))
       .map((t) => t.textContent || "")
       .join("");
+    const heading = text.trim().replace(/:$/, "");
+    if (/^(?:(?:technical|core|key) )?(?:skills|competencies)$/i.test(heading))
+      skillsSection = true;
+    else if (
+      /^(?:(?:work|professional|employment|additional|personal|selected) )?(?:experience|history|education|projects|certifications?|qualifications|summary|profile|interests|languages|references)$/i.test(
+        heading,
+      )
+    )
+      skillsSection = false;
     const editable =
       i > 1 &&
-      text.trim().split(/\s+/).length >= 9 &&
+      (text.trim().split(/\s+/).length >= 9 ||
+        (skillsSection && text.length >= 10 && /[,;|]/.test(text))) &&
       text.length <= 2200 &&
       !/[^\s@]+@[^\s@]+|https?:\/\//i.test(text) &&
       !node.getElementsByTagNameNS(W, "fldChar").length &&
