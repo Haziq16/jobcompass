@@ -240,7 +240,7 @@ test("candidate validation activates atomically, coalesces runs and does not con
       return Response.json({ jobs: [rawJob(901)] });
     },
   });
-  assert.equal(first.activated, 2);
+  assert.equal(first.activated, 2, JSON.stringify(first));
   assert.equal(first.added, 2);
   assert.equal(peak, 2);
   const board = await authDb.catalogBoard.findUniqueOrThrow({
@@ -285,6 +285,7 @@ test("oversized expansion is deferred without publishing jobs or disabling norma
     assert.ok(
       result.status === "capacity_paused" ||
         ("deferred" in result && Number(result.deferred) > 0),
+      JSON.stringify(result),
     );
     assert.equal(result.activated, 0);
     assert.equal(await authDb.catalogJob.count(), 0);

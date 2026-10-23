@@ -54,3 +54,9 @@ Studio tools and upload preferences use disclosures. Once a CV is loaded, replac
 Profile load failures now offer Retry. Save failures keep the current editor draft and say it was not saved. Password recovery was explicitly deferred by the user ("SKIP FOR NOW"); no pretend email-reset flow was added. The two P2 findings remain outside this change.
 
 Verification: 72 integration checks passed; a targeted final query/location/description-skill test also passed. The expanded browser release suite passed with fictional accounts, a simulated profile 503 and simulated AI, including first library card top below 650px at 390x844, CV editor top below 844px, non-overlapping continuation, 44px save targets, separate status/layout filters, and original-format CV round trips. Phone, tablet and desktop screenshots were reviewed. Physical iOS/Android devices were not available; these are browser viewport checks.
+
+## Swipe preview, 23 October 2026
+
+Owner-only website preview with a single decision card, CV/profile text reasons, pointer gestures and equivalent buttons/keyboard shortcuts. Queue titles remain readable text actions; priorities and manual submission state are explicit. Original document controls and private-account boundaries remain unchanged.
+
+Verification: 91 integration tests, 40 browser acceptance checks, lint, production build and migration preservation passed. Fixture screenshots reviewed at desktop/tablet/phone sizes, including dark theme. Taste inspection reports zero findings on the swipe deck in light and dark themes. The queue has zero hard findings and one desktop empty-space warning below its single fixture row; retain that honest one-job state rather than adding artificial rows or stretching the entry.

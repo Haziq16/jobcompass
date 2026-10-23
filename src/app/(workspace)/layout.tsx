@@ -4,6 +4,8 @@ import { authorize } from "@/lib/authorization";
 import Shell from "@/components/workspace/Shell";
 import { canUsePersonalAi } from "@/lib/ai-access";
 import { PersonalAiContext } from "@/components/workspace/PersonalAiContext";
+import { canUseMatches } from "@/lib/match-access";
+import { MatchAccess } from "@/components/workspace/MatchAccess";
 export const dynamic = "force-dynamic";
 export default async function Layout({
   children,
@@ -12,18 +14,22 @@ export default async function Layout({
 }) {
   let name: string | undefined;
   let ai = false;
+  let matches = false;
   try {
     const session = await authorize(await headers(), "GET");
     name = session?.user.name;
     ai = canUsePersonalAi(session?.user);
+    matches = canUseMatches(session?.user);
   } catch {
     if (process.env.APP_ACCESS === "hosted") redirect("/sign-in");
   }
   return (
     <PersonalAiContext enabled={ai}>
-      <Shell hosted={process.env.APP_ACCESS === "hosted"} name={name}>
-        {children}
-      </Shell>
+      <MatchAccess enabled={matches}>
+        <Shell hosted={process.env.APP_ACCESS === "hosted"} name={name}>
+          {children}
+        </Shell>
+      </MatchAccess>
     </PersonalAiContext>
   );
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-23 — Swipe matching preview
+
+- Added owner-only swipe discovery, verified-preference setup, match explanations and visible unknowns.
+- Added account-private queue/saved/passed collections, priorities, durable undo and replay protection.
+- Preserved List discovery for other accounts and added configurable matching access.
+- Connected explicit application tracking and manual submission confirmation without enabling automatic applications.
+- Included matching data in exports and cleared matching facts with profile deletion.
+- Verified 91 integration tests, 40 browser checks, migration preservation and rendered light/dark layouts.
+
 ## 2026-10-22 — Catalogue expansion
 
 - Added Workable, Recruitee and Lever EU employer-board adapters.

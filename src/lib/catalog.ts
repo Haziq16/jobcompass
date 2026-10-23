@@ -119,7 +119,7 @@ export async function publishCatalogBoard(
 export async function refreshCatalog(request: typeof fetch = fetch) {
   await seedCatalog();
   await authDb.catalogSync.createMany({
-    data: [{ id: "global" }],
+    data: [{ id: "global", leaseUntil: new Date(0), nextRunAt: new Date(0) }],
     skipDuplicates: true,
   });
   const now = new Date();
@@ -271,9 +271,16 @@ export function catalogFilters(params: URLSearchParams) {
   }
   return Prisma.sql`${Prisma.join(clauses, " AND ")}`;
 }
-export async function listCatalog(params: URLSearchParams) {
-  const where = catalogFilters(params);
-  const personalization = await recommendationProfile();
+export async function listCatalog(
+  params: URLSearchParams,
+  additionalWhere?: Prisma.Sql,
+  profileOverride?: Awaited<ReturnType<typeof recommendationProfile>>,
+  rankingAdjustment?: Prisma.Sql,
+) {
+  const where = additionalWhere
+    ? Prisma.sql`(${catalogFilters(params)}) AND (${additionalWhere})`
+    : catalogFilters(params);
+  const personalization = profileOverride || (await recommendationProfile());
   const useProfile = params.get("forYou") === "true";
   const query = (params.get("q") || "").trim().slice(0, 200);
   // The indexed full-text predicate still searches descriptions. Rank short
@@ -289,7 +296,7 @@ export async function listCatalog(params: URLSearchParams) {
       ? Prisma.sql`j."firstSeen" DESC,j.id`
       : Prisma.sql`COALESCE(j."publishedAt",CASE WHEN j."discoveredAfterBaseline" THEN j."firstSeen" END) DESC NULLS LAST,j."firstSeen" DESC,j.id`;
   const order = useProfile
-    ? Prisma.sql`${recommendationSql(personalization)} DESC,${dateOrder}`
+    ? Prisma.sql`(${recommendationSql(personalization)} + ${rankingAdjustment || Prisma.sql`0`}) DESC,${dateOrder}`
     : query && (!params.get("sort") || params.get("sort") === "relevance")
       ? Prisma.sql`${relevance} DESC,${dateOrder}`
       : dateOrder;

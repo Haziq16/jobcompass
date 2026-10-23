@@ -10,7 +10,7 @@ const pg = new EmbeddedPostgres({
   persistent: true,
   createPostgresUser: false,
   initdbFlags: ["--encoding=UTF8", "--locale=C"],
-  postgresFlags: ["-h", "127.0.0.1"],
+  postgresFlags: ["-h", "127.0.0.1", "-c", "timezone=UTC"],
 });
 if (!existsSync(path.join(data, "PG_VERSION"))) await pg.initialise();
 await pg.start();

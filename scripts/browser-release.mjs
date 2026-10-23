@@ -82,7 +82,7 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: source.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE TABLE "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
+  'TRUNCATE TABLE "MatchPreferences", "MatchDecision", "MatchAction", "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
 );
 const catalogNow = new Date();
 await db.catalogBoard.createMany({
@@ -243,6 +243,186 @@ try {
     .click();
   await page.waitForURL("**/discover");
   await page
+    .getByRole("heading", { name: "Find work that fits you", exact: true })
+    .waitFor();
+  await page.getByLabel("Target roles", { exact: true }).fill("Engineer");
+  await page.getByLabel("Skills to emphasise", { exact: true }).fill("Kotlin");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Set your boundaries", exact: true })
+    .waitFor();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page
+    .getByLabel("These preferences reflect what I am looking for.", {
+      exact: true,
+    })
+    .check();
+  await page
+    .getByRole("button", { name: "Save and discover", exact: true })
+    .click();
+  await page
+    .locator("#swipe-job-title")
+    .filter({ hasText: "Kotlin Platform Engineer" })
+    .waitFor();
+  await page.screenshot({
+    path: "test-results/swipe-desktop.png",
+    fullPage: false,
+  });
+  await designSnapshot(page, "swipe-desktop");
+  await page.getByRole("button", { name: "View details", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByText("From the employer", { exact: true })
+    .waitFor();
+  await page.keyboard.press("Escape");
+  await page
+    .getByLabel("Pass reason", { exact: true })
+    .selectOption("Wrong role");
+  const swipeCard = page.locator(".match-card");
+  const swipeBox = await swipeCard.boundingBox();
+  await page.mouse.move(swipeBox.x + swipeBox.width / 2, swipeBox.y + 75);
+  await page.mouse.down();
+  await page.mouse.move(
+    swipeBox.x + swipeBox.width / 2 - 150,
+    swipeBox.y + 75,
+    { steps: 10 },
+  );
+  await page.mouse.up();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Passed Kotlin Platform Engineer" })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Undo last decision", exact: true })
+    .first()
+    .click();
+  await page
+    .locator("#swipe-job-title")
+    .filter({ hasText: "Kotlin Platform Engineer" })
+    .waitFor();
+  check(
+    "Matching onboarding, grounded card reasons, employer details, real drag-to-pass and undo work",
+  );
+  let failDecision = true;
+  await page.route("**/api/matches/decision", async (route) => {
+    if (failDecision) {
+      failDecision = false;
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "database_unavailable" }),
+      });
+    }
+    return route.continue();
+  });
+  await page.getByRole("button", { name: "Interested", exact: true }).click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Could not save your change" })
+    .waitFor();
+  assert.equal(
+    await page.locator("#swipe-job-title").innerText(),
+    "Kotlin Platform Engineer",
+  );
+  await page.locator("#swipe-job-title").click();
+  await page.keyboard.press("ArrowRight");
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Added Kotlin Platform Engineer" })
+    .waitFor();
+  await page.unroute("**/api/matches/decision");
+  await page.goto(origin + "/queue");
+  await page
+    .locator(".match-queue-row")
+    .filter({ hasText: "Kotlin Platform Engineer" })
+    .waitFor();
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/matches/collection") && r.ok(),
+    ),
+    page.getByLabel("Priority", { exact: true }).selectOption("2"),
+  ]);
+  await page.reload();
+  assert.equal(
+    await page.getByLabel("Priority", { exact: true }).inputValue(),
+    "2",
+  );
+  await page
+    .getByRole("button", { name: "Save for later", exact: true })
+    .click();
+  await page
+    .getByRole("heading", {
+      name: "Your next move starts with a right swipe",
+      exact: true,
+    })
+    .waitFor();
+  await page.getByRole("link", { name: /^Saved for later/ }).click();
+  await page
+    .locator(".match-queue-row")
+    .filter({ hasText: "Kotlin Platform Engineer" })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Undo last decision", exact: true })
+    .first()
+    .click();
+  await page.goto(origin + "/queue");
+  await page
+    .locator(".match-queue-row")
+    .filter({ hasText: "Kotlin Platform Engineer" })
+    .waitFor();
+  await page.screenshot({
+    path: "test-results/swipe-queue-desktop.png",
+    fullPage: false,
+  });
+  await designSnapshot(page, "swipe-queue");
+  const queueType = await page
+    .locator(".match-queue-copy h2 button")
+    .first()
+    .evaluate((e) => ({
+      fontSize: parseFloat(getComputedStyle(e).fontSize),
+      parent: getComputedStyle(e.parentElement).fontSize,
+      border: getComputedStyle(e).borderWidth,
+    }));
+  assert.ok(queueType.fontSize >= 18, JSON.stringify(queueType));
+  check(
+    "Failed swipe saves retain the card; retry, persistent queue priority, saved-for-later and undo remain real account data",
+  );
+  await page.goto(origin + "/discover");
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.locator("#swipe-job-title").waitFor();
+  await page.screenshot({
+    path: "test-results/swipe-tablet.png",
+    fullPage: false,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.screenshot({
+    path: "test-results/swipe-phone.png",
+    fullPage: false,
+  });
+  await designSnapshot(page, "swipe-phone");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page
+    .getByRole("button", { name: "Use dark theme", exact: true })
+    .click();
+  await page.screenshot({
+    path: "test-results/swipe-dark.png",
+    fullPage: false,
+    animations: "disabled",
+  });
+  await designSnapshot(page, "swipe-dark");
+  await page
+    .getByRole("button", { name: "Use light theme", exact: true })
+    .click();
+  check(
+    "Swipe keyboard shortcuts, readable queue titles and light/dark responsive layouts work without automatic applications",
+  );
+  await page.goto(origin + "/discover?view=list");
+  await page
     .getByRole("heading", { name: "Discover jobs", exact: true })
     .waitFor();
   check("Public account creation starts a personal workspace");
@@ -289,7 +469,10 @@ try {
       .evaluate((e) => parseFloat(getComputedStyle(e).fontSize) >= 16),
   );
   await page.getByRole("button", { name: "Next", exact: true }).click();
-  await page.waitForURL("**/discover?page=2");
+  await page.waitForURL(
+    (url) =>
+      url.pathname === "/discover" && url.searchParams.get("page") === "2",
+  );
   await page.getByText("Page 2 of 101", { exact: true }).waitFor();
   check("Shared catalogue paginates more than 3,000 jobs in the database");
   await page.locator(".catalog-filter-disclosure > summary").click();
@@ -343,7 +526,7 @@ try {
   check(
     "Catalogue search, keyboard-accessible detail and account-private save work end-to-end",
   );
-  await page.goto(origin + "/discover");
+  await page.goto(origin + "/discover?view=list");
   let direct = 0;
   await page.route("**/api/direct-discovery", async (route) => {
     direct++;
@@ -477,6 +660,17 @@ try {
     .getByRole("button", { name: "Create account", exact: true })
     .click();
   await second.waitForURL("**/discover");
+  const otherQueue = await second.request.get(
+    origin + "/api/matches/collection",
+  );
+  assert.equal(otherQueue.status(), 403);
+  const otherPreferences = await second.request.get(
+    origin + "/api/matches/settings",
+  );
+  assert.equal(otherPreferences.status(), 403);
+  check(
+    "A second signed-in account cannot see matching preferences or the first account's queue",
+  );
   const other = await second.request.get(origin + "/api/jobs");
   assert.equal(other.status(), 200);
   assert.equal((await other.json()).total, 0);
@@ -1132,7 +1326,7 @@ try {
     .click();
   check("AI studio remains usable without horizontal overflow on mobile");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(origin + "/discover");
+  await page.goto(origin + "/discover?view=list");
   await page
     .getByRole("heading", { name: "Discover jobs", exact: true })
     .waitFor();
@@ -1306,7 +1500,7 @@ try {
     "Forget key removes the encrypted account connection and prevents it restoring after refresh",
   );
   await page.keyboard.press("Escape");
-  await page.goto(origin + "/discover");
+  await page.goto(origin + "/discover?view=list");
   await page.getByRole("button", { name: "For you", exact: true }).click();
   await page.locator(".catalog-match-details").first().waitFor();
   const personalized = await page.request.get(

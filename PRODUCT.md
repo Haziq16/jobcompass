@@ -9,3 +9,6 @@ Discovery uses a shared catalogue of public Greenhouse, Lever and Ashby boards, 
 The optional AI Studio is currently owner-only and uses an explicitly selected personal provider key. Reviews and tailoring require explicit consent, have request safeguards and do not retry automatically. Uploaded DOCX templates retain their original document formatting; users review wording and final pagination. ATS readiness findings are heuristic parsing checks, not certification. Application submission remains the user's action on the employer's site.
 
 The current product stack is Next.js, React, TypeScript, PostgreSQL, Prisma and Better Auth, with shared CSS and Lucide icons. Preserve the working routes, private data boundaries, provider safeguards, original document handling and manual submission confirmation while improving the interface.
+
+
+Swipe matching is an owner-only website preview by default. Right swipes queue a job; they never submit applications. Match setup, decisions, priorities and undo persist per account. Work-authorization and sponsorship entries are context, not verified eligibility. Explicit negative pass reasons can gently affect ranking; ordinary passes do not infer broad preferences. Offline applications and native apps remain deferred. See docs/swipe-matching.md.

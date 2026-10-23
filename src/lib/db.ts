@@ -4,6 +4,9 @@ const globalDb = globalThis as unknown as { db: PrismaClient };
 export const authDb = globalDb.db || new PrismaClient();
 if (process.env.NODE_ENV !== "production") globalDb.db = authDb;
 const privateModels = new Set([
+  "MatchPreferences",
+  "MatchDecision",
+  "MatchAction",
   "Profile",
   "Settings",
   "Job",

@@ -63,6 +63,39 @@ model CatalogSync {
   startedAt DateTime?
   finishedAt DateTime?
 }
+model MatchPreferences {
+  workspaceId String @id
+  values Json
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+model MatchDecision {
+  id String @id @default(cuid())
+  workspaceId String
+  catalogId String
+  providerId String
+  applyUrl String
+  state String
+  reason String?
+  priority Int @default(0)
+  revision Int @default(1)
+  snapshot Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId,catalogId])
+  @@index([workspaceId,state,priority,createdAt])
+  @@index([workspaceId,applyUrl])
+}
+model MatchAction {
+  id String @id
+  workspaceId String
+  decisionId String
+  previous Json
+  afterRevision Int
+  undoneAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([workspaceId,createdAt])
+}
 model Profile {
   workspaceId String @default("local")
   id String @id @default("owner")

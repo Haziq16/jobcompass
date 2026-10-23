@@ -419,7 +419,7 @@ export default function CatalogDiscovery() {
           {activeFilters && (
             <button
               className="catalog-clear"
-              onClick={() => router.replace("/discover", { scroll: false })}
+              onClick={() => router.replace("/discover?view=list", { scroll: false })}
             >
               Clear filters
             </button>
@@ -572,7 +572,7 @@ export default function CatalogDiscovery() {
               : "New employer feeds are being checked. Reload the results shortly."}
           </p>
           {activeFilters && (
-            <button onClick={() => router.replace("/discover")}>
+            <button onClick={() => router.replace("/discover?view=list")}>
               Clear filters
             </button>
           )}

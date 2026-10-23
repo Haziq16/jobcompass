@@ -255,7 +255,10 @@
 .upgrade-body button {
   cursor: pointer;
 }
-.upgrade-body button:not(.primary):not(.icon-button):not(.job-select) {
+.upgrade-body
+  button:not(.primary):not(.icon-button):not(.job-select):not(
+    :where(.match-workspace *, .match-dialog *)
+  ) {
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 8px 12px;

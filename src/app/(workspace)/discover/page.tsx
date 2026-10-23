@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import CatalogDiscovery from "@/components/workspace/CatalogDiscovery";
+import DiscoveryHome from "@/components/workspace/DiscoveryHome";
 export default function Page() {
   return (
     <Suspense fallback={<p>Loading discovery…</p>}>
-      <CatalogDiscovery />
+      <DiscoveryHome />
     </Suspense>
   );
 }

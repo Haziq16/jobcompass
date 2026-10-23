@@ -320,6 +320,7 @@ async function handler(
             await tx.aiConnection.deleteMany();
             await tx.profileVersion.deleteMany();
             await tx.resumeAsset.deleteMany();
+            await tx.matchPreferences.deleteMany();
             await tx.profile.deleteMany();
           });
         return NextResponse.json({ ok: true });
@@ -404,6 +405,9 @@ async function handler(
       const data = {
         exportedAt: new Date().toISOString(),
         profile: await profile(),
+        matchingPreferences: await db.matchPreferences.findMany(),
+        matchingDecisions: await db.matchDecision.findMany(),
+        matchingHistory: await db.matchAction.findMany(),
         settings: await settings(),
         jobs: await db.job.findMany({ include: jobInclude }),
         searches: await db.searchDefinition.findMany(),

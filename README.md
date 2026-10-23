@@ -26,6 +26,8 @@ The legacy gateway tools and assisted form filling remain disabled. Public accou
 
 ## How discovery works
 
+The owner-only **Swipe** preview adds a personalised card deck, three-step preference setup, explicit match reasons, pass feedback, undo and a persistent application queue. Right swipe queues a listing; nothing is submitted. Queue priorities, saved-for-later and passed collections remain private to the account. Other accounts retain List discovery. `MATCH_MODE=owner` is the default; `off` disables matching and `all` explicitly opens it to signed-in accounts. See [swipe matching](docs/swipe-matching.md) for filters, unknown-data handling and deferred automation.
+
 Discover searches a shared index of public employer listings. Search by title, skill or company, add a location, then filter by employer, remote work, source or freshness. Results are paginated in the database; saving creates an independent copy in your private workspace. Jobs are never copied into every account automatically.
 
 Switch between **For you** and all opportunities. Recommendations use only your account's saved CV and profile; mentions do not establish proficiency. Search expands common role variants such as developer/engineer and ranks title matches above incidental description mentions. Explicit freshness sorts remain available. AI Studio also offers recommended jobs and an original-DOCX workflow with document preview, paragraph comparisons and structural ATS readiness findings. These free checks and recommendations do not call a model.
@@ -145,7 +147,7 @@ npm run test:browser
 
 The browser suite uses two fictional accounts and a dedicated test database. It mocks the direct-import response and checks real account sessions, stored workflows and mobile layout. Configure `CHROME_EXECUTABLE_PATH` if Chrome is installed outside the default Windows location.
 
-The current release passed **78 fixture/database tests** and **36 browser acceptance checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
+The current release passed **91 fixture/database tests** and **40 browser acceptance checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
 
 ## Project layout
 

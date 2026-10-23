@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 import { SignOut } from "../AccountControls";
 import { usePersonalAi } from "./PersonalAiContext";
+import { useMatchAccess } from "./MatchAccess";
 const navigation = [
   ["/discover", "Discover", Radio],
+  ["/queue", "Application queue", BriefcaseBusiness],
   ["/saved", "Shortlist", Bookmark],
   ["/applications", "Applications", BriefcaseBusiness],
   ["/jobs", "Job library", Search],
@@ -37,6 +39,7 @@ export default function Shell({
 }) {
   const pathname = usePathname();
   const { enabled: ai } = usePersonalAi();
+  const matches = useMatchAccess();
   const [dark, setDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
@@ -84,16 +87,18 @@ export default function Shell({
             }
           }}
         >
-          {navigation.map(([href, label, Icon]) => (
-            <Link
-              key={href}
-              href={href}
-              aria-current={pathname.startsWith(href) ? "page" : undefined}
-            >
-              <Icon size={18} />
-              {label}
-            </Link>
-          ))}
+          {navigation
+            .filter(([href]) => href !== "/queue" || matches)
+            .map(([href, label, Icon]) => (
+              <Link
+                key={href}
+                href={href}
+                aria-current={pathname.startsWith(href) ? "page" : undefined}
+              >
+                <Icon size={18} />
+                {label}
+              </Link>
+            ))}
           {ai && (
             <Link
               href="/assistant"

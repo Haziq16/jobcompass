@@ -87,7 +87,9 @@ export async function expandCatalog(
 ) {
   await seedCatalogCandidates();
   await authDb.catalogSync.createMany({
-    data: [{ id: "expansion" }],
+    data: [
+      { id: "expansion", leaseUntil: new Date(0), nextRunAt: new Date(0) },
+    ],
     skipDuplicates: true,
   });
   const now = new Date();
