@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState } from "react";
 import { Copy, Plus, Check, Trash2, Pencil, Search } from "lucide-react";
 import {
@@ -34,6 +34,7 @@ const errorText = (e: unknown) =>
         "This changed in another tab. Reload the library before editing.",
       answer_country_required:
         "Choose a country for salary, authorization or sponsorship answers.",
+      answer_context_required:"This answer requires a country or employer. Keep its current context or choose reuse within the same country.",
       answer_company_required:
         "Choose the employer for a company-specific answer.",
       question_country_mismatch:
@@ -64,6 +65,7 @@ function initial(
     answer: "",
     context,
     reusable: true,
+    reuseScope: "context",
     expiresAt: null,
     questionId,
   };
@@ -265,6 +267,43 @@ function AnswerForm({
           />
           Reuse for equivalent questions in this context
         </label>
+        {value.reusable && (
+          <label>
+            Where this answer may be reused
+            <select
+              value={value.reuseScope}
+              onChange={(e) => {
+                setValue((v) => ({
+                  ...v,
+                  reuseScope: e.target.value as Draft["reuseScope"],
+                }));
+                setReviewed(false);
+              }}
+            >
+              <option value="context">
+                Keep the current job and employer context
+              </option>
+              <option value="country">
+                Other employers in the same confirmed country
+              </option>
+              {![
+                "authorization",
+                "sponsorship",
+                "salary",
+                "motivation",
+              ].includes(value.category) && (
+                <option value="general">
+                  Other employers, when the question has the same meaning
+                </option>
+              )}
+            </select>
+            <small>
+              Changing scope requires your confirmation. Employer-specific
+              answers stay in their current context unless you deliberately
+              broaden it.
+            </small>
+          </label>
+        )}
         {!value.context.catalogId && (
           <p className="candidate-help">
             For a one-job-only answer, open Application answers from a job in
@@ -308,7 +347,9 @@ export default function AnswerMemory({
 }) {
   const [page, setPage] = useState(1);
   const resource = useResource<Memory>(
-    "application-profile/memory?page=" + page,
+    "application-profile/memory?page=" +
+      page +
+      (catalogId ? "&job=" + catalogId : ""),
   );
   const [draft, setDraft] = useState<Draft | null>(null),
     [question, setQuestion] = useState(""),
@@ -350,6 +391,7 @@ export default function AnswerMemory({
         catalogId: answer.catalogId,
       },
       reusable: answer.reusable,
+      reuseScope: "context",
       expiresAt: null,
       questionId,
     });
@@ -675,6 +717,31 @@ export default function AnswerMemory({
                   <h3>{q.question}</h3>
                   <p className="candidate-help">{contextLabel(q)}</p>
                   <p>{q.resolution.message}</p>
+                  {q.sourceDraft && (
+                    <details>
+                      <summary>Use evidence from your profile</summary>
+                      <p>{q.sourceDraft.source}</p>
+                      <blockquote>{q.sourceDraft.text}</blockquote>
+                      <button
+                        onClick={() =>
+                          setDraft({
+                            ...initial(
+                              q.question,
+                              {
+                                country: q.country || "",
+                                company: q.company || "",
+                                catalogId: q.catalogId,
+                              },
+                              q.id,
+                            ),
+                            answer: q.sourceDraft!.text,
+                          })
+                        }
+                      >
+                        Review passage as an answer draft
+                      </button>
+                    </details>
+                  )}
                   {q.resolution.answer && (
                     <blockquote>{q.resolution.answer.answer}</blockquote>
                   )}

@@ -114,6 +114,7 @@ export const candidateValuesSchema = z
             country: text(80).min(1),
             status: z.enum([
               "unknown",
+              "authorized",
               "citizen",
               "permanent_resident",
               "work_visa",
@@ -241,6 +242,7 @@ export const answerSaveSchema = z
     answer: text(5000).min(1),
     context: questionContextSchema,
     reusable: z.boolean(),
+    reuseScope: z.enum(["context", "country", "general"]).default("context"),
     expiresAt: z.iso.datetime().nullable(),
     reviewed: z.literal(true),
     questionId: z.string().max(100).nullable().default(null),
@@ -259,6 +261,7 @@ const countries: Record<string, string> = {
   us: "united states",
   usa: "united states",
   "u s": "united states",
+  "u s a": "united states",
   "united states of america": "united states",
   uk: "united kingdom",
   "u k": "united kingdom",
@@ -348,7 +351,9 @@ export function classifyQuestion(question: string) {
     )
       return { key: "sponsorship.required", category: "sponsorship" as const };
     if (
-      !/\b(ever|previously|future|will|were|and|or)\b/.test(n) &&
+      !/\b(ever|previously|future|will|were|and|or|citizen|citizenship|clearance|permanent resident)\b/.test(
+        n,
+      ) &&
       /^(?:are you|do you have)\b/.test(n) &&
       /\b(authorized|authorised|authorization|authorisation|right)\b/.test(n) &&
       /\bwork\b/.test(n)
@@ -374,7 +379,9 @@ function mentionedCountries(question: string) {
   const found = options
     .filter((c) => (" " + n + " ").includes(" " + c + " "))
     .map(normalizeCountry);
-  for (const abbreviation of question.match(/\b(?:USA|UK|US)\b/g) || [])
+  for (const abbreviation of question.match(
+    /\b(?:U\.S\.(?:A\.?)?|USA|UK|US)(?=\W|$)/g,
+  ) || [])
     found.push(normalizeCountry(abbreviation));
   return [...new Set(found)];
 }

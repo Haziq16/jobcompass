@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright-core";
@@ -89,7 +89,7 @@ function html(platform, outcome = "confirmed") {
       : platform === "lever"
         ? '<li class="application-question"><div><div class="application-label"><div class="text">Are you authorized to work in Singapore?<span>&#x2731;</span></div></div><div class="application-field"><label><input id="authorization" type="radio" name="cards[fixture][field0]" value="Yes" required>Yes</label><label><input type="radio" name="cards[fixture][field0]" value="No" required>No</label></div></div></li>'
         : '<label>Are you authorized to work in Singapore?<select id="authorization" required><option value="">Choose</option><option>Yes</option><option>No</option></select></label>';
-  return `<!doctype html><html><body><h1>Fictional ${platform} application</h1><form enctype="multipart/form-data">${contact}<label>Email<input id="email" type="email" required></label><label>Resume/CV<input id="resume" name="resume" type="file" accept=".docx" required></label>${authorization}${platform === "lever" ? '<label><input type="checkbox">' + "Optional extra retention consent. ".repeat(18) + '</label><div data-sitekey="unrendered-fixture" style="width:300px;height:0;overflow:hidden"></div><iframe src="about:blank" hidden></iframe><iframe src="about:blank" title="LinkedIn Embedded Content" class="IN-widget IN-widget--iframe" style="width:188px;height:40px"></iframe><div data-sitekey="not-presented" style="visibility:hidden;width:300px;height:80px"></div>' : ""}<div id="conditional"></div>${outcome === "captcha" ? '<div data-sitekey="fixture">CAPTCHA needs human action</div>' : outcome === "frame" ? '<iframe title="Embedded application" src="about:blank" style="width:300px;height:80px"></iframe>' : ""}<button type="submit">Submit application</button></form><script>const a=document.getElementById('authorization');const reveal=()=>{if(a.value==='Yes'&&!document.querySelector('[name=availability]'))document.getElementById('conditional').innerHTML='<label>When can you start?<input name="availability" required></label>';};a.addEventListener('change',reveal);if(a.getAttribute('role')==='combobox'){const choices=document.getElementById('choices');a.addEventListener('click',()=>choices.hidden=false);a.addEventListener('keydown',e=>{if(e.key==='Escape')choices.hidden=true;});for(const option of choices.children)option.addEventListener('click',()=>{a.value=option.textContent;choices.hidden=true;a.dispatchEvent(new Event('change',{bubbles:true}));});}document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();document.querySelector('form').remove();const receipt=document.createElement('div');receipt.className=${JSON.stringify(outcome === "confirmed" ? "application-confirmation" : "unknown")};receipt.textContent=${JSON.stringify(outcome === "confirmed" ? "Application submitted successfully" : "We are processing your request")};document.body.append(receipt);});</script></body></html>`;
+  return `<!doctype html><html><body><h1>Fictional ${platform} application</h1><form enctype="multipart/form-data">${contact}<label>Email<input id="email" type="email" required></label><label>Resume/CV<input id="resume" name="resume" type="file" accept=".docx" required></label>${authorization}${platform === "lever" ? '<label><input type="checkbox">' + "Optional extra retention consent. ".repeat(18) + '</label><div data-sitekey="unrendered-fixture" style="width:300px;height:0;overflow:hidden"></div><iframe src="about:blank" hidden></iframe><iframe src="about:blank" title="LinkedIn Embedded Content" class="IN-widget IN-widget--iframe" style="width:188px;height:40px"></iframe><div data-sitekey="not-presented" style="visibility:hidden;width:300px;height:80px"></div>' : ""}<div id="conditional"></div>${outcome === "captcha" ? '<div data-jobcompass-verification-required="true">CAPTCHA needs human action</div>' : outcome === "frame" ? '<iframe title="Embedded application" src="about:blank" style="width:300px;height:80px"></iframe>' : ""}<button type="submit">Submit application</button></form><script>const a=document.getElementById('authorization');const reveal=()=>{if(a.value==='Yes'&&!document.querySelector('[name=availability]'))document.getElementById('conditional').innerHTML='<label>When can you start?<input name="availability" required></label>';};a.addEventListener('change',reveal);if(a.getAttribute('role')==='combobox'){const choices=document.getElementById('choices');a.addEventListener('keydown',e=>{if(e.key==='ArrowDown'&&e.isTrusted)choices.hidden=false;});a.addEventListener('keydown',e=>{if(e.key==='Escape')choices.hidden=true;});for(const option of choices.children)option.addEventListener('click',()=>{a.value=option.textContent;choices.hidden=true;a.dispatchEvent(new Event('change',{bubbles:true}));});}document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();document.querySelector('form').remove();const receipt=document.createElement('div');receipt.className=${JSON.stringify(outcome === "confirmed" ? "application-confirmation" : "unknown")};receipt.textContent=${JSON.stringify(outcome === "confirmed" ? "Application submitted successfully" : "We are processing your request")};document.body.append(receipt);});</script></body></html>`;
 }
 async function runWorker(platform, outcome) {
   const file = "test-results/automation-fixture.html";
@@ -339,6 +339,11 @@ try {
         );
         assert.ok(session.report.results.every((r) => r.reason.length <= 300));
         assert.equal(session.report.auditClean, true);
+        assert.equal(session.report.version, 2);
+        assert.ok(
+          session.report.filled >= 5,
+          "Filling provenance must survive conditional rescans.",
+        );
       }
       check(
         platform +
@@ -448,8 +453,134 @@ try {
   check(
     "A real named-employer disclosure and authorise action queues one recipient-scoped automatic application",
   );
+  const screeningId = "b".repeat(64);
+  await db.catalogJob.create({
+    data: {
+      id: screeningId,
+      boardId: "auto-board-1",
+      providerId: "screening:fixture",
+      title: "Engineer - citizenship screening",
+      employer: "Screening Fixture Employer",
+      description:
+        "This role requires US citizenship and eligibility to obtain a US security clearance.",
+      country: "US",
+      sourceUrl: "https://job-boards.greenhouse.io/jobcompass-fixture/jobs/999",
+      applyUrl: "https://job-boards.greenhouse.io/jobcompass-fixture/jobs/999",
+      hash: "screening",
+      searchText: "engineer screening",
+    },
+  });
+  await db.matchDecision.create({
+    data: {
+      workspaceId: user.id,
+      catalogId: screeningId,
+      providerId: "screening:fixture",
+      applyUrl: "https://job-boards.greenhouse.io/jobcompass-fixture/jobs/999",
+      state: "queued",
+      snapshot: {
+        title: "Engineer - citizenship screening",
+        employer: "Screening Fixture Employer",
+      },
+    },
+  });
+  const screening = await context.request.get(
+    origin + "/api/automation/consent?job=" + screeningId,
+  );
+  assert.equal(screening.status(), 200);
+  assert.equal((await screening.json()).applicationConsent, null);
+  await page.goto(origin + "/apply/" + screeningId);
+  await page
+    .getByRole("heading", { name: "Eligibility needs confirmation" })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Authorize & process this application" })
+      .count(),
+    0,
+  );
+  await page
+    .getByRole("link", { name: "Check screening answers for this job" })
+    .click();
+  await page
+    .getByRole("heading", {
+      name: "Are you a United States citizen?",
+      exact: true,
+    })
+    .waitFor();
+  assert.equal(
+    await db.automationTask.count({
+      where: { workspaceId: user.id, catalogId: screeningId },
+    }),
+    0,
+  );
+  check(
+    "Eligibility review creates a job-specific inbox and blocks automatic authorization before CV access",
+  );
+
+  const probe = await context.newPage();
+  await probe.route("https://www.recaptcha.net/**", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<html><body>Controlled verification fixture</body></html>",
+    }),
+  );
+  await probe.route(
+    "https://job-boards.greenhouse.io/inspection-fixture/jobs/1",
+    (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: '<form><label>Email<input type="email"></label><label>CV<input type="file" id="resume"></label><iframe title="reCAPTCHA" src="https://www.recaptcha.net/recaptcha/enterprise/anchor?size=invisible" style="width:256px;height:60px"></iframe></form>',
+      }),
+  );
+  await probe.goto(
+    "https://job-boards.greenhouse.io/inspection-fixture/jobs/1",
+  );
+  for (const file of ["targets.js", "application-engine.js"])
+    await probe.addScriptTag({
+      content: await readFile("extension/" + file, "utf8"),
+    });
+  assert.equal(
+    (await probe.evaluate(() => globalThis.JobCompassEngine.scan())).blockers
+      .length,
+    0,
+  );
+  await probe.evaluate(() => {
+    const frame = document.createElement("iframe");
+    frame.title = "reCAPTCHA human challenge";
+    frame.src = "https://www.recaptcha.net/recaptcha/enterprise/bframe";
+    frame.style = "width:300px;height:300px";
+    document.querySelector("form").append(frame);
+  });
+  assert.ok(
+    (
+      await probe.evaluate(() => globalThis.JobCompassEngine.scan())
+    ).blockers.some((b) => /CAPTCHA/.test(b)),
+  );
+  await probe.close();
+  check(
+    "Invisible verification branding does not block filling; visible human challenges still stop submission",
+  );
   await page.goto(origin + "/automation");
   await page.getByRole("heading", { name: "Your application rules" }).waitFor();
+  await page
+    .getByRole("button", { name: "All recent tasks", exact: true })
+    .click();
+  const confirmedRow = page
+    .getByRole("heading", { name: "Kotlin Engineer 1", exact: true })
+    .locator("..")
+    .locator("..");
+  assert.ok(!(await confirmedRow.innerText()).includes("Save missing answers"));
+  assert.equal(
+    await confirmedRow
+      .getByRole("button", { name: "Resume after fixing answers" })
+      .count(),
+    0,
+  );
+  check(
+    "Confirmed applications show completion instead of restart instructions",
+  );
   for (const [name, width, height] of [
     ["desktop", 1440, 1100],
     ["tablet", 768, 1024],
@@ -476,7 +607,7 @@ try {
         })
         .join("\n");
       return (
-        "<!doctype html><html><head><style>" +
+        '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>' +
         css +
         "</style></head>" +
         document.body.outerHTML +

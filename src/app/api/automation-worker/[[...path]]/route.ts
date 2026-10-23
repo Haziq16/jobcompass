@@ -3,6 +3,7 @@ import { apiError, readJson } from "@/lib/http";
 import {
   workerAuthorized,
   workerPending,
+  recordWorkerHeartbeat,
   claimAutomation,
   withWorkerLease,
   reserveSubmission,
@@ -25,6 +26,10 @@ async function handler(
     );
   try {
     const path = (await ctx.params).path?.join("/");
+    if (req.method === "POST" && path === "heartbeat") {
+      const data=z.object({mode:z.enum(["local","scheduled"])}).strict().parse(await readJson(req));
+      return Response.json(await recordWorkerHeartbeat(data.mode),{headers:{"Cache-Control":"no-store"}});
+    }
     if (req.method === "GET" && path === "pending")
       return Response.json({ pending: await workerPending() });
     if (req.method === "POST" && path === "claim")

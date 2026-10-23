@@ -149,7 +149,7 @@ npm run test:browser
 
 The browser suite uses two fictional accounts and a dedicated test database. It mocks the direct-import response and checks real account sessions, stored workflows and mobile layout. Configure `CHROME_EXECUTABLE_PATH` if Chrome is installed outside the default Windows location.
 
-The current release passed **139 fixture/database tests**, **45 browser acceptance checks**, **5 real-extension flow checks** and **11 offline-worker/browser checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks.
+The current release passed **150 fixture/database tests**, **45 browser acceptance checks**, **5 real-extension flow checks** and **14 offline-worker/browser checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks. See [application processing and recovery](docs/application-reliability.md) for screening, answer reuse, form compatibility, worker availability and verification limits.
 
 ## Project layout
 

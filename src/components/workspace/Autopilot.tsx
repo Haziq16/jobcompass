@@ -5,6 +5,8 @@ import { Pause, RefreshCw, Play, Check } from "lucide-react";
 import { api, useResource } from "./client";
 import { useMatchAccess } from "./MatchAccess";
 import type { automationOverview } from "@/lib/automation";
+import ApplicationRecovery from "./ApplicationRecovery";
+import { applicationTaskLabel } from "@/lib/application-progress";
 type Overview = Awaited<ReturnType<typeof automationOverview>>;
 type Values = Overview["settings"];
 const errorMessage = (e: unknown) =>
@@ -19,6 +21,15 @@ const errorMessage = (e: unknown) =>
       submission_requires_resolution:
         "Check and resolve the earlier submission outcome before retrying.",
       automation_paused: "Enable processing before retrying a task.",
+      recipient_authorization_required:
+        "Open this application and authorize the current CV and profile for this employer before resuming.",
+      eligibility_confirmation_required:
+        "Confirm the employer's eligibility requirements in this application's answer inbox.",
+      eligibility_conflict:
+        "A confirmed answer conflicts with an employer requirement. Review eligibility before proceeding.",
+      queue_required:
+        "This job is saved or passed. Queue and authorize it again before processing.",
+      listing_unavailable:"This listing is closed or its source is stale. Check the employer posting before continuing.",
     }) as Record<string, string>
   )[(e as Error).message] ||
   "Could not save this change. Your entries are still here.";
@@ -235,12 +246,21 @@ function Workspace() {
   const resource = useResource<Overview>("automation/overview"),
     [notice, setNotice] = useState(""),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [showHistory, setShowHistory] = useState(false);
   const refresh = resource.refresh;
   useEffect(() => {
     const timer = setInterval(refresh, 15000);
     return () => clearInterval(timer);
   }, [refresh]);
+  const visibleTasks =
+    resource.data?.tasks.filter(
+      (t) =>
+        showHistory ||
+        (!["confirmed", "cancelled"].includes(t.state) &&
+          (t.decisionState === "queued" ||
+            ["uncertain", "submitting"].includes(t.state))),
+    ) || [];
   async function pause() {
     if (!resource.data) return;
     setBusy(true);
@@ -296,8 +316,8 @@ function Workspace() {
         <div>
           <h1>Automatic applications</h1>
           <p>
-            Apply to your queued jobs while your browser and computer are
-            closed.
+            Track authorized applications, resolve missing answers and verify
+            employer receipts.
           </p>
         </div>
         <Link href="/queue">Open application queue</Link>
@@ -332,8 +352,25 @@ function Workspace() {
               </strong>
               <br />
               {resource.data.schedule}
+              <br />
+              <strong>
+                {resource.data.worker.active
+                  ? "Worker recently connected"
+                  : "Fast worker not currently connected"}
+              </strong>{" "}
+              {resource.data.worker.description}
+              {resource.data.worker.lastSeen && (
+                <>
+                  <br />
+                  Last contact:{" "}
+                  {new Date(
+                    String(resource.data.worker.lastSeen),
+                  ).toLocaleString()}
+                </>
+              )}
             </p>
             <div className="candidate-inline-actions">
+              <a href="#application-rules">Edit application rules</a>
               <button onClick={refresh}>
                 <RefreshCw size={16} />
                 Refresh
@@ -346,13 +383,150 @@ function Workspace() {
               )}
             </div>
           </div>
+          <p className="automation-usage" role="status">
+            Processing allowance: {resource.data.usage.today} /{" "}
+            {resource.data.settings.dailyLimit} today;{" "}
+            {resource.data.usage.monthly} /{" "}
+            {resource.data.settings.monthlyLimit} this month.{" "}
+            {resource.data.usage.preparationBlocked} preparation failures
+            excluded this month. Resets use UTC. Issued worker sessions count,
+            including CAPTCHA and uncertain outcomes.
+          </p>
           {!resource.data.workerConfigured && (
             <p className="candidate-error">
               Offline worker configuration is missing. Processing cannot be
               enabled yet.
             </p>
           )}
-          <div className="autopilot-layout">
+          <section className="autopilot-tasks">
+            <h2>Recent processing tasks</h2>
+            <div
+              className="candidate-inline-actions"
+              role="group"
+              aria-label="Processing task view"
+            >
+              <button
+                aria-pressed={!showHistory}
+                onClick={() => setShowHistory(false)}
+              >
+                Needs attention
+              </button>
+              <button
+                aria-pressed={showHistory}
+                onClick={() => setShowHistory(true)}
+              >
+                All recent tasks
+              </button>
+            </div>
+            <p className="candidate-help">
+              Latest 50 tasks. Confirmed means an employer receipt or your
+              explicit outcome confirmation; uncertain outcomes require
+              resolution.
+            </p>
+            {visibleTasks.length ? (
+              visibleTasks.map((t) => {
+                const submission = resource.data!.submissions.find(
+                  (s) => s.catalogId === t.catalogId,
+                );
+                return (
+                  <article key={t.id}>
+                    <div>
+                      <p className="autopilot-state">
+                        {applicationTaskLabel(t.state)}
+                      </p>
+                      <h3>{t.title}</h3>
+                      <p>
+                        {t.employer} · {t.country} ·{" "}
+                        {t.submit
+                          ? "Automatic submission authorised"
+                          : "Fill only"}
+                      </p>
+                      {t.detail && <p className="candidate-help">{t.detail}</p>}
+                      {t.decisionState !== "queued" && (
+                        <p>
+                          This job is {t.decisionState || "no longer queued"}.
+                          Automatic processing will not resume without a new
+                          queue decision and employer authorization.
+                        </p>
+                      )}
+                      {t.progress && (
+                        <ApplicationRecovery
+                          catalogId={t.catalogId}
+                          progress={t.progress}
+                          state={t.state}
+                        />
+                      )}
+                    </div>
+                    <div className="candidate-inline-actions">
+                      <Link href={"/apply/" + t.catalogId}>
+                        Open application
+                      </Link>
+                      <Link
+                        href={
+                          "/application-profile?tab=inbox&job=" + t.catalogId
+                        }
+                      >
+                        Answer inbox
+                      </Link>
+                      {[
+                        "needs_input",
+                        "failed",
+                        "filled",
+                        "cancelled",
+                      ].includes(t.state) &&
+                        (!submission ||
+                          submission.state === "resolved_not_submitted") && (
+                          <button
+                            disabled={
+                              !resource.data!.settings.enabled ||
+                              t.decisionState !== "queued"
+                            }
+                            onClick={() => void retry(t.id)}
+                          >
+                            <Play size={15} />
+                            Resume after fixing answers
+                          </button>
+                        )}
+                      {submission &&
+                        ["uncertain", "failed"].includes(submission.state) && (
+                          <>
+                            <button
+                              onClick={() =>
+                                void resolve(
+                                  submission.id,
+                                  submission.revision,
+                                  true,
+                                )
+                              }
+                            >
+                              I verified it was submitted
+                            </button>
+                            <button
+                              onClick={() =>
+                                void resolve(
+                                  submission.id,
+                                  submission.revision,
+                                  false,
+                                )
+                              }
+                            >
+                              I verified no submission
+                            </button>
+                          </>
+                        )}
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <p>
+                No active tasks need attention in this view. Review All recent
+                tasks for completed or stopped work, or authorize a supported
+                job in Discover.
+              </p>
+            )}
+          </section>
+          <div className="autopilot-layout" id="application-rules">
             <Settings
               key={resource.data.revision}
               data={resource.data}
@@ -389,98 +563,6 @@ function Workspace() {
               )}
             </section>
           </div>
-          <section className="autopilot-tasks">
-            <h2>Recent processing tasks</h2>
-            <p className="candidate-help">
-              Latest 50 tasks. Confirmed means an employer receipt or your
-              explicit outcome confirmation; uncertain outcomes require
-              resolution.
-            </p>
-            {resource.data.tasks.length ? (
-              resource.data.tasks.map((t) => {
-                const submission = resource.data!.submissions.find(
-                  (s) => s.catalogId === t.catalogId,
-                );
-                return (
-                  <article key={t.id}>
-                    <div>
-                      <p className="autopilot-state">
-                        {t.state.replaceAll("_", " ")}
-                      </p>
-                      <h3>{t.title}</h3>
-                      <p>
-                        {t.employer} · {t.country} ·{" "}
-                        {t.submit
-                          ? "Automatic submission authorised"
-                          : "Fill only"}
-                      </p>
-                      {t.detail && <p className="candidate-help">{t.detail}</p>}
-                    </div>
-                    <div className="candidate-inline-actions">
-                      <Link href={"/apply/" + t.catalogId}>
-                        Open application
-                      </Link>
-                      <Link
-                        href={
-                          "/application-profile?tab=inbox&job=" + t.catalogId
-                        }
-                      >
-                        Answer inbox
-                      </Link>
-                      {[
-                        "needs_input",
-                        "failed",
-                        "filled",
-                        "cancelled",
-                      ].includes(t.state) &&
-                        (!submission ||
-                          submission.state === "resolved_not_submitted") && (
-                          <button
-                            disabled={!resource.data!.settings.enabled}
-                            onClick={() => void retry(t.id)}
-                          >
-                            <Play size={15} />
-                            Retry preparation
-                          </button>
-                        )}
-                      {submission &&
-                        ["uncertain", "failed"].includes(submission.state) && (
-                          <>
-                            <button
-                              onClick={() =>
-                                void resolve(
-                                  submission.id,
-                                  submission.revision,
-                                  true,
-                                )
-                              }
-                            >
-                              I verified it was submitted
-                            </button>
-                            <button
-                              onClick={() =>
-                                void resolve(
-                                  submission.id,
-                                  submission.revision,
-                                  false,
-                                )
-                              }
-                            >
-                              I verified no submission
-                            </button>
-                          </>
-                        )}
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <p>
-                No automatic tasks yet. Configure your rules, then queue a job
-                or explicitly include existing queued jobs.
-              </p>
-            )}
-          </section>
         </>
       )}
     </div>

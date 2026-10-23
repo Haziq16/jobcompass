@@ -23,6 +23,7 @@ import {
   canUseFilling,
 } from "../src/lib/application-filling";
 import { cvLayoutFixture } from "../scripts/cv-layout-fixture.mjs";
+import { applicationProgress } from "../src/lib/application-progress";
 import { saveCvSource } from "../src/lib/cv-source";
 import { POST } from "../src/app/api/fill-companion/[[...path]]/route";
 if (
@@ -116,6 +117,93 @@ beforeEach(async () => {
   );
 });
 after(() => authDb.$disconnect());
+test("explicit clearance requirements stop before CV grants and create actionable screening questions", async () => {
+  await authDb.catalogJob.update({
+    where: { id: catalogId },
+    data: {
+      description:
+        "This role requires US citizenship and eligibility to obtain a US security clearance.",
+      country: "US",
+    },
+  });
+  await assert.rejects(start(), /eligibility_confirmation_required/);
+  assert.equal(await authDb.applicationFillSession.count(), 0);
+  assert.ok(
+    (await authDb.applicationQuestion.count({
+      where: { workspaceId: "alice", catalogId },
+    })) >= 1,
+  );
+});
+test("saved country-specific authorization maps dotted US wording without answering consent or demographics", async () => {
+  await run(() =>
+    saveApplicationAnswer({
+      expectedRevision: 0,
+      question: "Are you authorized to work in the US?",
+      aliases: [],
+      category: "authorization",
+      answer: "Yes",
+      context: { country: "US", company: "", catalogId: null },
+      reusable: true,
+      expiresAt: null,
+      reviewed: true,
+    }),
+  );
+  const grant = await run(() =>
+    startFill({ catalogId, resumeAssetId: cvId, country: "US", consent: true }),
+  );
+  const plan = await run(() =>
+    planFill(grant.id, {
+      fields: [
+        field("auth", "Are you currently authorized to work in the U.S.?", {
+          kind: "combobox",
+          options: [
+            { label: "Yes", value: "yes" },
+            { label: "No", value: "no" },
+          ],
+        }),
+        field("consent", "I consent to processing my demographic responses", {
+          kind: "checkbox",
+        }),
+        field("gender", "Gender", { kind: "combobox" }),
+      ],
+    }),
+  );
+  assert.equal(plan.fields[0].status, "fill");
+  assert.equal(plan.fields[0].value, "Yes");
+  assert.equal(plan.fields[1].status, "needs_input");
+  assert.equal(plan.fields[2].status, "needs_input");
+});
+test("recovery separates old final-scan counts from verified provenance and removes duplicate blockers", () => {
+  const report = {
+    filled: 2,
+    preserved: 1,
+    requiredMissing: 1,
+    uploadVerified: true,
+    blockers: ["Human verification required", "Human verification required"],
+    results: [
+      {
+        id: "one",
+        label: "Start date",
+        status: "needs_input",
+        reason: "Confirm availability.",
+        required: true,
+      },
+      {
+        id: "two",
+        label: "Optional note",
+        status: "needs_input",
+        reason: "Optional.",
+        required: false,
+      },
+    ],
+  };
+  const progress = applicationProgress(report)!;
+  assert.equal(progress.legacy, true);
+  assert.equal(progress.missing.length, 1);
+  assert.equal(progress.blockers.length, 1);
+  assert.equal(progress.uploadVerified, true);
+  assert.equal(applicationProgress({ ...report, version: 2 })!.legacy, false);
+});
 test("filling is independently owner gated and exact supported destinations reject lookalike hosts", () => {
   const env = {
     APP_ACCESS: "hosted",

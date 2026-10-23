@@ -217,6 +217,28 @@ export default function MatchCard({
   return (
     <div className="match-deck-column" ref={container}>
       <p className="match-deck-caption">One opportunity. Your next move.</p>
+      {job.readiness && (
+        <section
+          className="match-readiness"
+          aria-label="Application eligibility"
+        >
+          <strong>{job.readiness.label}</strong>
+          <p>{job.readiness.action}</p>
+          {job.readiness.reasons.length > 0 && (
+            <ul>
+              {job.readiness.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          )}
+          {!job.applicationConsent && (
+            <p>
+              Right swipe saves this to your queue for review. It will not start
+              an automatic application.
+            </p>
+          )}
+        </section>
+      )}
       {job.applicationConsent && (
         <p
           className="match-application-consent"
@@ -417,7 +439,7 @@ export default function MatchCard({
                 ? job.applicationConsent.submit
                   ? "Authorise & apply"
                   : "Authorise & fill"
-                : "Interested"}
+                : "Queue for review"}
           </span>
         </button>
       </div>

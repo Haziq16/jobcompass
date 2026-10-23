@@ -81,6 +81,14 @@ async function ensureWorld() {
       contextId: world,
       expression: source,
     });
+  await cdp.send("Runtime.addBinding", {
+    name: "jobcompassOpenDropdown",
+    executionContextId: world,
+  });
+  await cdp.send("Runtime.evaluate", {
+    contextId: world,
+    expression: `globalThis.JobCompassNativeKey=()=>new Promise((resolve,reject)=>{globalThis.jcNativeResolve=resolve;globalThis.jcNativeReject=reject;globalThis.jobcompassOpenDropdown("open");});`,
+  });
 }
 async function call(name, arg) {
   if (timedOut) throw new Error("Worker deadline reached.");
@@ -114,6 +122,10 @@ async function request(action, payload) {
   });
 }
 try {
+  await api("heartbeat", {
+    mode:
+      process.env.AUTOMATION_WORKER_MODE === "local" ? "local" : "scheduled",
+  }).catch(() => {});
   task = (await api("claim", {})).task;
   if (!task) {
     console.log(JSON.stringify({ status: "idle" }));
@@ -142,10 +154,52 @@ try {
       timeout: 30000,
     });
     cdp = await context.newCDPSession(page);
+    cdp.on("Runtime.bindingCalled", async (event) => {
+      if (event.name !== "jobcompassOpenDropdown" || event.payload !== "open")
+        return;
+      try {
+        const focused = await cdp.send("Runtime.evaluate", {
+          contextId: event.executionContextId,
+          expression: `document.activeElement?.getAttribute("role")==="combobox" && !!document.activeElement.closest("form")`,
+          returnByValue: true,
+        });
+        if (!focused.result.value) throw new Error("Not a form dropdown.");
+        await cdp.send("Input.dispatchKeyEvent", {
+          type: "keyDown",
+          key: "ArrowDown",
+          code: "ArrowDown",
+          windowsVirtualKeyCode: 40,
+        });
+        await cdp.send("Input.dispatchKeyEvent", {
+          type: "keyUp",
+          key: "ArrowDown",
+          code: "ArrowDown",
+          windowsVirtualKeyCode: 40,
+        });
+        await cdp.send("Runtime.evaluate", {
+          contextId: event.executionContextId,
+          expression: "globalThis.jcNativeResolve?.()",
+        });
+      } catch {
+        await cdp
+          .send("Runtime.evaluate", {
+            contextId: event.executionContextId,
+            expression:
+              'globalThis.jcNativeReject?.(new Error("Dropdown could not be opened."))',
+          })
+          .catch(() => {});
+      }
+    });
     await call("openApplication").catch(() => {
       world = null;
     });
     await page.waitForLoadState("domcontentloaded").catch(() => {});
+    await page
+      .waitForSelector('input[type="file"]', {
+        state: "attached",
+        timeout: 8000,
+      })
+      .catch(() => {});
     let plan, result, report;
     for (let cycle = 0; cycle < 4; cycle++) {
       let scan;

@@ -33,6 +33,7 @@ import {
   canUseAutomation,
   workerAuthorized,
   reconcileAutomation,
+  recordWorkerHeartbeat,
 } from "../src/lib/automation";
 if (
   process.env.JOBCOMPASS_TEST !== "true" ||
@@ -249,6 +250,26 @@ test("three platform targets retain exact job identity and reject forged hosts",
     targetInfo("https://jobs.ashbyhq.com.evil.test/example/" + id),
     null,
   );
+});
+test("worker heartbeat stays owner scoped, bounded and outside processing usage", async () => {
+  await recordWorkerHeartbeat("local");
+  await recordWorkerHeartbeat("scheduled");
+  assert.equal(
+    await authDb.automationEvent.count({ where: { kind: "worker_heartbeat" } }),
+    1,
+  );
+  const overview = await run(automationOverview);
+  assert.equal(overview.worker.active, true);
+  assert.equal(overview.usage.today, 0);
+  assert.equal(overview.events.length, 0);
+  assert.equal((await run(automationOverview, "bob")).worker.active, false);
+  await authDb.automationEvent.updateMany({
+    where: { kind: "worker_heartbeat" },
+    data: { createdAt: new Date(Date.now() - 180000) },
+  });
+  const stale = await run(automationOverview);
+  assert.equal(stale.worker.active, false);
+  assert.match(stale.worker.description, /No recent/);
 });
 test("automation is separately owner-only, switchable off, and worker keys are compared exactly", () => {
   const env = {

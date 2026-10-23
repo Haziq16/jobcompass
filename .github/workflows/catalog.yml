@@ -14,32 +14,8 @@ jobs:
     timeout-minutes: 12
     steps:
       # Catalogue polling needs no checkout or database access; browser dependencies load only for an authorised pending task.
-      - name: Check employer feeds
-        env:
-          CATALOG_REFRESH_URL: ${{ vars.CATALOG_REFRESH_URL }}
-          CATALOG_REFRESH_SECRET: ${{ secrets.CATALOG_REFRESH_SECRET }}
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          const url = new URL(process.env.CATALOG_REFRESH_URL || '');
-          const secret = process.env.CATALOG_REFRESH_SECRET || '';
-          if (url.protocol !== 'https:' || url.pathname !== '/api/catalog/refresh' || url.search || url.username || url.password || secret.length < 32) throw new Error('Invalid catalogue scheduler configuration');
-          const response = await fetch(url, {headers: {Authorization: `Bearer ${secret}`}, redirect: 'error', signal: AbortSignal.timeout(180000)});
-          if (!response.ok) throw new Error(`Catalogue refresh HTTP ${response.status}`);
-          const result = await response.json();
-          console.log(JSON.stringify({status: result.status, checked: result.checked, succeeded: result.succeeded, failed: result.failed}));
-          if (result.status === 'completed' && result.checked > 0 && result.succeeded === 0) throw new Error('No employer feed could be refreshed');
-          // A separate six-hour lease bounds candidate admission. No new subscription,
-          // third-party job-data API or extra scheduled runner is provisioned.
-          url.searchParams.set('mode', 'expand');
-          const growth = await fetch(url, {headers: {Authorization: `Bearer ${secret}`}, redirect: 'error', signal: AbortSignal.timeout(180000)});
-          if (!growth.ok) throw new Error(`Catalogue expansion HTTP ${growth.status}`);
-          console.log(JSON.stringify(await growth.json()));
-          NODE
-
       - name: Check for authorised offline applications
         id: automatic
-        if: always()
         env:
           AUTOMATION_APP_URL: ${{ vars.AUTOMATION_APP_URL }}
           AUTOMATION_WORKER_SECRET: ${{ secrets.AUTOMATION_WORKER_SECRET }}
@@ -86,3 +62,27 @@ jobs:
           AUTOMATION_WORKER_SECRET: ${{ secrets.AUTOMATION_WORKER_SECRET }}
           AUTOMATION_ALLOW_SUBMIT: "true"
         run: node scripts/automation-worker.mjs
+
+      - name: Check employer feeds
+        if: always()
+        env:
+          CATALOG_REFRESH_URL: ${{ vars.CATALOG_REFRESH_URL }}
+          CATALOG_REFRESH_SECRET: ${{ secrets.CATALOG_REFRESH_SECRET }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const url = new URL(process.env.CATALOG_REFRESH_URL || '');
+          const secret = process.env.CATALOG_REFRESH_SECRET || '';
+          if (url.protocol !== 'https:' || url.pathname !== '/api/catalog/refresh' || url.search || url.username || url.password || secret.length < 32) throw new Error('Invalid catalogue scheduler configuration');
+          const response = await fetch(url, {headers: {Authorization: `Bearer ${secret}`}, redirect: 'error', signal: AbortSignal.timeout(180000)});
+          if (!response.ok) throw new Error(`Catalogue refresh HTTP ${response.status}`);
+          const result = await response.json();
+          console.log(JSON.stringify({status: result.status, checked: result.checked, succeeded: result.succeeded, failed: result.failed}));
+          if (result.status === 'completed' && result.checked > 0 && result.succeeded === 0) throw new Error('No employer feed could be refreshed');
+          // A separate six-hour lease bounds candidate admission. No new subscription,
+          // third-party job-data API or extra scheduled runner is provisioned.
+          url.searchParams.set('mode', 'expand');
+          const growth = await fetch(url, {headers: {Authorization: `Bearer ${secret}`}, redirect: 'error', signal: AbortSignal.timeout(180000)});
+          if (!growth.ok) throw new Error(`Catalogue expansion HTTP ${growth.status}`);
+          console.log(JSON.stringify(await growth.json()));
+          NODE

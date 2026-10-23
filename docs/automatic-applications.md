@@ -1,5 +1,7 @@
 # Automatic applications
 
+See [application processing and recovery](application-reliability.md) for eligibility screening, explicit answer reuse scopes, Companion 2.1.0 native controls, detailed task recovery and worker heartbeat behavior. Application processing now runs before catalogue polling within the existing cloud schedule.
+
 This owner-only website feature processes deliberately queued jobs on supported Greenhouse, Lever (including EU) and Ashby hosted forms. It is paused by default. Other users keep ordinary discovery and tracking.
 
 ## Setup

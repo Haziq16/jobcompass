@@ -68,13 +68,52 @@ function Profile() {
         ))}
       </nav>
       <p className="candidate-help">
-        Private owner preview. Saved information supplies answers only after
-        confirmation. Automatic filling and submission are not enabled.
+        Private owner preview. Only confirmed facts and reviewed answers can be
+        reused. Automatic processing requires separate employer-specific
+        authorization.
       </p>
       {notice && (
         <p className="candidate-notice" role="status">
           {notice}
         </p>
+      )}
+      {view === "profile" && resource.data && (
+        <section
+          className="application-readiness"
+          aria-label="Application setup checklist"
+        >
+          <h2>Set up once, then review what changes</h2>
+          <ol>
+            <li>
+              {resource.data.hasSavedCv
+                ? "Original CV saved."
+                : "Upload an original PDF or DOCX CV."}{" "}
+              Formatting and file bytes are preserved.
+            </li>
+            <li>
+              Confirm Contact, Experience, Education, Projects and Skills.
+              Missing sections stay drafts.
+            </li>
+            <li>
+              Record each country's work authorization, sponsorship and
+              citizenship separately. Confirm availability, notice period and
+              relocation.
+            </li>
+            <li>
+              <Link href={href("answers")}>
+                Choose reusable screening answers and their scope.
+              </Link>{" "}
+              Employer consent and demographic choices remain under your
+              control.
+            </li>
+            <li>
+              <Link href="/discover">
+                Review target roles, skills and locations in Discover
+              </Link>
+              , then authorize the employer and CV shown on a supported card.
+            </li>
+          </ol>
+        </section>
       )}
       {view === "profile" ? (
         resource.error ? (

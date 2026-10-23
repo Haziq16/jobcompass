@@ -7,6 +7,7 @@ import { getCandidate, lookupApplicationAnswer } from "./application-memory";
 import { ownedCvSource } from "./cv-source";
 import { targetInfo } from "./application-fill-contracts";
 import { canUseMatches } from "./match-access";
+import { resolvedApplicationReadiness } from "./application-readiness";
 import {
   startFillSchema,
   scanSchema,
@@ -58,6 +59,9 @@ export async function fillSetup(catalogId: string) {
       },
     }),
   ]);
+  const catalog = await authDb.catalogJob.findUnique({
+    where: { id: catalogId },
+  });
   return {
     decision: {
       catalogId,
@@ -65,6 +69,7 @@ export async function fillSetup(catalogId: string) {
       employer: (decision.snapshot as { employer: string }).employer,
       targetUrl: decision.applyUrl,
       state: decision.state,
+      revision: decision.revision,
     },
     supported: Boolean(fillTarget(decision.applyUrl)),
     platform: targetInfo(decision.applyUrl)?.platform || null,
@@ -75,6 +80,14 @@ export async function fillSetup(catalogId: string) {
     resumes,
     sessions,
     companionId,
+    country: catalog?.country || "",
+    submission: await db.applicationSubmission.findFirst({
+      where: { catalogId },
+      select: { state: true },
+    }),
+    readiness: catalog
+      ? await resolvedApplicationReadiness(catalog, catalogId, false, profile)
+      : null,
   };
 }
 export async function startFill(input: unknown) {
@@ -85,6 +98,8 @@ export async function startFill(input: unknown) {
   if (!setup.supported) throw new AppError("unsupported_form", 400);
   if (!setup.profileReady)
     throw new AppError("confirmed_contact_required", 409);
+  if (setup.submission && setup.submission.state !== "resolved_not_submitted")
+    throw new AppError("submission_requires_resolution", 409);
   const catalog = await authDb.catalogJob.findUnique({
     where: { id: data.catalogId },
     include: { board: true },
@@ -98,6 +113,18 @@ export async function startFill(input: unknown) {
   )
     throw new AppError("listing_unavailable", 409);
   const cv = await ownedCvSource(data.resumeAssetId);
+  const readiness = await resolvedApplicationReadiness(
+    catalog,
+    data.catalogId,
+    true,
+  );
+  if (readiness.status !== "compatible")
+    throw new AppError(
+      readiness.status === "incompatible"
+        ? "eligibility_conflict"
+        : "eligibility_confirmation_required",
+      409,
+    );
   if (!/\.(pdf|docx)$/i.test(cv.name) || cv.bytes.length > 2 * 1024 * 1024)
     throw new AppError("cv_under_2mb_required", 400);
   const token = randomBytes(32).toString("base64url");
@@ -227,13 +254,65 @@ async function answerField(
     phone: profile.values.contact.phone,
     "phone number": profile.values.contact.phone,
     linkedin: profile.values.contact.linkedin,
+    "linkedin url": profile.values.contact.linkedin,
     "linkedin profile": profile.values.contact.linkedin,
     "linkedin profile url": profile.values.contact.linkedin,
     website: profile.values.contact.portfolio,
     portfolio: profile.values.contact.portfolio,
     "current location": profile.values.contact.location,
+    "location city": profile.values.contact.location,
+    city: profile.values.contact.location,
   };
-  const value = contact ? direct[normalChoice(question)] : null;
+  try {
+    const link = new URL(profile.values.contact.portfolio);
+    if (["github.com", "www.github.com"].includes(link.hostname))
+      for (const key of ["github", "github url", "github profile"])
+        direct[key] = link.href;
+  } catch {
+    /* No confirmed GitHub link. */
+  }
+  let value = contact ? direct[normalChoice(question)] : null;
+  if (
+    !value &&
+    /^how did you (?:hear|learn|find)\b/.test(normalChoice(question))
+  ) {
+    const other = f.options.filter((o) =>
+      ["jobcompass", "other", "other source"].includes(normalChoice(o.label)),
+    );
+    if (f.kind === "text" || f.kind === "textarea")
+      value = "JobCompass employer-board discovery";
+    else if (other.length === 1) value = other[0].label;
+  }
+  if (
+    !value &&
+    contact &&
+    normalChoice(question) === "country" &&
+    profile.values.contact.phone.startsWith("+")
+  ) {
+    const phone = profile.values.contact.phone.replace(/[^+\d]/g, "");
+    const choices = f.options.filter((o) => {
+      const code = o.label.match(/\+(\d+)\s*$/)?.[1];
+      return code && phone.startsWith("+" + code);
+    });
+    if (choices.length === 1) value = choices[0].label;
+  }
+  if (
+    !value &&
+    profile.sections.some((s) => s.section === "experience" && s.confirmed) &&
+    /^(?:please provide the name of your current or most recent company|most recent company|most recent employer)$/.test(
+      normalChoice(question),
+    )
+  ) {
+    const rows = [...profile.values.experience].sort((a, b) =>
+      b.start.localeCompare(a.start),
+    );
+    if (
+      rows.length &&
+      rows[0].start &&
+      (!rows[1] || rows[0].start !== rows[1].start)
+    )
+      value = rows[0].employer;
+  }
   let lookup: Awaited<ReturnType<typeof lookupApplicationAnswer>> | null = null;
   if (!value) {
     try {
@@ -378,10 +457,13 @@ export async function reportFill(id: string, input: unknown) {
       : "filled";
   const report = {
     ...data,
+    version: 2,
     results: data.results.map((r) => ({
       ...r,
       label: scan.fields.find((f) => f.id === r.id)?.label || r.id,
+      required: scan.fields.find((f) => f.id === r.id)?.required || false,
     })),
+    blockers: [...new Set([...scan.blockers, ...data.blockers])],
     filled: data.results.filter((r) => r.status === "filled").length,
     preserved: data.results.filter((r) => r.status === "preserved").length,
     requiredMissing: missing.length,

@@ -18,7 +18,33 @@
   let entries = [],
     form = null,
     lastUpload = null;
+  const controlIds = new WeakMap(),
+    filledControls = new WeakMap();
+  let nextControlId = 0;
+  const controlId = (el) => {
+    if (!controlIds.has(el)) controlIds.set(el, "field-" + nextControlId++);
+    return controlIds.get(el);
+  };
+  const retainedValue = (entry) =>
+    entry.kind === "radio"
+      ? entry.els
+          .filter((e) => e.checked)
+          .map((e) => e.value)
+          .join("|")
+      : entry.kind === "combobox"
+        ? selected(entry.els[0])
+        : entry.kind === "file"
+          ? [...(entry.els[0].files || [])]
+              .map((f) => f.name + ":" + f.size + ":" + f.lastModified)
+              .join("|")
+          : String(entry.els[0].value || "");
   function label(el) {
+    const cleanText = (node) => {
+      if(!node)return "";
+      const clone=node.cloneNode(true);
+      clone.querySelectorAll?.("input,select,textarea,[role=listbox],[role=option],.error-message,.field-error").forEach(e=>e.remove());
+      return clone.textContent || "";
+    };
     if (
       el.type === "file" &&
       (/^(resume|resume-upload-input|resume-upload)$/i.test(el.id) ||
@@ -31,7 +57,7 @@
       labelled?.querySelector(
         ".application-label .text,.application-label,.field-label",
       )?.textContent ||
-      labelled?.textContent ||
+      cleanText(labelled) ||
       el.getAttribute("aria-label") ||
       ids
         .map((id) => document.getElementById(id)?.textContent || "")
@@ -98,8 +124,23 @@
     );
   }
   async function openCombo(el) {
+    el.focus();
+    if (globalThis.JobCompassNativeKey && document.activeElement === el) {
+      await globalThis.JobCompassNativeKey();
+      await wait(250);
+      return listFor(el);
+    }
     el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
     el.click();
+    el.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "ArrowDown",
+        code: "ArrowDown",
+        keyCode: 40,
+        which: 40,
+        bubbles: true,
+      }),
+    );
     await wait(150);
     return listFor(el);
   }
@@ -167,9 +208,26 @@
       out.push("Sign-in requires your action.");
     const captcha = [
       ...document.querySelectorAll(
-        'iframe[src*="recaptcha"],iframe[src*="hcaptcha"],[data-sitekey]',
+        'iframe[src*="recaptcha"],iframe[src*="hcaptcha"],[data-sitekey][role="checkbox"],[data-jobcompass-verification-required]',
       ),
-    ].some(visible);
+    ].some((e) => {
+      if (!visible(e)) return false;
+      // The invisible reCAPTCHA anchor is a branding badge, not a human
+      // challenge. Employer JavaScript may still present a challenge on submit.
+      if (e.tagName === "IFRAME") {
+        try {
+          const u = new URL(e.src);
+          if (
+            /\/anchor$/.test(u.pathname) &&
+            u.searchParams.get("size") === "invisible"
+          )
+            return false;
+        } catch {
+          /* Unknown frames still block. */
+        }
+      }
+      return true;
+    });
     const solved = [
       ...document.querySelectorAll(
         'textarea[name="g-recaptcha-response"],textarea[name="h-captcha-response"],input[name="cf-turnstile-response"]',
@@ -222,7 +280,7 @@
           );
         entries.push({
           els: group,
-          id: "field-" + entries.length,
+          id: controlId(el),
           label: (
             owner?.querySelector(
               "legend,.application-label .text,.application-label",
@@ -257,7 +315,7 @@
       }
       entries.push({
         els: [el],
-        id: "field-" + entries.length,
+        id: controlId(el),
         label: label(el),
         name: (el.name || el.id || "").slice(0, 200),
         kind: custom
@@ -343,8 +401,11 @@
       try {
         if (!el.isConnected) throw new Error("Form changed; rescan.");
         if (has(entry)) {
-          status = "preserved";
-          reason = "Existing value preserved.";
+          const ours = filledControls.get(el) === retainedValue(entry);
+          status = ours ? "filled" : "preserved";
+          reason = ours
+            ? "Previously filled by JobCompass; value retained."
+            : "Existing value preserved; origin not verified.";
         } else if (item?.status === "fill") {
           if (entry.kind === "combobox") {
             let choices = await openCombo(el);
@@ -353,17 +414,29 @@
             );
             if (!match.length && el.tagName === "INPUT") {
               value(el, item.value);
-              await wait(400);
+              await wait(800);
               choices = listFor(el);
               match = choices.filter(
                 (o) => norm(o.textContent) === norm(item.value),
+              );
+            }
+            if (
+              !match.length &&
+              /location|city/i.test(entry.label) &&
+              norm(item.value).split(" ").length >= 2
+            ) {
+              const tokens = norm(item.value).split(" ");
+              match = choices.filter((o) =>
+                tokens.every((t) =>
+                  (" " + norm(o.textContent) + " ").includes(" " + t + " "),
+                ),
               );
             }
             if (match.length !== 1)
               throw new Error("No unique exact dropdown option.");
             match[0].click();
             await wait(200);
-            if (norm(selected(el)) !== norm(item.value))
+            if (norm(selected(el)) !== norm(match[0].textContent))
               throw new Error("Dropdown selection was not retained.");
           } else if (entry.kind === "radio") {
             const choices = entry.els.filter((e) => e.value === item.value);
@@ -413,13 +486,15 @@
           el.dispatchEvent(new Event("change", { bubbles: true }));
           status = "filled";
         }
+        if (status === "filled") filledControls.set(el, retainedValue(entry));
         if (entry.required && !has(entry)) {
           status = "needs_input";
-          reason = "A required value is missing.";
+          reason = item?.reason || "A required value is missing.";
         }
         if (
           entry.kind !== "combobox" &&
           el.checkValidity &&
+          has(entry) &&
           !el.checkValidity()
         ) {
           status = "needs_input";
@@ -438,20 +513,18 @@
     await wait(700);
     for (const entry of entries) {
       const r = results.find((r) => r.id === entry.id),
-        p = plan.fields.find((f) => f.id === entry.id),
         el = entry.els[0];
       if (
         r.status === "filled" &&
         (!el.isConnected ||
           !has(entry) ||
-          (entry.kind === "combobox"
-            ? norm(selected(el)) !== norm(p.value)
-            : !["file", "radio"].includes(entry.kind) && el.value !== p.value))
+          (entry.kind !== "file" && filledControls.get(el) !== retainedValue(entry)))
       ) {
         r.status = "failed";
         r.reason =
           entry.label + ": the page changed or cleared the value. Recheck.";
       }
+      if (r.status === "filled") filledControls.set(el, retainedValue(entry));
     }
     const old = entries.map(({ els, options, ...e }) => {
       void els;

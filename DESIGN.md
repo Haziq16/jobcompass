@@ -42,6 +42,8 @@ Operate mode: one employer opportunity is the primary decision surface. Preserve
 
 ## Automatic applications
 
+Recovery is the primary task surface: show worker presence and actual allowance, then active tasks with states and exact blockers. Completed/stopped work belongs in history; configuration is reachable by a direct page anchor below the task list. A requirement-conflict/unknown/supported-form message precedes the swipe gesture. Application setup pairs current CV/employer authorization with the job-specific answer inbox and manual companion continuation. Confirmed and uncertain outcomes never carry generic restart instructions. Use the existing neutral surfaces, readable definition lists, native details and status text; avoid decorative metrics. See docs/application-reliability.md.
+
 Operate mode, preserving Achromatic Ledger. A persistent processing status and pause action lead the page; explicit application rules share a responsive grid with four recent notifications. Task rows show actual states, employer context, missing-input links and outcome resolution. Latest 50 tasks are labeled as such. Desktop, tablet, phone and dark theme are verified with fixture-backed task history.
 
 Recipient-specific automatic applications: when enabled, a plain disclosure above the draggable job card identifies the employer, original CV and confirmed contact/answer data. The positive action reads Authorise & apply (or Authorise & fill). Disclosure text is part of the keyboard-accessible card description and remains visible before a gesture, including on phones. Normal queue-only cards retain their existing behavior.

@@ -321,11 +321,28 @@ function answerHealth(
     expiresAt: Date | null;
     category: string;
     sourceHash: string | null;
+    country?: string | null;
   },
   profile: CandidateValues | null,
 ) {
   if (answer.expiresAt && answer.expiresAt <= new Date()) return "expired";
   const section = sourceSections[answer.category as AnswerCategory];
+  if (
+    section === "eligibility" &&
+    answer.country &&
+    answer.sourceHash?.startsWith("country-v1:")
+  ) {
+    return profile &&
+      answer.sourceHash ===
+        "country-v1:" +
+          hash(
+            profile.eligibility.filter(
+              (r) => normalizeCountry(r.country) === answer.country,
+            ),
+          )
+      ? "current"
+      : "profile_changed";
+  }
   if (
     section &&
     (profile ? sectionHash(profile, section) : null) !== answer.sourceHash
@@ -352,6 +369,20 @@ export async function saveApplicationAnswer(input: unknown) {
     throw new AppError("answer_country_required", 400);
   if (category === "motivation" && !context.company && !context.catalogId)
     throw new AppError("answer_company_required", 400);
+  if (data.reusable && data.reuseScope === "country" && !context.country)
+    throw new AppError("answer_country_required", 400);
+  if (
+    data.reusable &&
+    data.reuseScope === "general" &&
+    (countryCategories.has(category) || category === "motivation")
+  )
+    throw new AppError("answer_context_required", 400);
+  const storedContext =
+    data.reusable && data.reuseScope === "country"
+      ? { ...context, company: null, catalogId: null }
+      : data.reusable && data.reuseScope === "general"
+        ? { country: null, company: null, catalogId: null }
+        : context;
   for (const alias of data.aliases) {
     const other = classifyQuestion(alias);
     if (
@@ -382,9 +413,9 @@ export async function saveApplicationAnswer(input: unknown) {
     const duplicate = await tx.applicationAnswer.findFirst({
       where: {
         canonicalKey: classified.key,
-        country: context.country,
-        company: context.company,
-        catalogId: context.catalogId,
+        country: storedContext.country,
+        company: storedContext.company,
+        catalogId: storedContext.catalogId,
         ...(old ? { id: { not: old.id } } : {}),
       },
     });
@@ -395,7 +426,16 @@ export async function saveApplicationAnswer(input: unknown) {
     const section = sourceSections[category];
     const sourceHash =
       section && profile
-        ? sectionHash(candidateValuesSchema.parse(profile.values), section)
+        ? section === "eligibility" && storedContext.country
+          ? "country-v1:" +
+            hash(
+              candidateValuesSchema
+                .parse(profile.values)
+                .eligibility.filter(
+                  (r) => normalizeCountry(r.country) === storedContext.country,
+                ),
+            )
+          : sectionHash(candidateValuesSchema.parse(profile.values), section)
         : null;
     const values = {
       question: data.question,
@@ -408,7 +448,7 @@ export async function saveApplicationAnswer(input: unknown) {
       ],
       category,
       answer: data.answer,
-      ...context,
+      ...storedContext,
       reusable: data.reusable,
       sourceHash,
       expiresAt,
@@ -429,7 +469,7 @@ export async function saveApplicationAnswer(input: unknown) {
       if (!question) throw new AppError("not_found", 404);
       if (
         !scopeMatches(context, {
-          country: question.country,
+          country: question.country || context.country,
           company: question.company,
           catalogId: question.catalogId,
         })
@@ -445,6 +485,9 @@ export async function saveApplicationAnswer(input: unknown) {
         data: {
           state: "answered",
           answerId: saved.id,
+          ...(!question.country && context.country
+            ? { country: context.country }
+            : {}),
           revision: { increment: 1 },
         },
       });
@@ -634,7 +677,7 @@ export async function lookupApplicationAnswer(input: unknown) {
   }
   return { ...result, questionId, context };
 }
-export async function applicationMemory(page = 1) {
+export async function applicationMemory(page = 1, catalogId?: string) {
   const [answers, questions, totalAnswers, totalQuestions, profile] =
     await Promise.all([
       db.applicationAnswer.findMany({
@@ -643,20 +686,40 @@ export async function applicationMemory(page = 1) {
         skip: (page - 1) * 30,
       }),
       db.applicationQuestion.findMany({
+        where: catalogId ? { catalogId } : {},
         orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
         take: 30,
         skip: (page - 1) * 30,
       }),
       db.applicationAnswer.count(),
-      db.applicationQuestion.count(),
+      db.applicationQuestion.count({ where: catalogId ? { catalogId } : {} }),
       db.candidateProfile.findUnique({ where: { workspaceId: workspaceId() } }),
     ]);
   const values = profile ? candidateValuesSchema.parse(profile.values) : null;
+  const candidate = await getCandidate();
   return {
     answers: answers.map((a) => ({ ...a, health: answerHealth(a, values) })),
     questions: await Promise.all(
       questions.map(async (q) => ({
         ...q,
+        sourceDraft:
+          candidate.sections.some(
+            (s) => s.section === "projects" && s.confirmed,
+          ) &&
+          /\b(project|built|artifact|repository)\b/i.test(q.question) &&
+          candidate.values.projects[0]?.summary
+            ? {
+                text: [
+                  candidate.values.projects[0].name,
+                  candidate.values.projects[0].summary,
+                  candidate.values.projects[0].url,
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
+                source:
+                  "Your confirmed project passage. Review and adapt it to answer this question; it is not a generated claim.",
+              }
+            : null,
         resolution:
           q.state === "dismissed"
             ? {

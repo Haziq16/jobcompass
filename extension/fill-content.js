@@ -12,6 +12,7 @@
     if (r?.error) throw new Error(r.error);
     return r;
   }
+  globalThis.JobCompassNativeKey = () => message("jc-native-dropdown", {});
   function panel(text, report) {
     document.getElementById("jc-fill-panel")?.remove();
     const host = document.createElement("div");

@@ -4,6 +4,7 @@ import { workspaceId } from "./workspace-context";
 import { AppError } from "./contracts";
 import { getCandidate } from "./application-memory";
 import { ownedCvSource } from "./cv-source";
+import { resolvedApplicationReadiness } from "./application-readiness";
 import {
   automationSettingsSchema,
   fillTarget,
@@ -122,6 +123,12 @@ export async function verifySwipeApplicationConsent(
     value.submit !== current.submit
   )
     throw fail();
+  const catalog = await authDb.catalogJob.findUnique({ where: { id: job.id } });
+  if (
+    !catalog ||
+    !(await resolvedApplicationReadiness(catalog, job.id)).automatic
+  )
+    throw new AppError("eligibility_confirmation_required", 409);
   return {
     version: 1,
     identity: value.identity,

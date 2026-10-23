@@ -1,4 +1,6 @@
 import { authorizedAutomaticApplication } from "./swipe-application-consent";
+import { applicationProgress } from "./application-progress";
+import { resolvedApplicationReadiness } from "./application-readiness";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { db, authDb } from "./db";
@@ -82,10 +84,39 @@ export async function automationOverview() {
     }),
   ]);
   const ids = tasks.map((t) => t.catalogId);
+  const sessions = await db.applicationFillSession.findMany({
+    where: {
+      id: { in: tasks.flatMap((t) => (t.sessionId ? [t.sessionId] : [])) },
+    },
+    select: { id: true, report: true },
+  });
+  const now = new Date(),
+    day = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    ),
+    month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [today, monthly, preparationBlocked, heartbeat] = await Promise.all([
+    db.automationEvent.count({
+      where: { kind: "lease", createdAt: { gte: day } },
+    }),
+    db.automationEvent.count({
+      where: { kind: "lease", createdAt: { gte: month } },
+    }),
+    db.automationEvent.count({
+      where: { kind: "preparation_blocked", createdAt: { gte: month } },
+    }),
+    db.automationEvent.findFirst({
+      where: { kind: "worker_heartbeat" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, message: true },
+    }),
+  ]);
   const decisions = await db.matchDecision.findMany({
     where: { catalogId: { in: ids } },
-    select: { catalogId: true, snapshot: true },
+    select: { catalogId: true, snapshot: true, state: true },
   });
+  const workerActive =
+    !!heartbeat && now.getTime() - heartbeat.createdAt.getTime() < 120000;
   return {
     settings: settings
       ? { ...automationDefaults, ...(settings.values as object) }
@@ -99,15 +130,62 @@ export async function automationOverview() {
         ...t,
         title: snap?.title || "Queued job",
         employer: snap?.employer || "",
+        progress: applicationProgress(
+          sessions.find((s) => s.id === t.sessionId)?.report,
+        ),
+        decisionState:
+          decisions.find((d) => d.catalogId === t.catalogId)?.state || null,
       };
     }),
-    events,
+    events: events.filter((e) => e.kind !== "worker_heartbeat"),
+    usage: { today, monthly, preparationBlocked },
+    worker: {
+      active: workerActive,
+      lastSeen: heartbeat?.createdAt || null,
+      description: workerActive
+        ? heartbeat!.message
+        : "No recent fast-worker heartbeat. Scheduled fallback checks approximately every 30 minutes.",
+    },
     submissions,
     resumes,
     workerConfigured: (process.env.AUTOMATION_WORKER_SECRET || "").length >= 32,
     schedule:
       "Existing catalogue scheduler, approximately every 30 minutes; GitHub can delay runs.",
   };
+}
+export async function recordWorkerHeartbeat(mode: "local" | "scheduled") {
+  const owner = process.env.OWNER_EMAIL?.trim().toLowerCase();
+  const user = owner
+    ? await authDb.user.findUnique({
+        where: { email: owner },
+        select: { id: true, email: true },
+      })
+    : null;
+  if (!user || !canUseAutomation(user))
+    throw new AppError("automation_unavailable", 403);
+  return inWorkspace(user.id, () =>
+    db.$transaction(async (tx) => {
+      await lock(tx);
+      const old = await tx.automationEvent.findFirst({
+        where: { kind: "worker_heartbeat" },
+        orderBy: { createdAt: "desc" },
+      });
+      const data = {
+        message:
+          mode === "local"
+            ? "Fast local worker: checks every five seconds while this computer is awake and online."
+            : "Scheduled cloud worker: this run is active; future runs may be delayed.",
+        createdAt: new Date(),
+        seenAt: new Date(),
+      };
+      if (old) await tx.automationEvent.update({ where: { id: old.id }, data });
+      else
+        await tx.automationEvent.create({
+          data: { workspaceId: user.id, kind: "worker_heartbeat", ...data },
+        });
+      return { ok: true };
+    }),
+  );
 }
 export async function saveAutomation(
   input: unknown,
@@ -249,6 +327,39 @@ export async function retryAutomation(id: string) {
   if (!setting || !automationSettingsSchema.parse(setting.values).enabled)
     throw new AppError("automation_paused", 409);
   const config = automationSettingsSchema.parse(setting.values);
+  const decision = await db.matchDecision.findUnique({
+    where: {
+      workspaceId_catalogId: {
+        workspaceId: workspaceId(),
+        catalogId: task.catalogId,
+      },
+    },
+  });
+  if (decision?.state !== "queued") throw new AppError("queue_required", 409);
+  if (
+    !(await authorizedAutomaticApplication(
+      decision,
+      config.resumeAssetId,
+      config.submit,
+    ))
+  )
+    throw new AppError("recipient_authorization_required", 409);
+  const catalog = await authDb.catalogJob.findUnique({
+    where: { id: task.catalogId },
+  });
+  if (!catalog) throw new AppError("listing_unavailable", 409);
+  const readiness = await resolvedApplicationReadiness(
+    catalog,
+    task.catalogId,
+    true,
+  );
+  if (readiness.status !== "compatible")
+    throw new AppError(
+      readiness.status === "incompatible"
+        ? "eligibility_conflict"
+        : "eligibility_confirmation_required",
+      409,
+    );
   await db.automationTask.update({
     where: { id, revision: task.revision },
     data: {

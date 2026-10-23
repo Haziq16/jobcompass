@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-23 - Application screening, native controls and useful recovery
+
+- Separate requirement conflicts, unknown eligibility, supported forms and authorized processing before automatic CV access.
+- Add explicit answer-reuse scopes, country-specific freshness, corrected US punctuation and job-filtered answer inboxes with confirmed source drafts.
+- Release Companion 2.1.0 with a scoped native-dropdown bridge, accurate rescan provenance, clean field labels and corrected invisible-CAPTCHA badge detection.
+- Show live processing state in the queue, worker heartbeat and quota use; prioritize tasks needing attention and provide exact blockers with recovery actions.
+- Keep confirmed/uncertain outcomes out of restart flows and process applications before catalogue refresh in the existing scheduler.
+- Verify 150 integration tests plus expanded browser coverage; no real employer submission is performed by fixtures.
+
 ## 2026-10-23 - Fairer automatic-processing allowances
 
 - Release a reserved daily/monthly slot when preparation fails before the worker receives a filling grant.

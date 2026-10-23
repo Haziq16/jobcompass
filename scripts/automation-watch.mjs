@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
+import { setInterval, clearInterval } from "node:timers";
 import { fileURLToPath } from "node:url";
 
 // Temporary local fast lane; server-side approval, limits and leases remain authoritative.
@@ -17,12 +18,17 @@ await new Promise((resolve, reject) => {
 });
 let stopped = false;
 let previous;
+let lastHeartbeat = 0;
 for (const signal of ["SIGINT", "SIGTERM"])
-  process.on(signal, () => { stopped = true; });
+  process.on(signal, () => {
+    stopped = true;
+  });
 function log(status) {
   console.log(JSON.stringify({ at: new Date().toISOString(), status }));
 }
 async function pending() {
+  if (!checkOnly && Date.now() - lastHeartbeat > 60000)
+    await pendingHeartbeat();
   const response = await fetch(origin + "/api/automation-worker/pending", {
     headers: { Authorization: "Bearer " + secret },
     redirect: "error",
@@ -31,35 +37,76 @@ async function pending() {
   if (!response.ok) throw new Error("Availability check failed.");
   return (await response.json()).pending === true;
 }
+const heartbeatTimer = checkOnly
+  ? null
+  : setInterval(() => {
+      if (Date.now() - lastHeartbeat > 60000)
+        void pendingHeartbeat().catch(() => log("heartbeat_unavailable"));
+    }, 60000);
+async function pendingHeartbeat() {
+  const response = await fetch(origin + "/api/automation-worker/heartbeat", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + secret,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ mode: "local" }),
+    redirect: "error",
+    signal: AbortSignal.timeout(20000),
+  });
+  if (response.ok) lastHeartbeat = Date.now();
+}
 try {
   log(checkOnly ? "checking_without_dispatch" : "watching_every_5_seconds");
   while (!stopped) {
     try {
       const ready = await pending();
-      if (ready !== previous) log(ready ? "authorised_work_pending" : "waiting_for_authorised_work");
+      if (ready !== previous)
+        log(ready ? "authorised_work_pending" : "waiting_for_authorised_work");
       previous = ready;
       if (checkOnly) break;
       if (ready && !stopped) {
         log("starting_one_authorised_application");
         const exitCode = await new Promise((resolve, reject) => {
-          const child = spawn(process.execPath, [fileURLToPath(new URL("./automation-worker.mjs", import.meta.url))], {
-            cwd: fileURLToPath(new URL("..", import.meta.url)),
-            env: { ...process.env, AUTOMATION_APP_URL: origin, AUTOMATION_ALLOW_SUBMIT: "true" },
-            stdio: ["ignore", "inherit", "inherit"],
-            windowsHide: true,
-          });
+          const child = spawn(
+            process.execPath,
+            [
+              fileURLToPath(
+                new URL("./automation-worker.mjs", import.meta.url),
+              ),
+            ],
+            {
+              cwd: fileURLToPath(new URL("..", import.meta.url)),
+              env: {
+                ...process.env,
+                AUTOMATION_APP_URL: origin,
+                AUTOMATION_ALLOW_SUBMIT: "true",
+                AUTOMATION_WORKER_MODE: "local",
+              },
+              stdio: ["ignore", "inherit", "inherit"],
+              windowsHide: true,
+            },
+          );
           child.once("error", reject);
           child.once("exit", (code) => resolve(code));
         });
-        log(exitCode === 0 ? "worker_finished" : "worker_needs_attention_no_forced_retry");
+        log(
+          exitCode === 0
+            ? "worker_finished"
+            : "worker_needs_attention_no_forced_retry",
+        );
       }
     } catch {
       log("availability_or_worker_error_retry_check_in_30_seconds");
-      if (checkOnly) { process.exitCode = 1; break; }
+      if (checkOnly) {
+        process.exitCode = 1;
+        break;
+      }
       await delay(30000);
     }
     if (!stopped) await delay(5000);
   }
 } finally {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
   guard.close();
 }

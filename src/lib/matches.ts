@@ -5,6 +5,9 @@ import {
 } from "./swipe-application-consent";
 import { enqueueAutomation } from "./automation";
 import { Prisma } from "@prisma/client";
+import { getCandidate } from "./application-memory";
+import { applicationReadiness } from "./application-readiness";
+import { fillTarget } from "./application-fill-contracts";
 import { authDb, db } from "./db";
 import { AppError } from "./contracts";
 import { workspaceId } from "./workspace-context";
@@ -251,78 +254,94 @@ export async function matchDeck(params: URLSearchParams) {
   );
   const raw = await authDb.catalogJob.findMany({
     where: { id: { in: result.jobs.map((j) => j.id) } },
-    select: { id: true, description: true, searchText: true, salaryText: true },
+    select: {
+      id: true,
+      description: true,
+      searchText: true,
+      salaryText: true,
+      country: true,
+    },
   });
   const byId = new Map(raw.map((j) => [j.id, j]));
   const decisions = await db.matchDecision.findMany({
     where: { catalogId: { in: result.jobs.map((j) => j.id) } },
   });
   const applicationContext = await swipeApplicationContext();
+  const candidate = await getCandidate();
   return {
     ...result,
-    jobs: result.jobs.map((j) => {
-      const r = byId.get(j.id)!;
-      const otherSkills = catalogSkillKeys(r.searchText)
-        .filter(
-          (t) =>
-            !profile.skills.some((s) => s.term.toLowerCase() === t) &&
-            ![
-              "senior",
-              "staff",
-              "principal",
-              "director",
-              "intern",
-              "internship",
-              "unpaid",
-              "commission",
-              "contract",
-              "temporary",
-              "freelance",
-              "sponsorship",
-              "visa",
-              "remote",
-              "onsite",
-              "on-site",
-              "recruiter",
-              "agency",
-              "consultant",
-              "security clearance",
-            ].includes(t),
-        )
-        .slice(0, 6);
-      const warnings = [
-        ...(!j.salaryText ? ["Salary not supplied"] : []),
-        "Work authorization and sponsorship eligibility are not verified",
-        ...(j.remote === true
-          ? ["Remote may still have country restrictions"]
-          : []),
-        ...(!p.includeStretch
-          ? []
-          : /\b(senior|staff|principal|director)\b/i.test(j.title) &&
-              p.seniority === "entry"
-            ? ["This may be a stretch in seniority"]
+    jobs: await Promise.all(
+      result.jobs.map(async (j) => {
+        const r = byId.get(j.id)!;
+        const readiness = applicationReadiness(
+          { ...j, description: r.description, country: r.country },
+          candidate,
+        );
+        const otherSkills = catalogSkillKeys(r.searchText)
+          .filter(
+            (t) =>
+              !profile.skills.some((s) => s.term.toLowerCase() === t) &&
+              ![
+                "senior",
+                "staff",
+                "principal",
+                "director",
+                "intern",
+                "internship",
+                "unpaid",
+                "commission",
+                "contract",
+                "temporary",
+                "freelance",
+                "sponsorship",
+                "visa",
+                "remote",
+                "onsite",
+                "on-site",
+                "recruiter",
+                "agency",
+                "consultant",
+                "security clearance",
+              ].includes(t),
+          )
+          .slice(0, 6);
+        const warnings = [
+          ...(!j.salaryText ? ["Salary not supplied"] : []),
+          "Work authorization and sponsorship eligibility are not verified",
+          ...(j.remote === true
+            ? ["Remote may still have country restrictions"]
             : []),
-      ];
-      const requirements = (r.description || "")
-        .split(/(?<=[.!?])\s+|\n/)
-        .filter((s) => /\b(required|must have|minimum|essential)\b/i.test(s))
-        .slice(0, 3)
-        .map((s) => s.trim().slice(0, 320));
-      return {
-        ...j,
-        summary: (
-          r.description || "The employer has not supplied a description."
-        )
-          .replace(/\s+/g, " ")
-          .slice(0, 460),
-        otherSkills,
-        requirements,
-        warnings,
-        applicationConsent: swipeApplicationConsent(j, applicationContext),
-        decisionRevision:
-          decisions.find((d) => d.catalogId === j.id)?.revision || 0,
-      };
-    }),
+          ...(!p.includeStretch
+            ? []
+            : /\b(senior|staff|principal|director)\b/i.test(j.title) &&
+                p.seniority === "entry"
+              ? ["This may be a stretch in seniority"]
+              : []),
+        ];
+        const requirements = (r.description || "")
+          .split(/(?<=[.!?])\s+|\n/)
+          .filter((s) => /\b(required|must have|minimum|essential)\b/i.test(s))
+          .slice(0, 3)
+          .map((s) => s.trim().slice(0, 320));
+        return {
+          ...j,
+          summary: (
+            r.description || "The employer has not supplied a description."
+          )
+            .replace(/\s+/g, " ")
+            .slice(0, 460),
+          otherSkills,
+          requirements,
+          warnings,
+          readiness,
+          applicationConsent: readiness.automatic
+            ? swipeApplicationConsent(j, applicationContext)
+            : null,
+          decisionRevision:
+            decisions.find((d) => d.catalogId === j.id)?.revision || 0,
+        };
+      }),
+    ),
   };
 }
 export async function matchCounts() {
@@ -431,8 +450,9 @@ export async function decideMatch(input: unknown) {
     },
     { timeout: 15000 },
   );
-  if (data.state === "queued") await enqueueAutomation(data.catalogId);
-  return result;
+  const processing =
+    data.state === "queued" ? await enqueueAutomation(data.catalogId) : null;
+  return { ...result, processing };
 }
 export async function undoMatch(actionId: string) {
   return db.$transaction(async (tx) => {
@@ -498,12 +518,18 @@ export async function matchCollection(state: string, page = 1) {
       job: { select: { application: { select: { id: true, status: true } } } },
     },
   });
+  const tasks = await db.automationTask.findMany({
+    where: { catalogId: { in: rows.map((r) => r.catalogId) } },
+    select: { catalogId: true, state: true, detail: true },
+  });
   return {
     rows: rows.map((row) => {
       const job = jobs.find((j) => j.id === row.catalogId);
       const source = sources.find((s) => s.providerId === row.providerId);
       return {
         ...row,
+        processing: tasks.find((t) => t.catalogId === row.catalogId) || null,
+        automaticSupported: Boolean(fillTarget(row.applyUrl)),
         available: Boolean(
           job?.active &&
           job.board.enabled &&

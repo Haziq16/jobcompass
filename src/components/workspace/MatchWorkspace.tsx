@@ -1,4 +1,5 @@
 "use client";
+import { applicationTaskLabel } from "@/lib/application-progress";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -85,20 +86,19 @@ function Deck({
     if (pending.current?.key !== key)
       pending.current = { key, id: crypto.randomUUID() };
     try {
-      const result = await api<{ actionId: string }>(
-        "matches/decision",
-        "POST",
-        {
-          requestId: pending.current.id,
-          catalogId: target.id,
-          state,
-          reason: state === "passed" ? reason : null,
-          expectedRevision: target.decisionRevision,
-          ...(state === "queued" && target.applicationConsent
-            ? { applicationConsent: target.applicationConsent.token }
-            : {}),
-        },
-      );
+      const result = await api<{
+        actionId: string;
+        processing?: { enqueued: boolean; state?: string };
+      }>("matches/decision", "POST", {
+        requestId: pending.current.id,
+        catalogId: target.id,
+        state,
+        reason: state === "passed" ? reason : null,
+        expectedRevision: target.decisionRevision,
+        ...(state === "queued" && target.applicationConsent
+          ? { applicationConsent: target.applicationConsent.token }
+          : {}),
+      });
       pending.current = null;
       setHidden((v) => [...v, target.id]);
       setSelected(null);
@@ -106,8 +106,11 @@ function Deck({
         result.actionId,
         state === "queued"
           ? target.applicationConsent
-            ? `Authorised ${target.employer} to receive your selected CV and confirmed profile. Automatic processing queued.`
-            : `Added ${target.title} to your application queue. Nothing submitted.`
+            ? result.processing?.enqueued &&
+              (!result.processing.state || result.processing.state === "queued")
+              ? `Authorised ${target.employer}. Automatic processing queued; follow progress in Automatic applications.`
+              : `Authorised ${target.employer}. Review this application's current status before continuing; it was not automatically restarted.`
+            : `Queued ${target.title} for review only. Automatic processing was not started. Open the application to check eligibility and form support.`
           : state === "saved"
             ? `Saved ${target.title} for later.`
             : `Passed ${target.title}.`,
@@ -477,14 +480,19 @@ function Collection({
                 </p>
                 <div className="match-row-status">
                   <span>
-                    {row.application?.status ||
-                      (row.state === "queued"
-                        ? "Queued · Not submitted"
-                        : row.state === "saved"
-                          ? "Saved for later"
-                          : row.state === "passed"
-                            ? "Passed"
-                            : "Removed")}
+                    {row.application?.status === "Applied"
+                      ? "Applied"
+                      : row.processing
+                        ? applicationTaskLabel(row.processing.state)
+                        : row.state === "queued"
+                          ? row.automaticSupported === false
+                            ? "Manual application: unsupported form"
+                            : "Queued for review; automatic authorization required"
+                          : row.state === "saved"
+                            ? "Saved for later"
+                            : row.state === "passed"
+                              ? "Passed"
+                              : "Removed"}
                   </span>
                   {!row.available && (
                     <span className="match-error-text">
@@ -493,6 +501,9 @@ function Collection({
                   )}
                   {row.reason && <span>Reason: {row.reason}</span>}
                 </div>
+                {row.processing?.detail && (
+                  <p className="candidate-help">{row.processing.detail}</p>
+                )}
               </div>
               <div className="match-queue-actions">
                 {row.state === "queued" && (
@@ -524,7 +535,7 @@ function Collection({
                 {row.state === "queued" && (
                   <>
                     <Link href={"/apply/" + row.catalogId}>
-                      Fill application
+                      Review application &amp; continue
                     </Link>
                     <a
                       href={row.snapshot.applyUrl}
@@ -695,6 +706,14 @@ function EnabledMatchWorkspace() {
   const collection = useResource<MatchCollection>(
     `matches/collection?state=${state}&page=${params.get("page") || "1"}`,
   );
+  const refreshCollection = collection.refresh;
+  useEffect(() => {
+    if (!isQueue) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") refreshCollection();
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [isQueue, refreshCollection]);
   const [setup, setSetup] = useState(false),
     [notice, setNotice] = useState(""),
     [failure, setFailure] = useState(""),

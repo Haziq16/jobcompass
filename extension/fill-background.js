@@ -79,7 +79,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
   }
   if (!workspaces.includes(origin) || sender.frameId !== 0) return false;
   if (message.action === "jc-ping") {
-    respond({ ok: true, version: "2.0.1" });
+    respond({ ok: true, version: "2.1.0" });
     return false;
   }
   if (message.action !== "jc-connect-fill") return false;
@@ -135,6 +135,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       "jc-inbox",
       "jc-submit",
       "jc-outcome",
+      "jc-native-dropdown",
     ].includes(message.action)
   )
     return false;
@@ -150,6 +151,41 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       );
     if (sender.tab && identity(sender.tab.url) !== identity(session.targetUrl))
       throw new Error("Application tab changed.");
+    if (message.action === "jc-native-dropdown") {
+      if (
+        !sender.tab ||
+        sender.frameId !== 0 ||
+        session.expiresAt <= Date.now() ||
+        identity(tab.url) !== identity(session.targetUrl)
+      )
+        throw new Error("Connection is not current.");
+      const focused = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () =>
+          document.activeElement?.getAttribute("role") === "combobox" &&
+          !!document.activeElement.closest("form"),
+      });
+      if (!focused[0]?.result)
+        throw new Error("Only the focused application dropdown can be opened.");
+      await chrome.debugger.attach({ tabId }, "1.3");
+      try {
+        await chrome.debugger.sendCommand({ tabId }, "Input.dispatchKeyEvent", {
+          type: "keyDown",
+          key: "ArrowDown",
+          code: "ArrowDown",
+          windowsVirtualKeyCode: 40,
+        });
+        await chrome.debugger.sendCommand({ tabId }, "Input.dispatchKeyEvent", {
+          type: "keyUp",
+          key: "ArrowDown",
+          code: "ArrowDown",
+          windowsVirtualKeyCode: 40,
+        });
+      } finally {
+        await chrome.debugger.detach({ tabId });
+      }
+      return { ok: true };
+    }
     if (message.action === "jc-status")
       return {
         ok: true,

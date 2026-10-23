@@ -8,6 +8,7 @@ import { authorize } from "@/lib/authorization";
 import { AppError } from "@/lib/contracts";
 import { readJson } from "@/lib/http";
 import { db } from "@/lib/db";
+import { resolvedApplicationReadiness } from "@/lib/application-readiness";
 import {
   canUseAutomation,
   automationOverview,
@@ -31,11 +32,13 @@ function handler(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
         .parse(new URL(req.url).searchParams.get("job"));
       const job = await db.catalogJob.findUnique({ where: { id } });
       if (!job) throw new AppError("not_found", 404);
+      const readiness = await resolvedApplicationReadiness(job,id,true);
       return Response.json({
-        applicationConsent: swipeApplicationConsent(
+        readiness,
+        applicationConsent: readiness.automatic ? swipeApplicationConsent(
           job,
           await swipeApplicationContext(),
-        ),
+        ) : null,
       });
     }
     if (req.method === "GET" && path === "overview")

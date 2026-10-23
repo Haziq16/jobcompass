@@ -5,6 +5,8 @@ import { Download, ArrowUpRight, RefreshCw } from "lucide-react";
 import { api, useResource } from "./client";
 import { useMatchAccess } from "./MatchAccess";
 import type { fillSetup, startFill } from "@/lib/application-filling";
+import ApplicationRecovery from "./ApplicationRecovery";
+import { applicationProgress } from "@/lib/application-progress";
 type Setup = Awaited<ReturnType<typeof fillSetup>>;
 type Grant = Awaited<ReturnType<typeof startFill>>;
 type ExtensionResponse = { ok?: boolean; version?: string; error?: string };
@@ -51,7 +53,7 @@ const errors: Record<string, string> = {
   cv_under_2mb_required:
     "Choose an original PDF or DOCX of 2 MB or less for automatic upload. Larger CVs can be attached manually on the employer page.",
   companion_missing:
-    "Install or reload JobCompass Companion 2.0.1 in Chrome, then try again. No filling was started.",
+    "Install or reload JobCompass Companion 2.1.0 in Chrome, then try again. No filling was started.",
   confirmed_contact_required:
     "Confirm the Contact section in your application profile first.",
   listing_unavailable:
@@ -61,6 +63,17 @@ const errors: Record<string, string> = {
     "Your profile changed. Confirm it and start a fresh connection.",
   unsupported_form:
     "This application platform is not supported yet. Use the employer posting to apply manually.",
+  submission_requires_resolution:
+    "An application attempt is already recorded. Check its outcome in Automatic applications before opening another form.",
+  revision_conflict:"This application changed in another tab. Refresh before authorizing it again.",
+  recipient_authorization_required:"Your CV or profile changed. Review and authorize the current details for this employer.",
+  automation_paused:"Automatic processing is paused. Enable your application rules before resuming.",
+  eligibility_confirmation_required:
+    "Confirm the employer's eligibility requirements in this job's answer inbox before authorizing processing.",
+  eligibility_conflict:
+    "A confirmed fact conflicts with an employer requirement. Review this job's eligibility before continuing.",
+  application_consent_stale:
+    "Your CV, profile or rules changed. Refresh this page and authorize the current details.",
 };
 export default function ApplicationFill({ catalogId }: { catalogId: string }) {
   const allowed = useMatchAccess();
@@ -87,6 +100,48 @@ function Workspace({ catalogId }: { catalogId: string }) {
     [notice, setNotice] = useState("");
   const data = resource.data,
     latest = data?.sessions[0];
+  const authorization = useResource<{
+    applicationConsent: {
+      token: string;
+      cvName: string;
+      submit: boolean;
+      recipient: string;
+    } | null;
+  }>("automation/consent?job=" + catalogId);
+  async function authorizeAutomatic() {
+    if (!data || !authorization.data?.applicationConsent) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{
+        processing?: { id?: string; state?: string };
+      }>("matches/decision", "POST", {
+        requestId: crypto.randomUUID(),
+        catalogId,
+        state: "queued",
+        expectedRevision: data.decision.revision,
+        applicationConsent: authorization.data.applicationConsent.token,
+      });
+      if (
+        result.processing?.id &&
+        ["needs_input", "failed", "filled", "cancelled"].includes(
+          result.processing.state || "",
+        )
+      )
+        await api("automation/retry", "POST", { id: result.processing.id });
+      setNotice(
+        "This employer is authorized to receive the shown CV and confirmed answers. Check Automatic applications for progress.",
+      );
+      refresh();
+      authorization.refresh();
+    } catch (e) {
+      setError(errors[(e as Error).message] || (e as Error).message);
+      refresh();
+      authorization.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
   const active =
     latest &&
     !latest.revokedAt &&
@@ -104,11 +159,11 @@ function Workspace({ catalogId }: { catalogId: string }) {
     let grant: Grant | null = null;
     try {
       const extension = await connect(data.companionId, { action: "jc-ping" });
-      if (extension.version !== "2.0.1") throw new Error("companion_missing");
+      if (extension.version !== "2.1.0") throw new Error("companion_missing");
       grant = await api<Grant>("application-fill/start", "POST", {
         catalogId,
         resumeAssetId: resume || data.resumes[0]?.id,
-        country,
+        country: country || data.country,
         consent,
         submit,
       });
@@ -143,13 +198,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
       setBusy(false);
     }
   }
-  const report = latest?.report as {
-    filled: number;
-    preserved: number;
-    requiredMissing: number;
-    results: { id: string; label?: string; status: string; reason: string }[];
-    blockers: string[];
-  } | null;
+  const progress = applicationProgress(latest?.report);
   return (
     <section className="candidate-workspace fill-workspace">
       <header className="fill-heading">
@@ -182,13 +231,66 @@ function Workspace({ catalogId }: { catalogId: string }) {
             Missing answers return to your inbox; existing entries are
             preserved. Submission requires your explicit authorisation.
           </p>
+          {data.readiness && (
+            <section className="application-readiness">
+              <h2>{data.readiness.label}</h2>
+              <p>{data.readiness.action}</p>
+              <ul>
+                {data.readiness.reasons.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+              <Link href={"/application-profile?tab=inbox&job=" + catalogId}>
+                Check screening answers for this job
+              </Link>
+            </section>
+          )}
+          {data.submission &&
+          data.submission.state !== "resolved_not_submitted" ? (
+            <p role="status">
+              An application attempt is already recorded:{" "}
+              {data.submission.state}. Check the outcome in{" "}
+              <Link href="/automation">Automatic applications</Link> before
+              another attempt.
+            </p>
+          ) : (
+            authorization.data?.applicationConsent && (
+              <section className="application-authorization">
+                <h2>Start automatic processing</h2>
+                <p>
+                  Authorize sending{" "}
+                  <strong>
+                    {authorization.data.applicationConsent.cvName}
+                  </strong>
+                  , your confirmed contact details and application answers to{" "}
+                  <strong>{data.decision.employer}</strong>
+                  {authorization.data.applicationConsent.submit
+                    ? ", including final submission when all checks pass."
+                    : " to fill the form only."}{" "}
+                  Missing facts and human verification pause processing.
+                </p>
+                <button
+                  className="primary"
+                  disabled={busy}
+                  onClick={() => void authorizeAutomatic()}
+                >
+                  {busy
+                    ? "Saving authorization..."
+                    : "Authorize & process this application"}
+                </button>
+              </section>
+            )
+          )}
           <div className="fill-layout">
             <div>
               <section className="fill-setup">
                 <h2>Connect this application</h2>
                 <p className="candidate-help">
-                  First release: Greenhouse-hosted applications in desktop
-                  Chrome. Custom controls, login and CAPTCHA need your action.
+                  Continue on supported Greenhouse, Lever and Ashby forms in
+                  desktop Chrome. Use this for employer consent, human
+                  verification or controls that need your input. A new
+                  connection refills a fresh employer tab from confirmed facts;
+                  it does not restore the closed background tab.
                 </p>
                 {!data.supported && (
                   <p role="status" className="candidate-error">
@@ -256,7 +358,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
                     Country where this job is based
                     <input
                       aria-label="Country where this job is based"
-                      value={country}
+                      value={country || data.country}
                       onChange={(e) => {
                         setCountry(e.target.value);
                         setConsent(false);
@@ -313,6 +415,8 @@ function Workspace({ catalogId }: { catalogId: string }) {
                       !data.profileReady ||
                       !data.resumes.length ||
                       !data.supported ||
+                      (Boolean(data.submission) &&
+                        data.submission?.state !== "resolved_not_submitted") ||
                       data.decision.state !== "queued"
                     }
                   >
@@ -362,38 +466,12 @@ function Workspace({ catalogId }: { catalogId: string }) {
                                 ? "Reading and filling the form"
                                 : "Waiting for the employer form"}
                     </p>
-                    {report ? (
-                      <>
-                        <div className="fill-counts">
-                          <p>
-                            <strong>{report.filled}</strong>filled
-                          </p>
-                          <p>
-                            <strong>{report.preserved}</strong>existing values
-                            preserved
-                          </p>
-                          <p>
-                            <strong>{report.requiredMissing}</strong>required
-                            fields need attention
-                          </p>
-                        </div>
-                        {report.results
-                          .filter((r) =>
-                            ["needs_input", "failed"].includes(r.status),
-                          )
-                          .map((r) => (
-                            <p className="fill-missing" key={r.id}>
-                              <strong>{r.label || r.id}</strong>
-                              <br />
-                              {r.reason}
-                            </p>
-                          ))}
-                        {report.blockers.map((b, i) => (
-                          <p className="fill-missing" key={i}>
-                            {b}
-                          </p>
-                        ))}
-                      </>
+                    {progress ? (
+                      <ApplicationRecovery
+                        catalogId={catalogId}
+                        progress={progress}
+                        state={data.submission?.state || latest.state}
+                      />
                     ) : (
                       <p className="candidate-help">
                         If no report arrives, open the employer's Apply section
@@ -431,7 +509,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
                 download
               >
                 <Download size={16} />
-                Download Companion 2.0.1
+                Download Companion 2.1.0
               </a>
               <ol>
                 <li>Extract the downloaded ZIP into a folder you will keep.</li>

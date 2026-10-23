@@ -18,9 +18,9 @@ const sectionHelp: Record<CandidateSection, string> = {
   projects: "Describe your own contribution. Add public links when useful.",
   skills: "List skills you are comfortable discussing in an interview.",
   eligibility:
-    "Record each country separately. These are your declarations, not a legal eligibility check.",
+    "Record each hiring country separately. Citizenship, current work authorization and future sponsorship are different facts. Do not select citizen just because you can work there. Expired facts cannot be reused.",
   preferences:
-    "These answers change over time. Confirm them again when your circumstances change.",
+    "Confirm your earliest start date, notice period, relocation and salary context. Employer-specific working-location questions still require a matching answer. Review these when your circumstances change.",
 };
 function Fields({
   value,
@@ -566,6 +566,10 @@ export default function CandidateEditor({
                         }
                       >
                         <option value="unknown">Not yet confirmed</option>
+                        <option value="authorized">
+                          Authorized to work; citizenship / visa category
+                          unspecified
+                        </option>
                         <option value="citizen">Citizen</option>
                         <option value="permanent_resident">
                           Permanent resident

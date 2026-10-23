@@ -35,7 +35,9 @@ function handler(req: Request, ctx: Context) {
           .min(1)
           .max(1000)
           .parse(new URL(req.url).searchParams.get("page") || 1);
-        return Response.json(await applicationMemory(page));
+        const job=new URL(req.url).searchParams.get("job");
+        const catalogId=job?z.string().regex(/^[a-f0-9]{64}$/).parse(job):undefined;
+        return Response.json(await applicationMemory(page,catalogId));
       }
     }
     if (req.method === "POST") {

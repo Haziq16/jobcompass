@@ -1,5 +1,6 @@
 import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
+import { applicationReadiness } from "../src/lib/application-readiness";
 import { randomUUID } from "node:crypto";
 import { authDb } from "../src/lib/db";
 import { inWorkspace } from "../src/lib/workspace-context";
@@ -33,6 +34,150 @@ if (
 const run = <T>(action: () => Promise<T>, who = "alice") =>
   inWorkspace(who, action);
 const context = { country: "", company: "", catalogId: null };
+test("US punctuation and current authorization stay distinct from citizenship and compound questions", () => {
+  assert.equal(
+    mentionedCountry("Are you currently authorized to work in the U.S.?"),
+    "united states",
+  );
+  assert.equal(
+    mentionedCountry("Are you a citizen of the U.S.A.?"),
+    "united states",
+  );
+  assert.equal(
+    classifyQuestion("Are you currently authorized to work in the U.S.?").key,
+    "authorization.work",
+  );
+  assert.equal(
+    classifyQuestion(
+      "Do you now, or will you in the future, require immigration sponsorship to work at Reddit?",
+    ).key,
+    "sponsorship.required",
+  );
+  assert.equal(
+    classifyQuestion(
+      "Are you authorized to work and eligible for security clearance?",
+    ).category,
+    "custom",
+  );
+});
+test("screening separates confirmed conflicts, unknown citizenship and supported forms", async () => {
+  const profile = await run(getCandidate);
+  const job = {
+    title: "Engineer",
+    description:
+      "This role requires US citizenship and eligibility to obtain a US security clearance.",
+    country: "US",
+    applyUrl: "https://job-boards.greenhouse.io/example/jobs/123",
+  };
+  assert.equal(applicationReadiness(job, profile).status, "unknown");
+  assert.equal(applicationReadiness(job, profile).automatic, false);
+  assert.equal(
+    applicationReadiness(
+      {
+        ...job,
+        description: "Build software.",
+        applyUrl: "https://example.com/apply",
+      },
+      profile,
+    ).automatic,
+    false,
+  );
+  const confirmed = {
+    ...profile,
+    sections: profile.sections.map((s) =>
+      s.section === "eligibility" ? { ...s, confirmed: true } : s,
+    ),
+    values: {
+      ...profile.values,
+      eligibility: [
+        {
+          id: randomUUID(),
+          country: "US",
+          status: "work_visa" as const,
+          needsSponsorship: "yes" as const,
+          details: "",
+          expiresOn: "",
+        },
+      ],
+    },
+  };
+  assert.equal(applicationReadiness(job, confirmed).status, "incompatible");
+  const authorized = {
+    ...confirmed,
+    values: {
+      ...confirmed.values,
+      eligibility: confirmed.values.eligibility.map((r) => ({
+        ...r,
+        status: "authorized" as const,
+      })),
+    },
+  };
+  assert.equal(applicationReadiness(job, authorized).status, "unknown");
+  assert.equal(
+    applicationReadiness(
+      { ...job, description: "No visa sponsorship is available." },
+      confirmed,
+    ).status,
+    "incompatible",
+  );
+  assert.equal(
+    applicationReadiness(
+      {
+        ...job,
+        description:
+          "You do not need US citizenship. No security clearance is required.",
+      },
+      profile,
+    ).status,
+    "compatible",
+  );
+});
+test("experience screening does not double count overlapping roles or certify an uncompleted degree", async () => {
+  const base = await run(getCandidate);
+  const profile = {
+    ...base,
+    sections: base.sections.map((s) =>
+      s.section === "experience" || s.section === "education"
+        ? { ...s, confirmed: true }
+        : s,
+    ),
+    values: {
+      ...base.values,
+      experience: [1, 2].map((n) => ({
+        id: randomUUID(),
+        employer: "Fictional " + n,
+        title: "Engineer",
+        start: "2025-01",
+        end: "2025-12",
+        summary: "Confirmed work.",
+      })),
+      education: [
+        {
+          id: randomUUID(),
+          institution: "Fictional University",
+          qualification: "Bachelor of Engineering",
+          start: "2025",
+          end: "2099",
+          details: "",
+        },
+      ],
+    },
+  };
+  const job = {
+    title: "Engineer",
+    description: "Minimum 2 years of experience.",
+    country: "US",
+    applyUrl: "https://job-boards.greenhouse.io/example/jobs/123",
+  };
+  assert.equal(applicationReadiness(job, profile).status, "incompatible");
+  assert.equal(
+    applicationReadiness(
+      { ...job, description: "Requires bachelor qualification." },
+      profile,
+    ).status,
+    "unknown",
+  );
+});
 const lookup = (question: string, extra = {}) =>
   run(() =>
     lookupApplicationAnswer({ question, context: { ...context, ...extra } }),
@@ -66,6 +211,163 @@ beforeEach(async () => {
   );
 });
 after(() => authDb.$disconnect());
+test("country-wide answer reuse is explicit and never crosses countries or accounts", async () => {
+  const first = "a".repeat(64),
+    second = "b".repeat(64);
+  for (const [id, employer] of [
+    [first, "First Employer"],
+    [second, "Second Employer"],
+  ])
+    await authDb.matchDecision.create({
+      data: {
+        workspaceId: "alice",
+        catalogId: id,
+        providerId: id,
+        applyUrl: "https://example.com/" + id,
+        state: "queued",
+        snapshot: { title: "Engineer", employer },
+      },
+    });
+  const saved = await run(() =>
+    saveApplicationAnswer({
+      expectedRevision: 0,
+      question: "Are you authorized to work in the US?",
+      category: "authorization",
+      answer: "Yes",
+      context: { country: "US", company: "", catalogId: first },
+      reusable: true,
+      reuseScope: "country",
+      expiresAt: null,
+      reviewed: true,
+    }),
+  );
+  assert.equal(saved.catalogId, null);
+  assert.equal(saved.company, null);
+  assert.equal(
+    (
+      await lookup("Are you currently authorized to work in the U.S.?", {
+        country: "US",
+        catalogId: second,
+      })
+    ).answer?.answer,
+    "Yes",
+  );
+  assert.equal(
+    (
+      await lookup("Are you authorized to work?", {
+        country: "UK",
+        catalogId: second,
+      })
+    ).status,
+    "missing",
+  );
+  assert.equal(
+    (
+      await run(
+        () =>
+          lookupApplicationAnswer({
+            question: "Are you authorized to work?",
+            context: { country: "US", company: "", catalogId: null },
+          }),
+        "bob",
+      )
+    ).status,
+    "missing",
+  );
+});
+test("a missing question country can be explicitly supplied and remains resolved in the inbox", async () => {
+  const missing = await lookup("Are you authorized to work?");
+  assert.equal(missing.status, "context_required");
+  await run(() =>
+    saveApplicationAnswer({
+      expectedRevision: 0,
+      question: "Are you authorized to work?",
+      category: "authorization",
+      answer: "Yes",
+      context: { country: "US", company: "", catalogId: null },
+      reusable: true,
+      expiresAt: null,
+      reviewed: true,
+      questionId: missing.questionId,
+    }),
+  );
+  const memory = await run(() => applicationMemory());
+  assert.equal(memory.questions[0].resolution.status, "answered");
+  assert.equal(memory.questions[0].country, "united states");
+});
+test("changing a different country's eligibility does not expire a separately confirmed answer", async () => {
+  const v = values();
+  v.eligibility = [
+    {
+      id: randomUUID(),
+      country: "US",
+      status: "citizen",
+      needsSponsorship: "no",
+      details: "",
+      expiresOn: "",
+    },
+  ];
+  await run(() =>
+    saveCandidate({
+      values: v,
+      expectedRevision: 0,
+      confirmSections: ["eligibility"],
+    }),
+  );
+  await run(() =>
+    saveApplicationAnswer({
+      expectedRevision: 0,
+      question: "Are you authorized to work in the US?",
+      category: "authorization",
+      answer: "Yes",
+      context: { country: "US", company: "", catalogId: null },
+      reusable: true,
+      expiresAt: null,
+      reviewed: true,
+    }),
+  );
+  v.eligibility.push({
+    id: randomUUID(),
+    country: "India",
+    status: "not_authorized",
+    needsSponsorship: "yes",
+    details: "",
+    expiresOn: "",
+  });
+  await run(() =>
+    saveCandidate({
+      values: v,
+      expectedRevision: 1,
+      confirmSections: ["eligibility"],
+    }),
+  );
+  assert.equal(
+    (await lookup("Are you authorized to work in the US?", { country: "US" }))
+      .status,
+    "answered",
+  );
+});
+test("job answer inbox filters before pagination and never substitutes another job's questions", async () => {
+  const first = "a".repeat(64),
+    second = "b".repeat(64);
+  for (const id of [first, second])
+    await authDb.matchDecision.create({
+      data: {
+        workspaceId: "alice",
+        catalogId: id,
+        providerId: id,
+        applyUrl: "https://example.com/" + id,
+        state: "queued",
+        snapshot: { title: "Engineer", employer: id },
+      },
+    });
+  await lookup("Describe a system you built", { catalogId: first });
+  await lookup("Describe your availability", { catalogId: second });
+  const memory = await run(() => applicationMemory(1, first));
+  assert.equal(memory.totalQuestions, 1);
+  assert.equal(memory.questions.length, 1);
+  assert.equal(memory.questions[0].catalogId, first);
+});
 test("CV suggestions preserve source passages and never invent employment or authorization", () => {
   const result = cvSuggestions(
     "Alex Sample\nalex@example.test\nExperience\nAcme - Engineer, 2024\nBuilt Kotlin services.\nEducation\nExample University",

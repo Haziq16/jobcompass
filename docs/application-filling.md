@@ -1,6 +1,6 @@
 # Application filling companion
 
-The owner-only desktop Chrome companion connects a queued job to supported Greenhouse, Lever/EU and Ashby application forms. Version **2.0.1** shares its browser engine with the offline worker. It uses confirmed facts and saved answers without an AI request.
+The owner-only desktop Chrome companion connects a queued job to supported Greenhouse, Lever/EU and Ashby application forms. Version **2.1.0** shares its browser engine with the offline worker. It uses confirmed facts and saved answers without an AI request. The updated companion uses Chrome's debugger permission narrowly for native keyboard opening of a connected form dropdown; update/reload it to enable that path. See [processing and recovery](application-reliability.md) for permission boundaries, screening and report provenance.
 
 ## Connect a job
 

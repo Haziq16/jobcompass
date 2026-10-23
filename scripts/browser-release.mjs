@@ -315,7 +315,7 @@ try {
     }
     return route.continue();
   });
-  await page.getByRole("button", { name: "Interested", exact: true }).click();
+  await page.getByRole("button", { name: "Queue for review", exact: true }).click();
   await page
     .getByRole("alert")
     .filter({ hasText: "Could not save your change" })
@@ -328,7 +328,7 @@ try {
   await page.keyboard.press("ArrowRight");
   await page
     .getByRole("status")
-    .filter({ hasText: "Added Kotlin Platform Engineer" })
+    .filter({ hasText: "Queued Kotlin Platform Engineer for review only" })
     .waitFor();
   await page.unroute("**/api/matches/decision");
   await page.goto(origin + "/queue");
