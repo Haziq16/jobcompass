@@ -35,3 +35,5 @@ Job lifecycle: Discover searches employer listings; saving adds a private copy t
 ## Swipe discovery, 23 October 2026
 
 Operate mode: one employer opportunity is the primary decision surface. Preserve the Achromatic Ledger typography and neutral shell. A quiet second card indicates continuation; green carries matching evidence and queue confirmation. Provide labelled Pass, Save for later, Interested and Undo controls alongside pointer gestures. Keep eligibility uncertainty visible, use a native detail dialog, and preserve reduced-motion support. Queue rows prioritise the role title, real state and next action. Responsive website layouts do not imply native mobile support.
+
+**Application profile:** confirmation is the signature control. Keep seven sections navigable, drafts visibly distinct from confirmed facts, and CV extraction behind a source review. Use the existing neutral tokens and compact page title. Answer-library rows show question, answer, context and freshness together; expired or changed facts lead to review rather than silent reuse.

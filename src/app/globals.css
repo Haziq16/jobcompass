@@ -257,7 +257,7 @@
 }
 .upgrade-body
   button:not(.primary):not(.icon-button):not(.job-select):not(
-    :where(.match-workspace *, .match-dialog *)
+    :where(.match-workspace *, .match-dialog *, .candidate-workspace *)
   ) {
   border: 1px solid var(--border);
   border-radius: 7px;

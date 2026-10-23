@@ -10,5 +10,6 @@ The optional AI Studio is currently owner-only and uses an explicitly selected p
 
 The current product stack is Next.js, React, TypeScript, PostgreSQL, Prisma and Better Auth, with shared CSS and Lucide icons. Preserve the working routes, private data boundaries, provider safeguards, original document handling and manual submission confirmation while improving the interface.
 
-
 Swipe matching is an owner-only website preview by default. Right swipes queue a job; they never submit applications. Match setup, decisions, priorities and undo persist per account. Work-authorization and sponsorship entries are context, not verified eligibility. Explicit negative pass reasons can gently affect ranking; ordinary passes do not infer broad preferences. Offline applications and native apps remain deferred. See docs/swipe-matching.md.
+
+Application profile is an owner-only extension of swipe matching: seven confirmed fact sections, original CV suggestion review, an answer library and a missing-answer inbox. Questions are pasted by the user; this release does not automate employer forms or submit applications. Reuse requires matching meaning/context and fresh confirmation.

@@ -321,6 +321,9 @@ async function handler(
             await tx.profileVersion.deleteMany();
             await tx.resumeAsset.deleteMany();
             await tx.matchPreferences.deleteMany();
+            await tx.applicationQuestion.deleteMany();
+            await tx.applicationAnswer.deleteMany();
+            await tx.candidateProfile.deleteMany();
             await tx.profile.deleteMany();
           });
         return NextResponse.json({ ok: true });
@@ -405,6 +408,9 @@ async function handler(
       const data = {
         exportedAt: new Date().toISOString(),
         profile: await profile(),
+        applicationProfile: await db.candidateProfile.findMany(),
+        applicationAnswers: await db.applicationAnswer.findMany(),
+        applicationQuestions: await db.applicationQuestion.findMany(),
         matchingPreferences: await db.matchPreferences.findMany(),
         matchingDecisions: await db.matchDecision.findMany(),
         matchingHistory: await db.matchAction.findMany(),

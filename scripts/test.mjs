@@ -41,6 +41,7 @@ execFileSync(
     "tests/accounts.test.ts",
     "tests/catalog.test.ts",
     "tests/matches.test.ts",
+    "tests/application-memory.test.ts",
     "tests/personal-ai.test.ts",
     "tests/cv-personalization.test.ts",
   ],

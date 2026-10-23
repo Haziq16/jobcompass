@@ -82,7 +82,7 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: source.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE TABLE "MatchPreferences", "MatchDecision", "MatchAction", "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
+  'TRUNCATE TABLE "RateLimit", "CandidateProfile", "ApplicationAnswer", "ApplicationQuestion", "MatchPreferences", "MatchDecision", "MatchAction", "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
 );
 const catalogNow = new Date();
 await db.catalogBoard.createMany({
@@ -421,6 +421,148 @@ try {
   check(
     "Swipe keyboard shortcuts, readable queue titles and light/dark responsive layouts work without automatic applications",
   );
+  await page.goto(origin + "/application-profile");
+  await page.getByLabel("Full name", { exact: true }).fill("Alex Sample");
+  await page
+    .getByLabel("Application email", { exact: true })
+    .fill("alex@release.example");
+  await page
+    .getByRole("checkbox", {
+      name: "I checked this section and confirm the information is accurate.",
+    })
+    .check();
+  await page
+    .getByRole("button", { name: "Save and confirm", exact: true })
+    .click();
+  await page
+    .locator(".candidate-section-header .candidate-confirmed")
+    .waitFor();
+  await page.reload();
+  assert.equal(
+    await page.getByLabel("Full name", { exact: true }).inputValue(),
+    "Alex Sample",
+  );
+  check("Application onboarding persists confirmed facts after reload");
+  await page.getByRole("link", { name: "Answer library", exact: true }).click();
+  await page
+    .getByLabel("Question to check", { exact: true })
+    .fill("What is your full name?");
+  await page
+    .getByRole("button", { name: "Find confirmed answer", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Confirmed answer found", exact: true })
+    .waitFor();
+  assert.equal(
+    await page.locator(".answer-result blockquote").innerText(),
+    "Alex Sample",
+  );
+  await page
+    .getByLabel("Question to check", { exact: true })
+    .fill("Describe your favourite project");
+  await page
+    .getByRole("button", { name: "Find confirmed answer", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Answer this question", exact: true })
+    .click();
+  await page
+    .getByLabel("Your confirmed answer", { exact: true })
+    .fill("I built a Kotlin scheduling service.");
+  await page
+    .getByLabel("Equivalent questions, one per line", { exact: true })
+    .fill("Tell us about a project you built");
+  await page
+    .getByRole("checkbox", {
+      name: "I confirm this answer, its context and the equivalence of any added questions.",
+    })
+    .check();
+  await page
+    .getByRole("button", { name: "Save confirmed answer", exact: true })
+    .click();
+  await page
+    .locator(".answer-row")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "Describe your favourite project",
+        exact: true,
+      }),
+    })
+    .waitFor();
+  await page
+    .getByLabel("Question to check", { exact: true })
+    .fill("Tell us about a project you built");
+  await page
+    .getByRole("button", { name: "Find confirmed answer", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Confirmed answer found", exact: true })
+    .waitFor();
+  assert.equal(
+    await page.locator(".answer-result blockquote").innerText(),
+    "I built a Kotlin scheduling service.",
+  );
+  check(
+    "Answer inbox saves an explicitly confirmed answer and reuses only confirmed equivalent wording",
+  );
+  await page
+    .getByRole("link", { name: "Your information", exact: true })
+    .click();
+  await page.getByLabel("Full name", { exact: true }).fill("Alex Revised");
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "Draft saved" }).waitFor();
+  await page.getByRole("link", { name: "Answer library", exact: true }).click();
+  await page.getByLabel("Question to check", { exact: true }).fill("Full name");
+  await page
+    .getByRole("button", { name: "Find confirmed answer", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Answer needed", exact: true })
+    .waitFor();
+  check(
+    "Editing a confirmed profile invalidates reuse until the user confirms it again",
+  );
+  await page
+    .getByRole("link", { name: "Your information", exact: true })
+    .click();
+  await page.getByLabel("Full name", { exact: true }).waitFor();
+  await page.screenshot({
+    path: "test-results/application-profile-desktop.png",
+    fullPage: true,
+  });
+  await designSnapshot(page, "application-profile-desktop");
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.screenshot({
+    path: "test-results/application-profile-tablet.png",
+    fullPage: true,
+  });
+  await designSnapshot(page, "application-profile-tablet");
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.screenshot({
+    path: "test-results/application-profile-phone.png",
+    fullPage: true,
+  });
+  await designSnapshot(page, "application-profile-phone");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page
+    .getByRole("button", { name: "Use dark theme", exact: true })
+    .click();
+  await page.screenshot({
+    path: "test-results/application-profile-dark.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page
+    .getByRole("button", { name: "Use light theme", exact: true })
+    .click();
+  check(
+    "Application profile remains readable on desktop, tablet, phone and dark theme without overflow",
+  );
   await page.goto(origin + "/discover?view=list");
   await page
     .getByRole("heading", { name: "Discover jobs", exact: true })
@@ -660,6 +802,21 @@ try {
     .getByRole("button", { name: "Create account", exact: true })
     .click();
   await second.waitForURL("**/discover");
+  assert.equal(
+    (
+      await second.request.get(origin + "/api/application-profile/profile")
+    ).status(),
+    403,
+  );
+  assert.equal(
+    await second
+      .getByRole("link", { name: "Application profile", exact: true })
+      .count(),
+    0,
+  );
+  check(
+    "Application profile and answer memory are restricted to the owner preview",
+  );
   const otherQueue = await second.request.get(
     origin + "/api/matches/collection",
   );

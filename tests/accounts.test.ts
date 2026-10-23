@@ -21,7 +21,7 @@ if (
   throw new Error("Test database only");
 beforeEach(async () => {
   await authDb.$executeRawUnsafe(
-    'TRUNCATE TABLE "User", "Job", "Settings", "Profile", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
+    'TRUNCATE TABLE "RateLimit", "User", "Job", "Settings", "Profile", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
   );
   process.env.APP_ACCESS = "local";
   delete process.env.PUBLIC_SIGNUP;

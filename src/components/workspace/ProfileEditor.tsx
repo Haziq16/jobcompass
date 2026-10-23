@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { useMatchAccess } from "./MatchAccess";
 import { useEffect, useState } from "react";
 import { api, useResource } from "./client";
 type Profile = {
@@ -12,6 +14,7 @@ type Profile = {
   aliases: Record<string, string[]>;
 };
 export default function ProfileEditor() {
+  const matches = useMatchAccess();
   const resource = useResource<Profile>("profile");
   const [profile, setProfile] = useState<Profile | null>(null),
     [busy, setBusy] = useState(false),
@@ -89,6 +92,14 @@ export default function ProfileEditor() {
         </div>
         <span className="subtle-badge">Only visible to you</span>
       </div>
+      {matches && (
+        <p className="candidate-help">
+          For reusable employment details and screening answers,{" "}
+          <Link href="/application-profile">
+            set up your application profile ?
+          </Link>
+        </p>
+      )}
       {(resource.error || error) && (
         <p role="alert" className="alert">
           {error

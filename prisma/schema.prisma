@@ -69,6 +69,52 @@ model MatchPreferences {
   revision Int @default(1)
   updatedAt DateTime @updatedAt
 }
+model CandidateProfile {
+  workspaceId String @id
+  values Json
+  confirmations Json
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+model ApplicationAnswer {
+  id String @id @default(cuid())
+  workspaceId String
+  question String
+  canonicalKey String
+  aliases String[] @default([])
+  category String
+  answer String
+  country String?
+  company String?
+  catalogId String?
+  reusable Boolean @default(true)
+  sourceHash String?
+  verifiedAt DateTime
+  expiresAt DateTime?
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId,id])
+  @@index([workspaceId,canonicalKey])
+  @@index([workspaceId,updatedAt])
+}
+model ApplicationQuestion {
+  id String @id @default(cuid())
+  workspaceId String
+  fingerprint String
+  question String
+  country String?
+  company String?
+  catalogId String?
+  state String @default("open")
+  answerId String?
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId,fingerprint])
+  @@unique([workspaceId,id])
+  @@index([workspaceId,state,updatedAt])
+}
 model MatchDecision {
   id String @id @default(cuid())
   workspaceId String

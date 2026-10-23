@@ -533,6 +533,13 @@ function Collection({
                         Prepare CV
                       </Link>
                     )}
+                    <Link
+                      href={
+                        "/application-profile?tab=inbox&job=" + row.catalogId
+                      }
+                    >
+                      Application answers
+                    </Link>
                     {!row.application && (
                       <button
                         disabled={Boolean(busy) || !row.available}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-23 - Application profile and answer memory
+
+- Added owner-preview application onboarding with private CV suggestions, seven fact sections and explicit confirmation. Original CV files remain unchanged.
+- Added contextual answer memory, explicitly approved equivalent questions and a missing-answer inbox, with country/employer/job boundaries, expiry and profile-change review.
+- Connected queue jobs to application answers; added scoped exports and profile clearing. Automatic filling/submission remains deferred.
+
 ## 2026-10-23 — Swipe matching preview
 
 - Added owner-only swipe discovery, verified-preference setup, match explanations and visible unknowns.
