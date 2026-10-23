@@ -51,7 +51,7 @@ const errors: Record<string, string> = {
   cv_under_2mb_required:
     "Choose an original PDF or DOCX of 2 MB or less for automatic upload. Larger CVs can be attached manually on the employer page.",
   companion_missing:
-    "Install or reload JobCompass Companion 2.0.0 in Chrome, then try again. No filling was started.",
+    "Install or reload JobCompass Companion 2.0.1 in Chrome, then try again. No filling was started.",
   confirmed_contact_required:
     "Confirm the Contact section in your application profile first.",
   listing_unavailable:
@@ -104,7 +104,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
     let grant: Grant | null = null;
     try {
       const extension = await connect(data.companionId, { action: "jc-ping" });
-      if (extension.version !== "2.0.0") throw new Error("companion_missing");
+      if (extension.version !== "2.0.1") throw new Error("companion_missing");
       grant = await api<Grant>("application-fill/start", "POST", {
         catalogId,
         resumeAssetId: resume || data.resumes[0]?.id,
@@ -431,7 +431,7 @@ function Workspace({ catalogId }: { catalogId: string }) {
                 download
               >
                 <Download size={16} />
-                Download Companion 2.0.0
+                Download Companion 2.0.1
               </a>
               <ol>
                 <li>Extract the downloaded ZIP into a folder you will keep.</li>

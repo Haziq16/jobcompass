@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-23 - Companion 2.0.1 form compatibility fixes
+
+- Read Lever question labels separately from location-helper text and radio option labels.
+- Bound browser report reasons to the API contract so long employer text cannot discard the fill report.
+- Correctly distinguish visible controls from zero-size or CSS-hidden placeholders, preserving CAPTCHA checks for presented challenges.
+- Recognize the optional LinkedIn autofill widget while still stopping for unknown embedded application controls.
+- Added controlled regressions for the observed form structure, long labels, hidden placeholders, the optional widget and unknown application frames.
+
 ## 2026-10-23 - Automatic applications and offline processing
 
 - Added owner-only, default-paused automatic application rules, daily/monthly limits, a pause switch, task history and in-app notifications.

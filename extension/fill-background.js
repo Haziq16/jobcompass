@@ -79,7 +79,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
   }
   if (!workspaces.includes(origin) || sender.frameId !== 0) return false;
   if (message.action === "jc-ping") {
-    respond({ ok: true, version: "2.0.0" });
+    respond({ ok: true, version: "2.0.1" });
     return false;
   }
   if (message.action !== "jc-connect-fill") return false;

@@ -80,12 +80,16 @@ function html(platform, outcome = "confirmed") {
   const contact =
     platform === "greenhouse"
       ? '<label>First name<input id="first_name" required></label><label>Last name<input id="last_name" required></label>'
-      : '<label>Full name<input name="name" required></label>';
+      : platform === "lever"
+        ? '<label><div class="application-label">Full name<span>&#x2731;</span></div><input name="name" required></label><label><div class="application-label">Current location<span>&#x2731;</span></div><input name="location" required><div hidden>No location found. Try entering a different location</div></label>'
+        : '<label>Full name<input name="name" required></label>';
   const authorization =
     platform === "ashby"
       ? '<label>Are you authorized to work in Singapore?<input role="combobox" id="authorization" aria-required="true" aria-controls="choices" readonly></label><div role="listbox" id="choices" hidden><div role="option">Yes</div><div role="option">No</div></div>'
-      : '<label>Are you authorized to work in Singapore?<select id="authorization" required><option value="">Choose</option><option>Yes</option><option>No</option></select></label>';
-  return `<!doctype html><html><body><h1>Fictional ${platform} application</h1><form enctype="multipart/form-data">${contact}<label>Email<input id="email" type="email" required></label><label>Resume/CV<input id="resume" name="resume" type="file" accept=".docx" required></label>${authorization}<div id="conditional"></div>${outcome === "captcha" ? '<div data-sitekey="fixture">CAPTCHA needs human action</div>' : ""}<button type="submit">Submit application</button></form><script>const a=document.getElementById('authorization');const reveal=()=>{if(a.value==='Yes'&&!document.querySelector('[name=availability]'))document.getElementById('conditional').innerHTML='<label>When can you start?<input name="availability" required></label>';};a.addEventListener('change',reveal);if(a.getAttribute('role')==='combobox'){const choices=document.getElementById('choices');a.addEventListener('click',()=>choices.hidden=false);a.addEventListener('keydown',e=>{if(e.key==='Escape')choices.hidden=true;});for(const option of choices.children)option.addEventListener('click',()=>{a.value=option.textContent;choices.hidden=true;a.dispatchEvent(new Event('change',{bubbles:true}));});}document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();document.querySelector('form').remove();const receipt=document.createElement('div');receipt.className=${JSON.stringify(outcome === "confirmed" ? "application-confirmation" : "unknown")};receipt.textContent=${JSON.stringify(outcome === "confirmed" ? "Application submitted successfully" : "We are processing your request")};document.body.append(receipt);});</script></body></html>`;
+      : platform === "lever"
+        ? '<li class="application-question"><div><div class="application-label"><div class="text">Are you authorized to work in Singapore?<span>&#x2731;</span></div></div><div class="application-field"><label><input id="authorization" type="radio" name="cards[fixture][field0]" value="Yes" required>Yes</label><label><input type="radio" name="cards[fixture][field0]" value="No" required>No</label></div></div></li>'
+        : '<label>Are you authorized to work in Singapore?<select id="authorization" required><option value="">Choose</option><option>Yes</option><option>No</option></select></label>';
+  return `<!doctype html><html><body><h1>Fictional ${platform} application</h1><form enctype="multipart/form-data">${contact}<label>Email<input id="email" type="email" required></label><label>Resume/CV<input id="resume" name="resume" type="file" accept=".docx" required></label>${authorization}${platform === "lever" ? '<label><input type="checkbox">' + "Optional extra retention consent. ".repeat(18) + '</label><div data-sitekey="unrendered-fixture" style="width:300px;height:0;overflow:hidden"></div><iframe src="about:blank" hidden></iframe><iframe src="about:blank" title="LinkedIn Embedded Content" class="IN-widget IN-widget--iframe" style="width:188px;height:40px"></iframe><div data-sitekey="not-presented" style="visibility:hidden;width:300px;height:80px"></div>' : ""}<div id="conditional"></div>${outcome === "captcha" ? '<div data-sitekey="fixture">CAPTCHA needs human action</div>' : outcome === "frame" ? '<iframe title="Embedded application" src="about:blank" style="width:300px;height:80px"></iframe>' : ""}<button type="submit">Submit application</button></form><script>const a=document.getElementById('authorization');const reveal=()=>{if(a.value==='Yes'&&!document.querySelector('[name=availability]'))document.getElementById('conditional').innerHTML='<label>When can you start?<input name="availability" required></label>';};a.addEventListener('change',reveal);if(a.getAttribute('role')==='combobox'){const choices=document.getElementById('choices');a.addEventListener('click',()=>choices.hidden=false);a.addEventListener('keydown',e=>{if(e.key==='Escape')choices.hidden=true;});for(const option of choices.children)option.addEventListener('click',()=>{a.value=option.textContent;choices.hidden=true;a.dispatchEvent(new Event('change',{bubbles:true}));});}document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();document.querySelector('form').remove();const receipt=document.createElement('div');receipt.className=${JSON.stringify(outcome === "confirmed" ? "application-confirmation" : "unknown")};receipt.textContent=${JSON.stringify(outcome === "confirmed" ? "Application submitted successfully" : "We are processing your request")};document.body.append(receipt);});</script></body></html>`;
 }
 async function runWorker(platform, outcome) {
   const file = "test-results/automation-fixture.html";
@@ -224,6 +228,7 @@ try {
     ["ashby", "confirmed"],
     ["greenhouse", "uncertain"],
     ["ashby", "captcha"],
+    ["lever", "frame"],
   ]) {
     n++;
     const id = n.toString().repeat(64),
@@ -284,7 +289,7 @@ try {
       });
     assert.equal(
       task.state,
-      outcome === "captcha" ? "needs_input" : outcome,
+      ["captcha", "frame"].includes(outcome) ? "needs_input" : outcome,
       output + " " + task.detail,
     );
     const submission = await db.applicationSubmission.findFirst({
@@ -300,6 +305,21 @@ try {
         ).status,
         "Applied",
       );
+      if (platform === "lever") {
+        const session = await db.applicationFillSession.findUniqueOrThrow({
+          where: { id: task.sessionId },
+        });
+        assert.ok(
+          session.scan.fields.some((f) => f.label === "Current location"),
+        );
+        assert.ok(
+          session.scan.fields.some(
+            (f) => f.label === "Are you authorized to work in Singapore?",
+          ),
+        );
+        assert.ok(session.report.results.every((r) => r.reason.length <= 300));
+        assert.equal(session.report.auditClean, true);
+      }
       check(
         platform +
           " real browser fills conditional form and records verified receipt",
@@ -317,7 +337,11 @@ try {
       check("Missing platform receipt stays uncertain without marking Applied");
     } else {
       assert.equal(submission, null);
-      check("CAPTCHA pauses before any submission permission");
+      check(
+        outcome === "captcha"
+          ? "CAPTCHA pauses before any submission permission"
+          : "Unknown embedded application frames still block submission",
+      );
     }
   }
   assert.match(await runWorker("greenhouse", "confirmed"), /idle/);

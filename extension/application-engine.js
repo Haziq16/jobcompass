@@ -12,7 +12,9 @@
     !!e &&
     !e.disabled &&
     !e.closest('[hidden],[aria-hidden="true"]') &&
-    e.getClientRects().length > 0;
+    (!e.checkVisibility ||
+      e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) &&
+    Array.from(e.getClientRects()).some((r) => r.width > 0 && r.height > 0);
   let entries = [],
     form = null,
     lastUpload = null;
@@ -24,8 +26,12 @@
     )
       return "Resume/CV";
     const ids = (el.getAttribute("aria-labelledby") || "").split(/\s+/);
+    const labelled = el.labels?.[0];
     const direct =
-      el.labels?.[0]?.textContent ||
+      labelled?.querySelector(
+        ".application-label .text,.application-label,.field-label",
+      )?.textContent ||
+      labelled?.textContent ||
       el.getAttribute("aria-label") ||
       ids
         .map((id) => document.getElementById(id)?.textContent || "")
@@ -34,7 +40,7 @@
     if (direct && norm(direct) !== "attach")
       return direct
         .trim()
-        .replace(/\s*\*\s*$/, "")
+        .replace(/\s*[*\u2731]\s*$/, "")
         .slice(0, 1000);
     const container = el.closest(
       'fieldset,.application-question,.ashby-application-form-field,.field,[data-testid="application-form-field"]',
@@ -44,7 +50,7 @@
     );
     return (heading?.textContent || direct || el.name || el.id || "")
       .trim()
-      .replace(/\s*\*\s*$/, "")
+      .replace(/\s*[*\u2731]\s*$/, "")
       .slice(0, 1000);
   }
   function root(el) {
@@ -137,6 +143,24 @@
       ),
     );
   }
+  function auxiliaryFrame(frame) {
+    if (
+      frame.title !== "LinkedIn Embedded Content" ||
+      !frame.classList.contains("IN-widget--iframe") ||
+      frame.closest(".required-field,[aria-required=true]")
+    )
+      return false;
+    try {
+      const url = new URL(frame.src);
+      return (
+        url.href === "about:blank" ||
+        (url.protocol === "https:" &&
+          ["www.linkedin.com", "platform.linkedin.com"].includes(url.hostname))
+      );
+    } catch {
+      return false;
+    }
+  }
   function blockers() {
     const out = [];
     if (document.querySelector("input[type=password]"))
@@ -153,9 +177,11 @@
     ].some((e) => !!e.value);
     if (captcha && !solved) out.push("Complete the employer CAPTCHA manually.");
     if (
-      form?.querySelector(
-        'iframe:not([src*="recaptcha"]):not([src*="hcaptcha"])',
-      )
+      [
+        ...(form?.querySelectorAll(
+          'iframe:not([src*="recaptcha"]):not([src*="hcaptcha"])',
+        ) || []),
+      ].some((frame) => visible(frame) && !auxiliaryFrame(frame))
     )
       out.push("Embedded application controls need your action.");
     return out;
@@ -191,17 +217,21 @@
         const group = controls.filter(
             (e) => e.type === "radio" && e.name === el.name,
           ),
-          owner = el.closest("fieldset,[role=radiogroup]");
+          owner = el.closest(
+            "fieldset,[role=radiogroup],.application-question",
+          );
         entries.push({
           els: group,
           id: "field-" + entries.length,
           label: (
-            owner?.querySelector("legend")?.textContent ||
+            owner?.querySelector(
+              "legend,.application-label .text,.application-label",
+            )?.textContent ||
             owner?.getAttribute("aria-label") ||
             el.name
           )
             .trim()
-            .replace(/\s*\*\s*$/, ""),
+            .replace(/\s*[*\u2731]\s*$/, ""),
           name: el.name,
           kind: "radio",
           required: group.some(
@@ -475,7 +505,7 @@
     }
     const fingerprint = await fingerprintNow();
     return {
-      results,
+      results: results.map((r) => ({ ...r, reason: r.reason.slice(0, 300) })),
       blockers: out,
       changed,
       fingerprint,
