@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-24 - Swipe discovery redesign
+
+- Bring the employer, role and workplace/contract/salary facts into a focused decision card, with grounded match evidence and eligibility alongside it.
+- Keep labelled decision controls reachable while reading; use a compact search disclosure and a separate context column for pass feedback.
+- Improve desktop, tablet, phone and dark layouts while retaining gestures, undo, failed-save recovery and explicit application authorization.
+- Prevent keyboard arrows on search disclosures from triggering a job decision.
+
 ## 2026-10-24 - Unified job search and application preparation
 
 - Add My Jobs with real matching, queue, saved, skipped, applied, interview, offer and attention stages, scoped counts and catalogue pagination.

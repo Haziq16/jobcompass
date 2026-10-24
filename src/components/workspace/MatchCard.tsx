@@ -201,7 +201,7 @@ export default function MatchCard({
         e.metaKey ||
         e.shiftKey ||
         target.closest(
-          "input,textarea,select,button,a,dialog,[contenteditable=true]",
+          "input,textarea,select,button,a,summary,dialog,[contenteditable=true]",
         )
       )
         return;
@@ -216,29 +216,12 @@ export default function MatchCard({
   const threshold = 100;
   return (
     <div className="match-deck-column" ref={container}>
-      <p className="match-deck-caption">One opportunity. Your next move.</p>
-      {job.readiness && (
-        <section
-          className="match-readiness"
-          aria-label="Application eligibility"
-        >
-          <strong>{job.readiness.label}</strong>
-          <p>{job.readiness.action}</p>
-          {job.readiness.reasons.length > 0 && (
-            <ul>
-              {job.readiness.reasons.map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
-          )}
-          {!job.applicationConsent && (
-            <p>
-              Right swipe saves this to your queue for review. It will not start
-              an automatic application.
-            </p>
-          )}
-        </section>
-      )}
+      <div className="swipe-deck-meta">
+        <span>Your next opportunity</span>
+        <span>
+          Left to pass <ArrowRight size={13} /> Right to queue
+        </span>
+      </div>
       {job.applicationConsent && (
         <p
           className="match-application-consent"
@@ -336,40 +319,66 @@ export default function MatchCard({
             style={{ opacity: Math.min(Math.abs(drag) / threshold, 1) }}
             aria-hidden="true"
           >
-            {drag > 0 ? "Add to queue" : "Pass"}
+            {drag > 0
+              ? job.applicationConsent
+                ? job.applicationConsent.submit
+                  ? "Authorise & apply"
+                  : "Authorise & fill"
+                : "Add to queue"
+              : "Pass"}
           </div>
           <div className="match-card-header">
-            <span className="match-employer">{job.employer}</span>
-            <span className="match-fit-label">{job.recommendation.label}</span>
+            <div className="swipe-employer-identity">
+              <span className="swipe-company-initial" aria-hidden="true">
+                {job.employer.slice(0, 1)}
+              </span>
+              <div>
+                <span className="match-employer">{job.employer}</span>
+                <span className="swipe-source">Via {job.board.platform}</span>
+              </div>
+            </div>
+            <span className="match-fit-label">
+              <Check size={14} />
+              {job.recommendation.label}
+            </span>
           </div>
           <h2 id="swipe-job-title">{job.title}</h2>
           <p className="match-location">
-            <MapPin size={17} />
+            <MapPin size={16} />
             {job.location || "Location not supplied"}
           </p>
-          <div className="match-job-facts">
-            <span>
-              {job.remote === true
-                ? "Remote"
-                : job.remote === false
-                  ? "Not marked remote"
-                  : "Arrangement unknown"}
-            </span>
-            <span>{job.employmentType || "Employment type unknown"}</span>
-            <span>{job.salaryText || "Salary not supplied"}</span>
-          </div>
+          <dl className="swipe-job-terms">
+            <div>
+              <dt>Workplace</dt>
+              <dd>
+                {job.remote === true
+                  ? "Remote"
+                  : job.remote === false
+                    ? "Not marked remote"
+                    : "Not supplied"}
+              </dd>
+            </div>
+            <div>
+              <dt>Contract</dt>
+              <dd>{job.employmentType || "Not supplied"}</dd>
+            </div>
+            <div>
+              <dt>Salary</dt>
+              <dd>{job.salaryText || "Not supplied"}</dd>
+            </div>
+          </dl>
           <p className="swipe-role-summary">
             {job.summary}
             {job.summary.length === 460 ? "…" : ""}
           </p>
           <section className="match-evidence">
-            <h3>Why it’s in your deck</h3>
+            <h3>Why it fits your search</h3>
             <ul>
               {job.recommendation.reasons.length ? (
-                job.recommendation.reasons.slice(0, 4).map((r) => (
-                  <li key={r}>
+                job.recommendation.reasons.slice(0, 3).map((reason) => (
+                  <li key={reason}>
                     <Check size={15} />
-                    {r}
+                    {reason}
                   </li>
                 ))
               ) : (
@@ -377,16 +386,46 @@ export default function MatchCard({
               )}
             </ul>
           </section>
-          {job.otherSkills.length > 0 && (
-            <p className="match-other-skills">
-              <strong>Also mentioned</strong>
-              {job.otherSkills.join(" · ")}
-            </p>
+          {job.readiness && (
+            <section
+              className="match-readiness"
+              aria-label="Application eligibility"
+            >
+              <div className="swipe-readiness-heading">
+                <AlertCircle size={16} />
+                <strong>{job.readiness.label}</strong>
+              </div>
+              <p>{job.readiness.action}</p>
+              {job.readiness.reasons.length > 0 && (
+                <details>
+                  <summary>
+                    Requirements to check ({job.readiness.reasons.length})
+                  </summary>
+                  <ul>
+                    {job.readiness.reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {!job.applicationConsent && (
+                <small>
+                  Right swipe queues for review. No automatic application
+                  starts.
+                </small>
+              )}
+            </section>
           )}
-          <p className="match-card-caution">
-            <AlertCircle size={15} />
-            {job.warnings[0] || "Check employer requirements before applying"}
-          </p>
+          {job.warnings[0] &&
+            !(
+              job.salaryText === null &&
+              /^salary (?:not supplied|unknown)/i.test(job.warnings[0])
+            ) && (
+              <p className="match-card-caution">
+                <AlertCircle size={14} />
+                {job.warnings[0]}
+              </p>
+            )}
           <div className="match-card-footer">
             <small>{jobDate(job)}</small>
             <button disabled={busy} onClick={onDetails}>
@@ -448,13 +487,6 @@ export default function MatchCard({
           ? "Swipe right or use the right arrow to authorise sending the shown CV and confirmed profile to this employer for processing under your saved rules."
           : "Drag a card or use the left arrow to pass and the right arrow to queue. No applications are submitted."}
       </p>
-      <aside className="match-bottom-note">
-        <AlertCircle size={16} />
-        <span>
-          Skill mentions are matching signals. Check qualifications and
-          eligibility in the full posting.
-        </span>
-      </aside>
     </div>
   );
 }

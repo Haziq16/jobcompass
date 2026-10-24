@@ -135,37 +135,46 @@ function Deck({
   }
   return (
     <>
-      <form
-        className="match-search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          search(new FormData(e.currentTarget));
-        }}
+      <details
+        className="swipe-search-disclosure"
+        open={Boolean(params.get("q") || params.get("location"))}
       >
-        <label>
-          <span>Search within your matches</span>
-          <input
-            name="q"
-            defaultValue={params.get("q") || ""}
-            placeholder="Role, skill or company"
-          />
-        </label>
-        <label>
-          <span>Location</span>
-          <input
-            name="location"
-            defaultValue={params.get("location") || ""}
-            placeholder="Any location"
-          />
-        </label>
-        <button type="submit">
-          <Search size={17} />
-          Search
-        </button>
-        <button type="button" onClick={() => router.replace("/discover")}>
-          Clear
-        </button>
-      </form>
+        <summary>
+          <Search size={16} /> Search your matches{" "}
+          <span>Role, company or location</span>
+        </summary>
+        <form
+          className="match-search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            search(new FormData(e.currentTarget));
+          }}
+        >
+          <label>
+            <span>Search within your matches</span>
+            <input
+              name="q"
+              defaultValue={params.get("q") || ""}
+              placeholder="Role, skill or company"
+            />
+          </label>
+          <label>
+            <span>Location</span>
+            <input
+              name="location"
+              defaultValue={params.get("location") || ""}
+              placeholder="Any location"
+            />
+          </label>
+          <button type="submit">
+            <Search size={17} />
+            Search
+          </button>
+          <button type="button" onClick={() => router.replace("/discover")}>
+            Clear
+          </button>
+        </form>
+      </details>
       <div className="match-layout">
         <div>
           {error && (
@@ -236,15 +245,29 @@ function Deck({
           )}
         </div>
         <aside className="match-side-panel">
-          <h2>Your next move</h2>
+          <h2>A closer look</h2>
           <p>
-            Swipe right to queue a role. Swipe left to pass. You stay in control
-            of what happens next.
+            Your decisions shape the search. Keep the roles you want to pursue;
+            pass on the ones that don’t fit.
           </p>
           <Link className="match-queue-link" href="/queue">
             Open application queue
             <ArrowRight size={17} />
           </Link>
+          {job && job.otherSkills.length > 0 && (
+            <section className="swipe-skill-context">
+              <h3>Also in this role</h3>
+              <div>
+                {job.otherSkills.slice(0, 8).map((skill) => (
+                  <span key={skill}>{skill}</span>
+                ))}
+              </div>
+              <p>
+                These skills appear in the posting. They aren’t confirmed CV
+                experience.
+              </p>
+            </section>
+          )}
           <section>
             <h3>Optional reason for your next pass</h3>
             <p>
@@ -267,20 +290,22 @@ function Deck({
             </label>
           </section>
           <section>
-            <h3>How matching works</h3>
-            <p>
-              Target roles and skill mentions lead. Location and recency
-              contribute. Explicit employer, role and location feedback gently
-              lowers similar matches.
-            </p>
-            <p>
-              Salary and eligibility gaps remain visible. There is no
-              interview-probability score.
-            </p>
-            <button onClick={onPreferences}>
-              <SlidersHorizontal size={16} />
-              Matching preferences
-            </button>
+            <details className="swipe-matching-explainer">
+              <summary>How matching works</summary>
+              <p>
+                Target roles and skill mentions lead. Location and recency
+                contribute. Explicit employer, role and location feedback gently
+                lowers similar matches.
+              </p>
+              <p>
+                Salary and eligibility gaps remain visible. There is no
+                interview-probability score.
+              </p>
+              <button onClick={onPreferences}>
+                <SlidersHorizontal size={16} />
+                Matching preferences
+              </button>
+            </details>
           </section>
           {resource.data && (
             <p className="match-count">
@@ -760,16 +785,19 @@ function EnabledMatchWorkspace() {
   const showSetup =
     !isQueue && (setup || Boolean(settings.data && !settings.data.preferences));
   return (
-    <section className="match-workspace" aria-labelledby="match-page-title">
+    <section
+      className={`match-workspace${!isQueue ? " swipe-discovery" : ""}`}
+      aria-labelledby="match-page-title"
+    >
       <header className="match-page-heading">
         <div>
           <h1 id="match-page-title">
-            {isQueue ? "Your application queue" : "Find your next move"}
+            {isQueue ? "Your application queue" : "Find your next role"}
           </h1>
           <p>
             {isQueue
               ? "Your choices, organised. Take the next step when you’re ready."
-              : "Relevant opportunities. One card at a time."}
+              : "A good fit starts with one decision."}
           </p>
         </div>
         <div className="match-view-switch" aria-label="Discovery views">
@@ -783,27 +811,38 @@ function EnabledMatchWorkspace() {
           <Link href="/queue" aria-current={isQueue ? "page" : undefined}>
             Queue <span>{collection.data?.counts.queued || 0}</span>
           </Link>
-        </div>
-      </header>
-      <div className="match-toolbar">
-        <span>
-          Right swipe queues a job. Automatic processing follows your saved
-          rules.
-        </span>
-        <Link href="/automation">Automatic application rules</Link>
-        <div>
           {!isQueue && settings.data?.preferences && (
-            <button onClick={() => setSetup(true)}>
+            <button
+              className="swipe-preferences"
+              onClick={() => setSetup(true)}
+            >
               <SlidersHorizontal size={16} />
-              Preferences
+              <span>Preferences</span>
             </button>
           )}
-          <button onClick={() => void undo()} disabled={!action || undoBusy}>
-            <RotateCcw size={16} />
-            {undoBusy ? "Undoing…" : "Undo last decision"}
-          </button>
         </div>
-      </div>
+      </header>
+      {isQueue && (
+        <div className="match-toolbar">
+          <span className="swipe-toolbar-help">
+            Right swipe queues a job. Automatic processing follows your saved
+            rules.
+          </span>
+          <Link href="/automation">Automatic application rules</Link>
+          <div>
+            {!isQueue && settings.data?.preferences && (
+              <button onClick={() => setSetup(true)}>
+                <SlidersHorizontal size={16} />
+                Preferences
+              </button>
+            )}
+            <button onClick={() => void undo()} disabled={!action || undoBusy}>
+              <RotateCcw size={16} />
+              {undoBusy ? "Undoing…" : "Undo last decision"}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="match-live-region" role="status" aria-live="polite">
         {notice}
       </div>

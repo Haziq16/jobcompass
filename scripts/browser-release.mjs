@@ -269,6 +269,25 @@ try {
     fullPage: false,
   });
   await designSnapshot(page, "swipe-desktop");
+  const searchSummary = page.locator(".swipe-search-disclosure > summary");
+  const decisionsBeforeSearch = await db.matchAction.count();
+  await searchSummary.focus();
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await db.matchAction.count(), decisionsBeforeSearch);
+  await page.keyboard.press("Enter");
+  await page
+    .getByLabel("Search within your matches", { exact: true })
+    .waitFor();
+  await searchSummary.click();
+  const desktopDecision = await page
+    .getByRole("button", { name: "Queue for review", exact: true })
+    .boundingBox();
+  assert.ok(
+    desktopDecision && desktopDecision.y + desktopDecision.height <= 1001,
+  );
+  check(
+    "Swipe actions stay in view and keyboard use of search cannot create a job decision",
+  );
   await page.getByRole("button", { name: "View details", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -315,7 +334,9 @@ try {
     }
     return route.continue();
   });
-  await page.getByRole("button", { name: "Queue for review", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Queue for review", exact: true })
+    .click();
   await page
     .getByRole("alert")
     .filter({ hasText: "Could not save your change" })
@@ -395,6 +416,15 @@ try {
     fullPage: false,
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  const phoneDecision = await page
+    .getByRole("button", { name: "Queue for review", exact: true })
+    .boundingBox();
+  assert.ok(
+    phoneDecision &&
+      phoneDecision.y >= 0 &&
+      phoneDecision.y + phoneDecision.height <= 845,
+  );
+  assert.ok((await page.locator(".match-card").boundingBox()).y < 844 * 0.55);
   assert.ok(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

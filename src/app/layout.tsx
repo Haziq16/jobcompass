@@ -3,6 +3,7 @@ import "./globals.css";
 import "./release.css";
 import "./catalog.css";
 import "./matches.css";
+import "./swipe.css";
 import "./application-profile.css";
 import "./application-fill.css";
 import "./automation.css";
