@@ -402,9 +402,12 @@
   }
   .swipe-discovery .match-view-switch a {
     padding: 8px 13px;
+    min-height: 44px;
   }
   .swipe-discovery .swipe-preferences {
     margin-left: auto;
+    min-width: 44px;
+    min-height: 44px;
   }
   .swipe-discovery .swipe-preferences > span {
     position: absolute;
