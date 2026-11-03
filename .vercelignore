@@ -21,6 +21,8 @@ SPROUT_REA_ANALYSIS.md
 FREEHIRE_REA_ANALYSIS.md
 scripts/ai-browser-fixture.mjs
 scripts/cv-layout-fixture.mjs
+scripts/ats-fixtures.ts
+scripts/ats-benchmark.ts
 .taste-skill
 
 .impeccable
