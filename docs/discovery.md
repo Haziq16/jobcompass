@@ -13,9 +13,9 @@ The scheduler has no database credential, Vercel token or user session. Its key 
 
 ## Cadence and resource use
 
-The GitHub workflow runs at minutes 13 and 43, avoiding the busy top of the hour. GitHub schedules can be delayed and are not a strict freshness SLA. It has a four-minute timeout, uses no checkout or dependency install, and exposes only a count summary. Scheduled Actions on private repositories consume the owner's runner-minute allowance. Monitor actual usage and the owner's budget; no spending limit is raised by this release.
+The GitHub workflow requests runs at minutes 13 and 43, avoiding the busy top of the hour. This is a requested cadence, not a delivery guarantee: observed runs in the November 2026 investigation were several hours apart. The shared workflow has a twelve-minute timeout and can also check/process an explicitly authorised application before the employer-feed step. Worker dependencies are installed only when that separate application task is pending. Scheduled Actions on private repositories consume the owner's runner-minute allowance. Monitor actual usage and the owner's budget; no spending limit is raised by this release.
 
-Each refresh uses four source workers and a shared lease. Feeds normally become due after five minutes, failures back off for 30 minutes to six hours, and fetching stops starting additional boards after 160 seconds. A killed process cannot overlap a new refresh until its lease expires. Complete snapshots commit atomically per board. HTTP `304` advances the board's confirmation time without rewriting jobs. Content hashes avoid unchanged updates. Large boards are accepted up to 48 MB; unsupported or truncated responses leave the prior snapshot intact.
+Each refresh uses four source workers and a shared lease. It pages through due boards within its existing 160-second start-work deadline rather than stopping after the first 120 boards. Feeds have adaptive due times; failures back off for 30 minutes to six hours. A killed process cannot overlap a new refresh until its lease expires. Complete snapshots commit atomically per board. HTTP `304` advances the board's confirmation time without rewriting jobs. Content hashes avoid unchanged updates. Large boards are accepted up to 48 MB; unsupported or truncated responses leave the prior snapshot intact.
 
 ## Freshness and closures
 
@@ -27,6 +27,8 @@ Each refresh uses four source workers and a shared lease. Feeds normally become 
 
 ## Coverage
 
-The registry in `src/lib/catalog-boards.ts` currently contains 64 verified company boards across Greenhouse, Lever and Ashby. It is curated and technology-heavy. Add verified boards there and deploy; no user can supply an arbitrary catalogue upstream URL. The separate manual importer still supports other Greenhouse and Lever companies.
+The curated seed in `src/lib/catalog-boards.ts` is supplemented by the candidate registry in `src/data/catalog-candidates.json`, covering Greenhouse, Lever (including EU), Ashby, Workable and Recruitee. Candidates are not automatically advertised as active employers: complete feed validation and storage admission are required. The November 2026 production snapshot had 3,189 enabled boards and 19,822 configured candidates. No user can supply an arbitrary catalogue upstream URL. The separate manual importer still supports other Greenhouse and Lever companies.
+
+Candidate expansion has its own lease and a bounded database admission budget. When storage is already above that budget, collecting more identifiers does not increase the searchable catalogue. Do not raise the budget without verifying actual infrastructure capacity. See [the 10x investigation](catalogue-10x-investigation.md) for measured storage, freshness and LinkedIn/Glassdoor access findings.
 
 Use the production database's `CatalogBoard.error`, `failures`, `lastSuccessAt`, and `nextFetchAt` fields to diagnose stale sources. Do not log upstream bodies, database URLs, session cookies or scheduler credentials.

@@ -468,6 +468,154 @@ test("shared refresh leases coalesce concurrent calls; source failure retains jo
   );
   assert.equal(stale.total, 0);
 });
+test("refresh drains multiple oldest-due pages without duplicate requests and retains its shared lease and backoff", async () => {
+  await publishCatalogBoard(fixture.id, parse([rawJob(9901)]));
+  const stale = new Date(Date.now() - 49 * 3600_000);
+  await authDb.catalogBoard.update({
+    where: { id: fixture.id },
+    data: { nextFetchAt: new Date(0), lastSuccessAt: stale, failures: 2 },
+  });
+  await authDb.catalogBoard.createMany({
+    data: Array.from({ length: 244 }, (_, index) => ({
+      id: "greenhouse:page" + String(index).padStart(3, "0"),
+      token: "page" + String(index).padStart(3, "0"),
+      platform: "greenhouse",
+      name: "Paged fixture " + index,
+      initialIndexedAt: stale,
+      lastSuccessAt: stale,
+      nextFetchAt: new Date((index + 1) * 1000),
+      jobCount: 1,
+    })),
+  });
+  const calls = new Set<string>();
+  let active = 0,
+    peak = 0;
+  let releaseFirst!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  let firstEntered!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    firstEntered = resolve;
+  });
+  const running = refreshCatalog(async (url) => {
+    const token = new URL(String(url)).pathname.split("/").at(-2)!;
+    assert.ok(!calls.has(token), "A board was requested twice in one refresh");
+    calls.add(token);
+    active++;
+    peak = Math.max(peak, active);
+    if (calls.size === 1) {
+      firstEntered();
+      await gate;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    active--;
+    return new Response(null, { status: token === fixture.token ? 503 : 304 });
+  });
+  let result;
+  try {
+    await Promise.race([entered, running]);
+    const overlap = await refreshCatalog(async () => {
+      throw new Error("Concurrent refresh must not fetch");
+    });
+    assert.equal(overlap.status, "already_current");
+    const held = await authDb.catalogSync.findUniqueOrThrow({
+      where: { id: "global" },
+    });
+    assert.ok(held.leaseUntil.valueOf() > Date.now());
+  } finally {
+    releaseFirst();
+    result = await running;
+  }
+  assert.deepEqual(result, {
+    status: "completed",
+    checked: 245,
+    succeeded: 244,
+    failed: 1,
+  });
+  assert.equal(calls.size, 245);
+  assert.equal(peak, 4);
+  assert.equal(await authDb.catalogJob.count({ where: { active: true } }), 1);
+  const failed = await authDb.catalogBoard.findUniqueOrThrow({
+    where: { id: fixture.id },
+  });
+  assert.equal(failed.failures, 3);
+  assert.ok(failed.nextFetchAt.valueOf() > Date.now() + 119 * 60000);
+  assert.equal(
+    await authDb.catalogBoard.count({
+      where: { enabled: true, lastSuccessAt: { gt: stale } },
+    }),
+    244,
+  );
+  const finished = await authDb.catalogSync.findUniqueOrThrow({
+    where: { id: "global" },
+  });
+  assert.ok(finished.leaseUntil.valueOf() <= Date.now());
+  assert.ok(finished.nextRunAt.valueOf() > Date.now());
+});
+
+test("refresh stops new work at its deadline and the next lease resumes untouched due boards", async (t) => {
+  await authDb.catalogBoard.updateMany({ data: { enabled: false } });
+  const baseline = new Date(Date.now() - 49 * 3600_000);
+  await authDb.catalogBoard.createMany({
+    data: Array.from({ length: 245 }, (_, index) => ({
+      id: "greenhouse:deadline" + String(index).padStart(3, "0"),
+      token: "deadline" + String(index).padStart(3, "0"),
+      platform: "greenhouse",
+      name: "Deadline fixture " + index,
+      initialIndexedAt: baseline,
+      lastSuccessAt: baseline,
+      nextFetchAt: new Date(0),
+      jobCount: 1,
+    })),
+  });
+  const first = new Set<string>();
+  const actualNow = Date.now;
+  let elapsed = 0;
+  t.mock.method(Date, "now", () => actualNow() + elapsed);
+  let interrupted;
+  try {
+    interrupted = await refreshCatalog(async (url) => {
+      first.add(String(url));
+      if (first.size === 125) elapsed = 160001;
+      return new Response(null, { status: 304 });
+    });
+  } finally {
+    t.mock.restoreAll();
+  }
+  assert.ok(interrupted.checked >= 125 && interrupted.checked <= 128);
+  assert.equal(interrupted.checked, first.size);
+  assert.equal(interrupted.failed, 0);
+  assert.equal(
+    await authDb.catalogBoard.count({
+      where: { enabled: true, lastAttemptAt: null },
+    }),
+    245 - first.size,
+  );
+  await authDb.catalogSync.update({
+    where: { id: "global" },
+    data: { nextRunAt: new Date(0) },
+  });
+  const second = new Set<string>();
+  const resumed = await refreshCatalog(async (url) => {
+    assert.ok(
+      !first.has(String(url)),
+      "Already checked boards should retain their next-fetch interval",
+    );
+    second.add(String(url));
+    return new Response(null, { status: 304 });
+  });
+  assert.equal(resumed.checked, 245 - first.size);
+  assert.equal(resumed.succeeded, second.size);
+  assert.equal(first.size + second.size, 245);
+  assert.equal(
+    await authDb.catalogBoard.count({
+      where: { enabled: true, lastSuccessAt: { lte: baseline } },
+    }),
+    0,
+  );
+});
+
 test("catalogue saving is idempotent and makes independent private copies without leaking notes", async () => {
   const [job] = parse([rawJob(1)]);
   await publishCatalogBoard(fixture.id, [job]);

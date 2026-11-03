@@ -142,75 +142,89 @@ export async function refreshCatalog(request: typeof fetch = fetch) {
     succeeded = 0,
     failed = 0;
   try {
-    const pending = await authDb.catalogBoard.findMany({
-      where: { enabled: true, nextFetchAt: { lte: now } },
-      orderBy: [{ nextFetchAt: "asc" }, { id: "asc" }],
-      take: 120,
-    });
-    await Promise.all(
-      Array.from({ length: 4 }, async () => {
-        for (;;) {
-          // Leave time for the current fetch and database transaction before expiry.
-          if (Date.now() - now.valueOf() > 160_000) break;
-          const board = pending.shift();
-          if (!board) break;
-          checked++;
-          await authDb.catalogBoard.update({
-            where: { id: board.id },
-            data: { lastAttemptAt: new Date() },
-          });
-          try {
-            const result = await fetchCatalogBoard(
-              {
-                platform: board.platform as CatalogPlatform,
-                token: board.token,
-                name: board.name,
-                etag: board.etag,
-                modified: board.modified,
-              },
-              request,
-            );
-            if (result.unchanged) {
-              if (!board.initialIndexedAt)
-                throw new AppError("unexpected_not_modified", 502);
-              await authDb.catalogBoard.update({
-                where: { id: board.id },
-                data: {
-                  lastSuccessAt: new Date(),
-                  nextFetchAt: new Date(
-                    Date.now() + refreshInterval(board.id, board.jobCount),
-                  ),
-                  failures: 0,
-                  error: null,
-                },
-              });
-            } else {
-              await publishCatalogBoard(board.id, result.jobs);
-              await authDb.catalogBoard.update({
-                where: { id: board.id },
-                data: { etag: result.etag, modified: result.modified },
-              });
-            }
-            succeeded++;
-          } catch (error) {
-            failed++;
-            const backoff = Math.min(
-              360,
-              30 * 2 ** Math.min(board.failures, 4),
-            );
+    // Refill small oldest-due pages instead of stopping after the first 120 boards.
+    // lastAttemptAt is a run marker: advancing nextFetchAt cannot skip another
+    // board through OFFSET pagination or make an attempted board run twice.
+    while (Date.now() - now.valueOf() <= 160_000) {
+      const pending = await authDb.catalogBoard.findMany({
+        where: {
+          enabled: true,
+          nextFetchAt: { lte: now },
+          OR: [{ lastAttemptAt: null }, { lastAttemptAt: { lt: now } }],
+        },
+        orderBy: [{ nextFetchAt: "asc" }, { id: "asc" }],
+        take: 120,
+      });
+      if (!pending.length) break;
+      await Promise.all(
+        Array.from({ length: 4 }, async () => {
+          for (;;) {
+            // Leave time for the current fetch and database transaction before expiry.
+            if (Date.now() - now.valueOf() > 160_000) break;
+            const board = pending.shift();
+            if (!board) break;
+            checked++;
             await authDb.catalogBoard.update({
               where: { id: board.id },
               data: {
-                failures: { increment: 1 },
-                error:
-                  error instanceof AppError ? error.code : "source_unavailable",
-                nextFetchAt: new Date(Date.now() + backoff * 60_000),
+                lastAttemptAt: new Date(Math.max(Date.now(), now.valueOf())),
               },
             });
+            try {
+              const result = await fetchCatalogBoard(
+                {
+                  platform: board.platform as CatalogPlatform,
+                  token: board.token,
+                  name: board.name,
+                  etag: board.etag,
+                  modified: board.modified,
+                },
+                request,
+              );
+              if (result.unchanged) {
+                if (!board.initialIndexedAt)
+                  throw new AppError("unexpected_not_modified", 502);
+                await authDb.catalogBoard.update({
+                  where: { id: board.id },
+                  data: {
+                    lastSuccessAt: new Date(),
+                    nextFetchAt: new Date(
+                      Date.now() + refreshInterval(board.id, board.jobCount),
+                    ),
+                    failures: 0,
+                    error: null,
+                  },
+                });
+              } else {
+                await publishCatalogBoard(board.id, result.jobs);
+                await authDb.catalogBoard.update({
+                  where: { id: board.id },
+                  data: { etag: result.etag, modified: result.modified },
+                });
+              }
+              succeeded++;
+            } catch (error) {
+              failed++;
+              const backoff = Math.min(
+                360,
+                30 * 2 ** Math.min(board.failures, 4),
+              );
+              await authDb.catalogBoard.update({
+                where: { id: board.id },
+                data: {
+                  failures: { increment: 1 },
+                  error:
+                    error instanceof AppError
+                      ? error.code
+                      : "source_unavailable",
+                  nextFetchAt: new Date(Date.now() + backoff * 60_000),
+                },
+              });
+            }
           }
-        }
-      }),
-    );
+        }),
+      );
+    }
   } finally {
     await authDb.catalogSync.update({
       where: { id: "global" },

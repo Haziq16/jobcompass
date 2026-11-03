@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-03 - Catalogue refresh recovery and source investigation
+
+- Refresh successive due-board pages within the existing time/worker budget, instead of stopping at 120 feeds while thousands await verification.
+- Keep leases, conditional requests, complete-snapshot retirement, failure backoff and freshness gates intact; test multi-page progress and interrupted-run resumption.
+- Record production storage/freshness measurements and bounded REA observations of LinkedIn and Glassdoor. The 387,070-job target is not represented as achieved.
+
 ## 2026-11-03 - Traceable CV parsing and verified exports
 
 - Add source-linked PDF/DOCX parser previews, layout risks and located fixes in CV preparation and AI Studio.
