@@ -48,7 +48,22 @@ async function handler(request: NextRequest) {
         headers: request.headers,
         body: Buffer.concat(chunks),
       });
-      if (endpoint === "change-password")
+      if (
+        endpoint === "sign-in/email" &&
+        process.env.PUBLIC_SIGNUP !== "true"
+      ) {
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        const email =
+          typeof body?.email === "string"
+            ? body.email.trim().toLowerCase()
+            : "";
+        if (!email || email !== process.env.OWNER_EMAIL?.trim().toLowerCase())
+          return NextResponse.json(
+            { error: "unauthenticated" },
+            { status: 401 },
+          );
+      }
+      if (["get-session", "change-password"].includes(endpoint))
         await authorize(request.headers, request.method);
       return await ownerAuth().handler(safeRequest);
     }

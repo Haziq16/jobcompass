@@ -43,6 +43,30 @@ export function createOwnerAuth(provisioning = false) {
     },
     user: { changeEmail: { enabled: false }, deleteUser: { enabled: false } },
     databaseHooks: {
+      session: {
+        create: {
+          before: async (session) => {
+            if (!publicSignup) {
+              const user = await authDb.user.findUnique({
+                where: { id: session.userId },
+                select: { email: true, emailVerified: true },
+              });
+              // The trusted offline bootstrap creates the verified owner inside
+              // a transaction that this connection cannot read until commit.
+              // Its user-create hook above still restricts that insert to owner.
+              if (!user && provisioning) return { data: session };
+              if (
+                !user?.emailVerified ||
+                user.email.trim().toLowerCase() !== owner
+              )
+                throw new APIError("UNAUTHORIZED", {
+                  message: "Invalid email or password.",
+                });
+            }
+            return { data: session };
+          },
+        },
+      },
       user: {
         create: {
           before: async (user) => {

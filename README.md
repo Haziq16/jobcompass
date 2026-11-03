@@ -119,17 +119,19 @@ Open **http://127.0.0.1:3000/discover**. Local mode is loopback-only and uses a 
 
 Set these values in the hosting environment, keeping credentials server-side:
 
-| Variable             | Purpose                                                                         |
-| -------------------- | ------------------------------------------------------------------------------- |
-| `DATABASE_URL`       | Production PostgreSQL connection secret                                         |
-| `APP_ACCESS=hosted`  | Require application sessions                                                    |
-| `APP_URL`            | Exact public HTTPS application origin                                           |
-| `BETTER_AUTH_SECRET` | Strong authentication signing secret, at least 32 characters                    |
-| `PUBLIC_SIGNUP=true` | Allow account creation                                                          |
-| `ENABLE_AI=false`    | Keep deferred tools disabled                                                    |
-| `OWNER_EMAIL`        | Legacy workspace attribution when migrating an existing owner-only installation |
+| Variable              | Purpose                                                             |
+| --------------------- | ------------------------------------------------------------------- |
+| `DATABASE_URL`        | Production PostgreSQL connection secret                             |
+| `APP_ACCESS=hosted`   | Require application sessions                                        |
+| `APP_URL`             | Exact public HTTPS application origin                               |
+| `BETTER_AUTH_SECRET`  | Strong authentication signing secret, at least 32 characters        |
+| `PUBLIC_SIGNUP=false` | Close registration and restrict hosted access to the verified owner |
+| `ENABLE_AI=false`     | Keep deferred tools disabled                                        |
+| `OWNER_EMAIL`         | Only email allowed to sign in when public signup is disabled        |
 
 Keep the signing secret stable between releases. Review and apply migrations before promoting a new build. Configure production-domain access separately from repository visibility; a private GitHub repository does not make the hosted website private.
+
+The current deployment is a private owner workspace. With `PUBLIC_SIGNUP=false`, signup is refused, the sign-in page has no registration link, and existing non-owner sessions cannot access application pages or APIs. Private mode also refuses new non-owner authentication sessions. Existing account records remain intact; reopening signup is an explicit future configuration choice.
 
 Email verification and email-based password recovery are not configured. Users can change their password while signed in. Do not enable local mode on a hosted server or describe unverified accounts as email-verified.
 

@@ -6,6 +6,10 @@ import { db, authDb } from "../src/lib/db";
 import { inWorkspace } from "../src/lib/workspace-context";
 import { profile, settings, usage } from "../src/lib/settings";
 import { createOwnerAuth } from "../src/lib/auth";
+import {
+  GET as authGet,
+  POST as authPost,
+} from "../src/app/api/auth/[...all]/route";
 import { GET, PATCH, DELETE } from "../src/app/api/[...path]/route";
 import {
   GET as workspaceGet,
@@ -260,6 +264,160 @@ test("public sign-up, sign-in and session isolation work through actual auth coo
     }
   }
 });
+test("private mode rejects registration, non-owner login and previously issued foreign sessions while retaining owner access", async () => {
+  const old = { ...process.env };
+  const origin = "https://accounts.example.test";
+  Object.assign(process.env, {
+    APP_ACCESS: "hosted",
+    PUBLIC_SIGNUP: "true",
+    APP_URL: origin,
+    OWNER_EMAIL: "owner@example.test",
+    BETTER_AUTH_SECRET: "account-test-secret-over-thirty-two-characters",
+  });
+  const password = "fixture-only-strong-password-123";
+  const request = (endpoint: string, data: unknown) =>
+    new Request(origin + "/api/auth/" + endpoint, {
+      method: "POST",
+      headers: { origin, "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  try {
+    const publicAuth = createOwnerAuth();
+    let foreignCookie = "";
+    for (const email of ["owner@example.test", "visitor@example.test"]) {
+      const response = await publicAuth.handler(
+        request("sign-up/email", { email, name: "Fixture", password }),
+      );
+      assert.equal(response.status, 200);
+      if (email.startsWith("visitor"))
+        foreignCookie = response.headers
+          .getSetCookie()
+          .map((value) => value.split(";")[0])
+          .join("; ");
+    }
+    await authDb.user.update({
+      where: { email: "owner@example.test" },
+      data: { emailVerified: true },
+    });
+    process.env.PUBLIC_SIGNUP = "false";
+    const privateAuth = createOwnerAuth();
+    assert.ok(
+      (
+        await privateAuth.handler(
+          request("sign-up/email", {
+            email: "new@example.test",
+            name: "New",
+            password,
+          }),
+        )
+      ).status >= 400,
+    );
+    const rejected = await privateAuth.handler(
+      request("sign-in/email", { email: "visitor@example.test", password }),
+    );
+    assert.ok(rejected.status >= 400);
+    assert.ok(
+      !rejected.headers
+        .getSetCookie()
+        .some((value) => value.includes("session_token=")),
+    );
+    const denied = await GET(
+      new NextRequest(origin + "/api/jobs", {
+        headers: {
+          host: "accounts.example.test",
+          origin,
+          cookie: foreignCookie,
+        },
+      }),
+      ctx("jobs"),
+    );
+    assert.equal(denied.status, 403);
+    const foreignHeaders = {
+      host: "accounts.example.test",
+      origin,
+      cookie: foreignCookie,
+      "Content-Type": "application/json",
+    };
+    assert.equal(
+      (
+        await authPost(
+          new NextRequest(origin + "/api/auth/sign-in/email", {
+            method: "POST",
+            headers: foreignHeaders,
+            body: JSON.stringify({ email: "visitor@example.test", password }),
+          }),
+        )
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await authPost(
+          new NextRequest(origin + "/api/auth/sign-up/email", {
+            method: "POST",
+            headers: foreignHeaders,
+            body: JSON.stringify({
+              email: "new@example.test",
+              name: "New",
+              password,
+            }),
+          }),
+        )
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await authGet(
+          new NextRequest(origin + "/api/auth/get-session", {
+            headers: foreignHeaders,
+          }),
+        )
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await authPost(
+          new NextRequest(origin + "/api/auth/get-session", {
+            method: "POST",
+            headers: foreignHeaders,
+            body: "{}",
+          }),
+        )
+      ).status,
+      401,
+    );
+    const allowed = await privateAuth.handler(
+      request("sign-in/email", { email: "owner@example.test", password }),
+    );
+    assert.equal(allowed.status, 200);
+    const cookie = allowed.headers
+      .getSetCookie()
+      .map((value) => value.split(";")[0])
+      .join("; ");
+    const jobs = await GET(
+      new NextRequest(origin + "/api/jobs", {
+        headers: { host: "accounts.example.test", origin, cookie },
+      }),
+      ctx("jobs"),
+    );
+    assert.equal(jobs.status, 200);
+    assert.equal(await authDb.user.count(), 2);
+  } finally {
+    for (const key of [
+      "APP_ACCESS",
+      "PUBLIC_SIGNUP",
+      "APP_URL",
+      "OWNER_EMAIL",
+      "BETTER_AUTH_SECRET",
+    ]) {
+      if (old[key] === undefined) delete process.env[key];
+      else process.env[key] = old[key];
+    }
+  }
+});
+
 test("deferred AI is refused server-side and anonymous users cannot import jobs", async () => {
   const testFlag = process.env.JOBCOMPASS_TEST;
   process.env.JOBCOMPASS_TEST = "false";

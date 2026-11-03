@@ -2,7 +2,13 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { Compass, ArrowRight, Check, LoaderCircle } from "lucide-react";
-export default function AuthForm({ signup = false }: { signup?: boolean }) {
+export default function AuthForm({
+  signup = false,
+  publicSignup = false,
+}: {
+  signup?: boolean;
+  publicSignup?: boolean;
+}) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -84,7 +90,9 @@ export default function AuthForm({ signup = false }: { signup?: boolean }) {
           <p>
             {signup
               ? "Start organizing your search. It's free to get started."
-              : "Sign in and pick up where you left off."}
+              : publicSignup
+                ? "Sign in and pick up where you left off."
+                : "Sign in to your private JobCompass workspace. Access is restricted to the owner."}
           </p>
           <form onSubmit={submit}>
             {signup && (
@@ -144,12 +152,14 @@ export default function AuthForm({ signup = false }: { signup?: boolean }) {
               {busy ? "Please wait…" : signup ? "Create account" : "Sign in"}
             </button>
           </form>
-          <p className="auth-switch">
-            {signup ? "Already have an account?" : "New to JobCompass?"}{" "}
-            <Link href={signup ? "/sign-in" : "/sign-up"}>
-              {signup ? "Sign in" : "Create an account"}
-            </Link>
-          </p>
+          {(signup || publicSignup) && (
+            <p className="auth-switch">
+              {signup ? "Already have an account?" : "New to JobCompass?"}{" "}
+              <Link href={signup ? "/sign-in" : "/sign-up"}>
+                {signup ? "Sign in" : "Create an account"}
+              </Link>
+            </p>
+          )}
           <div className="auth-privacy">
             <span className="status-dot" />
             Your saved jobs and application notes are private to your account.

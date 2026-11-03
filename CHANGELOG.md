@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-03 - Private owner workspace
+
+- Close production signup and restrict the hosted workspace to the configured verified owner, including previously issued non-owner sessions.
+- Refuse new non-owner authentication sessions, protect session reads for both request methods and hide registration links in private mode.
+- Preserve all existing account, CV, job and application records. Make private mode the sample configuration default.
+
 ## 2026-11-03 - Catalogue refresh recovery and source investigation
 
 - Refresh successive due-board pages within the existing time/worker budget, instead of stopping at 120 feeds while thousands await verification.
