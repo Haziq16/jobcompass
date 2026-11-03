@@ -1,0 +1,156 @@
+{
+  "version": "2026-11-03.1",
+  "fixtures": 20,
+  "scenarios": 29,
+  "passed": 29,
+  "fields": {
+    "truePositive": 72,
+    "falsePositive": 0,
+    "falseNegative": 8,
+    "precision": 1,
+    "recall": 0.9
+  },
+  "diagnostics": {
+    "passed": 20,
+    "total": 20
+  },
+  "cases": [
+    {
+      "id": "word-single",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "pdf-single",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "pdf-multipage",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "pdf-two-columns",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "pdf-reversed-order",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "pdf-no-text",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-unicode",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-encoded-symbols",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-missing-fields",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-separate-role-lines",
+      "passed": true,
+      "exactFields": false
+    },
+    {
+      "id": "word-no-section-headings",
+      "passed": true,
+      "exactFields": false
+    },
+    {
+      "id": "word-contact-heading",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-non-english-headings",
+      "passed": true,
+      "exactFields": false
+    },
+    {
+      "id": "pdf-right-aligned-dates",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-columns",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-table",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-header-contact",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-hidden-text",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-tracked-delete",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "word-text-box",
+      "passed": true,
+      "exactFields": true
+    },
+    {
+      "id": "export-clean",
+      "passed": true
+    },
+    {
+      "id": "export-loss",
+      "passed": true
+    },
+    {
+      "id": "export-order",
+      "passed": true
+    },
+    {
+      "id": "export-addition",
+      "passed": true
+    },
+    {
+      "id": "requirement-experience",
+      "passed": true
+    },
+    {
+      "id": "requirement-negation",
+      "passed": true
+    },
+    {
+      "id": "requirement-learning",
+      "passed": true
+    },
+    {
+      "id": "requirement-eligibility",
+      "passed": true
+    },
+    {
+      "id": "requirement-years",
+      "passed": true
+    }
+  ],
+  "limitations": "Small, synthetic English-focused development corpus. Not employer ATS accuracy, population accuracy, interview prediction or multilingual certification. PDF fixtures use a simple text layer; complex fonts and OCR are not benchmarked."
+}

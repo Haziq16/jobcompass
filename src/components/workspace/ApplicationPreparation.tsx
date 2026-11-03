@@ -8,6 +8,7 @@ import { usePersonalAi } from "./PersonalAiContext";
 import { TailoredCv } from "./TailoredCv";
 import ApplicationMaterials from "./ApplicationMaterials";
 import QueueForApplication from "./QueueForApplication";
+import { AtsReport } from "./AtsReport";
 import { StudioApply } from "./StudioApply";
 import type { Run, Job } from "./ai-studio-types";
 import type { ResumeChecks } from "@/lib/resume-checks";
@@ -280,6 +281,14 @@ function Preparation({
                 />
                 I’ve checked this CV and the information is accurate.
               </label>
+              <details className="preparation-ats">
+                <summary>Inspect parser output & ATS findings</summary>
+                <AtsReport
+                  text={data.selected.text}
+                  jobText={data.job.description}
+                  sourceAssetId={data.selected.id}
+                />
+              </details>
               <button
                 className="job-workspace-primary"
                 disabled={!reviewed}

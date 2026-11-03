@@ -343,6 +343,13 @@ try {
   await page
     .getByRole("heading", { name: "Choose the CV for this application" })
     .waitFor();
+  await page.locator(".preparation-ats > summary").click();
+  await page.getByRole("button", { name: "Parsed CV", exact: true }).click();
+  await page.locator(".ats-parser-preview").getByText(/^DOCX/).waitFor();
+  await page.locator(".ats-fields").getByText("Alex Morgan", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Show source", exact: true }).first().click();
+  await page.locator(".ats-lines li:focus").waitFor();
+  check("Saved original CV exposes parsed fields and keyboard-focusable source evidence without a model call");
   await page
     .getByLabel("I’ve checked this CV and the information is accurate.")
     .check();
@@ -358,6 +365,22 @@ try {
   await page
     .getByRole("button", { name: "Use this CV for application" })
     .waitFor();
+  await page.getByRole("button", { name: "ATS check", exact: true }).click();
+  await page.getByText("Exported file text verified", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Job requirements", exact: true }).click();
+  await page.locator(".ats-requirements article").first().waitFor();
+  await page.getByRole("button", { name: "Findings & fixes", exact: true }).click();
+  await page.locator(".ats-detailed").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/ats-desktop.png", fullPage: false });
+  await snapshot(page, "ats-report");
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  await page.screenshot({ path: "test-results/ats-phone.png", fullPage: false });
+  await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
+  await page.screenshot({ path: "test-results/ats-dark.png", fullPage: false });
+  await page.evaluate(() => { document.documentElement.dataset.theme = "light"; });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  check("Tailored Word ATS view verifies the exact export, shows job requirements and renders in phone/dark layouts");
   check(
     "CV review explicitly carries selected keyword evidence and saved provider settings",
   );

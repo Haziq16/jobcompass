@@ -12,6 +12,7 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 - **My jobs:** one list-and-detail workspace for matching jobs, queued applications, saved and skipped roles, interviews, offers and issues requiring attention.
 - **Guided preparation:** choose a CV, confirm supporting experience for missing keywords, review a tailored Word CV, edit a cover letter and confirm screening answers before applying. AI preparation remains an owner preview using the saved personal provider connection.
+- **Traceable CV checks:** inspect PDF/DOCX parser candidates and reading-order risks, compare required and preferred job qualifications, and follow fixes to source text. Tailored Word files are read back before download or application-library use to detect lost, added or reordered body text. Checks need no model request; see the [benchmark and limits](docs/ats-benchmark.md).
 
 - **Worldwide discovery:** search independently collected employer feeds from Greenhouse, Lever (including EU), Ashby, Workable and Recruitee, with database pagination and company, location, remote and freshness filters.
 - **Automatic feed checks:** scheduled background refreshes and coalesced checks while browsing, without a paid job-search API key.

@@ -1015,13 +1015,17 @@ try {
     .getByRole("button", { name: "ATS readiness", exact: true })
     .click();
   await page.getByRole("region", { name: "ATS readiness report" }).waitFor();
-  assert.ok(
-    (
-      await page
-        .getByRole("region", { name: "ATS readiness report" })
-        .innerText()
-    ).includes("Reading order"),
-  );
+  const sourceReport = page.getByRole("region", {
+    name: "ATS readiness report",
+  });
+  await sourceReport
+    .getByRole("button", { name: "Parsed CV", exact: true })
+    .click();
+  await sourceReport
+    .locator(".ats-parser-preview")
+    .getByText(/^DOCX/)
+    .waitFor();
+  assert.ok((await sourceReport.locator(".ats-lines li").count()) > 0);
   await page.screenshot({
     path: "test-results/ai-ats-desktop.png",
     fullPage: true,

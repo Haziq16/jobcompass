@@ -23,6 +23,7 @@ import { TailoredCv } from "./TailoredCv";
 import { StudioApply } from "./StudioApply";
 import { DocxPreview } from "./DocxPreview";
 import { AtsReport } from "./AtsReport";
+import type { ParsedCv } from "@/lib/ats-analysis";
 import type { CvSourceDocument } from "@/lib/original-cv-contracts";
 
 const messages: Record<string, string> = {
@@ -110,6 +111,7 @@ export default function AiStudio() {
     resumeText: string;
     job: Job | null;
     sourceDocument: CvSourceDocument | null;
+    sourceAssetId: string | null;
   }>(`ai/context?source=${source}&jobId=${encodeURIComponent(jobId)}`);
   const history = useResource<{
     reviews: Omit<Run, "resumeSnapshot" | "report" | "checks">[];
@@ -137,6 +139,8 @@ export default function AiStudio() {
     ),
     [saveDefaultCv, setSaveDefaultCv] = useState(false),
     [cvView, setCvView] = useState("text");
+  const [parsedUpload, setParsedUpload] = useState<ParsedCv | null>(null);
+  const [atsAssetId, setAtsAssetId] = useState<string | null>(null);
   const [resume, setResume] = useState(""),
     [reviewed, setReviewed] = useState(false),
     [consent, setConsent] = useState(false),
@@ -198,6 +202,7 @@ export default function AiStudio() {
     if (context.data && !initialised.current) {
       setResume(context.data.resumeText);
       setSourceDocument(context.data.sourceDocument || null);
+      setAtsAssetId(context.data.sourceAssetId || null);
       initialised.current = true;
     }
   }, [context.data]);
@@ -209,6 +214,8 @@ export default function AiStudio() {
           if (current) {
             setRun(value);
             setResume(value.resumeSnapshot);
+            setAtsAssetId(null);
+            setParsedUpload(null);
             setSourceDocument(
               (
                 value.checks as typeof value.checks & {
@@ -237,6 +244,8 @@ export default function AiStudio() {
     };
   }, [selectedReview, router]);
   function changeResume(value: string) {
+    setParsedUpload(null);
+    if (value !== resume) setAtsAssetId(null);
     if (value !== resume) setSourceDocument(null);
     if (run && value !== resume) {
       setRun(null);
@@ -363,6 +372,7 @@ export default function AiStudio() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       changeResume(result.text);
+      setParsedUpload(result.parser || null);
       setSourceDocument(result.sourceDocument || null);
       if (result.sourceDocument) setCvView("preview");
       setNotice(
@@ -920,6 +930,10 @@ export default function AiStudio() {
                     text={resume}
                     jobText={context.data?.job?.description || ""}
                     findings={sourceDocument?.findings}
+                    parser={parsedUpload}
+                    sourceAssetId={
+                      sourceDocument?.id || atsAssetId || undefined
+                    }
                   />
                 )}
                 <div hidden={cvView !== "text"}>

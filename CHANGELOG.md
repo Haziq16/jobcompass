@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-03 - Traceable CV parsing and verified exports
+
+- Add source-linked PDF/DOCX parser previews, layout risks and located fixes in CV preparation and AI Studio.
+- Separate required/preferred job requirements, experience evidence, bare mentions and facts needing confirmation. Flag added technical skills and metrics against original CV evidence.
+- Read actual tailored Word exports back and block download/library use when readable body text differs from the saved revision.
+- Publish a reproducible 20-file synthetic benchmark: 72/80 exact expected fields, no extra field predictions, and 29/29 diagnostic/export/requirement scenarios. Keep known extraction gaps visible in the signed-in methodology page.
+- Run diagnostics without model calls or paid parsing services. File checks do not simulate every employer ATS or predict hiring outcomes.
+
 ## 2026-10-24 - Swipe discovery redesign
 
 - Bring the employer, role and workplace/contract/salary facts into a focused decision card, with grounded match evidence and eligibility alongside it.

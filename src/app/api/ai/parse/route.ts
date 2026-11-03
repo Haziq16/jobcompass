@@ -1,8 +1,8 @@
 import { aiRequest } from "@/lib/ai-access";
 import { boundedBytes, apiError } from "@/lib/http";
-import { extractCv } from "@/lib/cv";
 import { resumeChecks } from "@/lib/resume-checks";
 import { AppError } from "@/lib/contracts";
+import { inspectAtsDocument } from "@/lib/ats-document";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export function POST(req: Request) {
@@ -15,14 +15,14 @@ export function POST(req: Request) {
       const file = form.get("file");
       if (!(file instanceof File) || file.size > 3 * 1024 * 1024)
         throw new AppError("cv_too_large", 413);
-      const text = await extractCv(
-        Buffer.from(await file.arrayBuffer()),
-        file.name,
-      );
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const parser = await inspectAtsDocument(buffer, file.name);
+      const text = parser.text;
       return Response.json({
         text,
         checks: resumeChecks(text),
         truncated: text.length > 40000,
+        parser,
       });
     } catch (error) {
       return apiError(error);

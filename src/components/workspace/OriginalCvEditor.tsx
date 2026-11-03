@@ -174,6 +174,8 @@ export function OriginalCvEditor({
             text={content}
             jobText={jobText}
             findings={dirty ? undefined : document.findings}
+            draftId={dirty ? undefined : draft.id}
+            revision={draft.revision}
           />
           {dirty && (
             <p>Save this wording to rerun the document structure checks.</p>

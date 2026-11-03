@@ -25,17 +25,20 @@ export function GET(req: Request) {
       const original = await db.resumeAsset.findFirst({
         where: {
           isDefault: true,
-          name: { endsWith: ".docx", mode: "insensitive" },
         },
         orderBy: { createdAt: "desc" },
       });
       const resumeText = profile?.cvText || original?.text || "";
       const inspection =
-        original && sameCv(resumeText, original.text)
+        original &&
+        original.name.toLowerCase().endsWith(".docx") &&
+        sameCv(resumeText, original.text)
           ? await inspectDocx(Buffer.from(original.bytes))
           : null;
       return Response.json({
         resumeText,
+        sourceAssetId:
+          original && sameCv(resumeText, original.text) ? original.id : null,
         job,
         sourceDocument:
           inspection && original

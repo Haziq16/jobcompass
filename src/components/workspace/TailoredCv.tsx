@@ -8,6 +8,7 @@ import type { Run } from "./ai-studio-types";
 import type { CvDocument } from "@/lib/tailored-cv-contracts";
 import { evidenceBlocks } from "@/lib/resume-review-contracts";
 import { keywordEvidenceText } from "@/lib/keyword-evidence";
+import { AtsReport } from "./AtsReport";
 import {
   isOriginalCv,
   type OriginalCvDocument,
@@ -490,6 +491,7 @@ export function TailoredCv({
               ["preview", "CV preview"],
               ["edit", "Edit CV"],
               ["sources", "Compare with sources"],
+              ["ats", "Parser & ATS"],
             ].map(([key, label]) => (
               <button
                 key={key}
@@ -501,6 +503,14 @@ export function TailoredCv({
             ))}
           </div>
           {view === "preview" && <CvPaper text={text} />}
+          {view === "ats" && (
+            <AtsReport
+              text={text}
+              jobText={review.jobSnapshot.description}
+              draftId={text === draft.content ? draft.id : undefined}
+              revision={draft.revision}
+            />
+          )}
           {view === "edit" && (
             <label>
               Tailored CV text

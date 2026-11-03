@@ -15,6 +15,7 @@ export type AtsFinding = {
   label: string;
   status: "pass" | "review";
   detail: string;
+  locations?: string[];
 };
 export type CvSourceDocument = {
   id: string;
