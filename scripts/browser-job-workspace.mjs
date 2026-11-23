@@ -11,6 +11,30 @@ import { cvLayoutFixture } from "./cv-layout-fixture.mjs";
 import { inspectDocx } from "../src/lib/docx-template.ts";
 import { originalText } from "../src/lib/original-cv-contracts.ts";
 import { resumeChecks } from "../src/lib/resume-checks.ts";
+const policyMessage = /content.security.policy|permissions.policy|\[report only\]/i;
+const policyReports = [];
+// Known, documented report-only exception (docs/security-headers.md): the
+// DOCX preview bundle (docx-preview -> jszip -> stream/util browser shims) runs
+// `Function("return function*() {}")` once when it loads. Everything else fails.
+async function unexpectedPolicyReports() {
+  const unexpected = [];
+  for (const report of policyReports) {
+    let known = false;
+    if (/Evaluating a string as JavaScript/.test(report.text) && report.url) {
+      const chunk = await fetch(report.url)
+        .then((r) => r.text())
+        .catch(() => "");
+      known =
+        chunk.includes("docxjs library predefined styles") &&
+        chunk.includes('Function("return function*() {}")');
+    }
+    if (!known)
+      unexpected.push(
+        "policy report: " + report.text.slice(0, 300) + " @ " + report.url,
+      );
+  }
+  return unexpected;
+}
 const origin = "http://127.0.0.1:3000";
 const url = new URL(process.env.DATABASE_URL);
 if (!["localhost", "127.0.0.1"].includes(url.hostname))
@@ -146,6 +170,13 @@ try {
     }),
     page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (policyMessage.test(message.text()))
+      policyReports.push({
+        text: message.text(),
+        url: message.location().url || "",
+      });
+  });
   const signup = await context.request.post(
     origin + "/api/auth/sign-up/email",
     {
@@ -546,6 +577,7 @@ try {
   check(
     "Public accounts get catalogue and private pipeline access",
   );
+  errors.push(...(await unexpectedPolicyReports()));
   assert.deepEqual(errors, []);
   await writeFile(
     "test-results/job-workspace-browser.json",

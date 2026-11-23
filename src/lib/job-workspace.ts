@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod";
 import { db } from "./db";
 import { matchCollection, matchDeck, matchSettings } from "./matches";
 import { safeUrl } from "./contracts";

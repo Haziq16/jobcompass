@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+﻿import { z } from "./zod";
 const text = (max = 300) => z.string().trim().max(max);
 const link = text(500).refine((v) => {
   if (!v) return true;

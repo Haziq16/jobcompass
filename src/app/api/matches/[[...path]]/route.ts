@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { accountRequest } from "@/lib/account-request";
 import { readJson } from "@/lib/http";
 import { AppError } from "@/lib/contracts";

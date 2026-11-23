@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod";
 const words = z.array(z.string().trim().min(1).max(80)).max(24);
 const matchPreferenceFields = z
   .object({

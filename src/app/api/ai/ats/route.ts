@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { aiRequest } from "@/lib/ai-access";
 import { readJson } from "@/lib/http";
 import { db } from "@/lib/db";

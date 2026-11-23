@@ -2,7 +2,7 @@ import { generateText, Output } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { z } from "zod";
+import { z } from "./zod";
 import { AppError } from "./contracts";
 import { REVIEW_PROVIDER_TIMEOUT_MS } from "./personal-ai-timing";
 import {

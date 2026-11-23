@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod";
 import { Prisma } from "@prisma/client";
 import { AppError } from "./contracts";
 export async function boundedBytes(req: Request, limit = 400000) {

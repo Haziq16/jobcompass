@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { authorize } from "@/lib/authorization";
 import { boardInput, DirectBoardProvider } from "@/lib/direct-provider";
 import { discover } from "@/lib/discovery";

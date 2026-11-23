@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { z } from "zod";
+import { z } from "./zod";
 import { db } from "./db";
 import { workspaceId } from "./workspace-context";
 import { AppError } from "./contracts";

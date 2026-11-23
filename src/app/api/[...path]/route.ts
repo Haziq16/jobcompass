@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { searchInput, statuses, safeUrl, AppError } from "@/lib/contracts";

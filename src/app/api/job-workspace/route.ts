@@ -2,7 +2,7 @@ import { accountRequest } from "@/lib/account-request";
 import { authorize } from "@/lib/authorization";
 import { canUseMatches } from "@/lib/match-access";
 import { jobWorkspace } from "@/lib/job-workspace";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { db } from "@/lib/db";
 import { workspaceId } from "@/lib/workspace-context";
 import { AppError } from "@/lib/contracts";

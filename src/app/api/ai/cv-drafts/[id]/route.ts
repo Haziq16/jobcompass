@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { aiRequest } from "@/lib/ai-access";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/contracts";

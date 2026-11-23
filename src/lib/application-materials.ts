@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { generateText, Output } from "ai";
-import { z } from "zod";
+import { z } from "./zod";
 import { db } from "./db";
 import { workspaceId } from "./workspace-context";
 import { AppError } from "./contracts";

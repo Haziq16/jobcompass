@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod";
 import { AppError } from "./contracts";
 import { cvSkillSignals, resumeChecks } from "./resume-checks";
 export const keywordEvidenceSchema = z

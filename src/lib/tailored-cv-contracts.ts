@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod";
 import { AppError } from "./contracts";
 import { evidenceBlocks } from "./resume-review-contracts";
 import { resumeChecks } from "./resume-checks";

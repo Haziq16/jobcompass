@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod";
 import { createHash } from "node:crypto";
 import { AppError, plainText, safeUrl } from "./contracts";
 import { parseBoardResponse } from "./direct-provider";

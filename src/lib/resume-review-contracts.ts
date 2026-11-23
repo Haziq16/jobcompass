@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod";
 import { keywordEvidenceSchema } from "./keyword-evidence";
 import { AppError } from "./contracts";
 import { resumeChecks } from "./resume-checks";

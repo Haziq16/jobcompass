@@ -15,6 +15,24 @@ export default ts.config(
   js.configs.recommended,
   ...ts.configs.recommended,
   {
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    ignores: ["src/lib/zod.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "zod",
+              message:
+                'Import { z } from "@/lib/zod" (or "./zod" in src/lib) so the CSP-safe jitless setting applies.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/**/*.tsx"],
     plugins: { "react-hooks": hooks },
     rules: {

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { keywordEvidenceText } from "./keyword-evidence";
 import { Prisma } from "@prisma/client";
 import { generateText, Output } from "ai";
-import { z } from "zod";
+import { z } from "./zod";
 import { db } from "./db";
 import { AppError } from "./contracts";
 import { workspaceId } from "./workspace-context";

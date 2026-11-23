@@ -14,6 +14,31 @@ import { chromium } from "playwright-core";
 import { setTimeout as delay } from "node:timers/promises";
 import JSZip from "jszip";
 import { cvLayoutFixture } from "./cv-layout-fixture.mjs";
+const policyMessage =
+  /content.security.policy|permissions.policy|\[report only\]/i;
+const policyReports = [];
+// Known, documented report-only exception (docs/security-headers.md): the
+// DOCX preview bundle (docx-preview -> jszip -> stream/util browser shims) runs
+// `Function("return function*() {}")` once when it loads. Everything else fails.
+async function unexpectedPolicyReports() {
+  const unexpected = [];
+  for (const report of policyReports) {
+    let known = false;
+    if (/Evaluating a string as JavaScript/.test(report.text) && report.url) {
+      const chunk = await fetch(report.url)
+        .then((r) => r.text())
+        .catch(() => "");
+      known =
+        chunk.includes("docxjs library predefined styles") &&
+        chunk.includes('Function("return function*() {}")');
+    }
+    if (!known)
+      unexpected.push(
+        "policy report: " + report.text.slice(0, 300) + " @ " + report.url,
+      );
+  }
+  return unexpected;
+}
 const origin = "http://127.0.0.1:3000";
 // Fixture-only visual artifacts: inline the actual loaded CSS so design tools
 // can inspect responsive layouts without a session or a running test server.
@@ -216,6 +241,23 @@ try {
   const page = await alice.newPage();
   activePage = page;
   page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => {
+    if (policyMessage.test(m.text()))
+      policyReports.push({
+        text: m.text(),
+        url: m.location().url || "",
+      });
+  });
+  const policyHeaders = await page.request.get(origin + "/sign-in");
+  assert.match(
+    policyHeaders.headers()["content-security-policy-report-only"] || "",
+    /default-src 'self'.*frame-ancestors 'none'/,
+  );
+  assert.match(
+    policyHeaders.headers()["permissions-policy-report-only"] || "",
+    /camera=\(\)/,
+  );
+  check("Report-only CSP and Permissions-Policy headers are served");
   page.on("request", (r) => {
     if (r.url().includes("/api/direct-discovery")) discoveryRequests++;
   });
@@ -821,6 +863,13 @@ try {
   check("Profile preferences save and survive reload");
   const second = await bob.newPage();
   second.on("pageerror", (e) => errors.push(e.message));
+  second.on("console", (m) => {
+    if (policyMessage.test(m.text()))
+      policyReports.push({
+        text: m.text(),
+        url: m.location().url || "",
+      });
+  });
   await second.goto(origin + "/sign-up");
   await second.getByLabel("Your name", { exact: true }).fill("Sam Rivera");
   await second
@@ -1714,6 +1763,7 @@ try {
   check(
     "For-you discovery uses saved CV signals, explains job matches and isolates recommendations between accounts without AI requests",
   );
+  errors.push(...(await unexpectedPolicyReports()));
   assert.deepEqual(errors, []);
   assert.equal(await db.apiRequestLedger.count(), 0);
   assert.equal(await db.aiGeneration.count(), 0);
