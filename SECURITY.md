@@ -1,6 +1,6 @@
 # Security
 
-This is a private repository. Report suspected vulnerabilities privately to the repository owner through the existing trusted communication channel. Do not include passwords, tokens, connection strings, résumés, or other users' data in an issue or pull request.
+Report suspected vulnerabilities privately through GitHub's **Security → Report a vulnerability** form for this repository, not in a public issue. Do not include passwords, tokens, connection strings, résumés, or other users' data in an issue, pull request or report.
 
 ## Credentials
 

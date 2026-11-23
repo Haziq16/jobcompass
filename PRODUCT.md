@@ -2,7 +2,7 @@
 
 JobCompass helps people discover employer-posted opportunities, save a private shortlist, prepare application documents and track application progress. People may use it repeatedly on a desktop while working on a CV, or briefly on a phone to review a job.
 
-Public signup creates separate accounts. The website is public and the source repository is private. Account information, stored CVs, notes, applications, AI connections and review history belong to the signed-in workspace.
+Public signup creates separate accounts. The website and the source repository are public; account data never is. Account information, stored CVs, notes, applications, AI connections and review history belong to the signed-in workspace.
 
 Discovery uses a shared catalogue of public Greenhouse, Lever and Ashby boards, with polling and source-availability limits. Personalized ranking uses the account's saved CV text and preferences. Skill mentions are evidence of a mention, not verified proficiency.
 

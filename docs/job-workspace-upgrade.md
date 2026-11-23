@@ -1,6 +1,6 @@
 # Complete job-search and application workflow
 
-Authorized scope: reproduce the researched OptimHire workflow inside JobCompass. Mock interviews and salary negotiation are excluded by the user's explicit choice. Preserve JobCompass branding, owner-only AI, private repository, public website, account isolation and existing/free infrastructure.
+Authorized scope: reproduce the researched OptimHire workflow inside JobCompass. Mock interviews and salary negotiation are excluded by the user's explicit choice. Preserve JobCompass branding, owner-only AI, public website, account isolation and existing/free infrastructure.
 
 Acceptance criteria:
 
@@ -13,7 +13,7 @@ Acceptance criteria:
 - Preparing documents never sends anything to an employer. JobCompass never submits applications; the user submits every application and confirms Applied explicitly.
 - Each queued application shows its screening status, missing answers and next step.
 - Include verified live-upload replacement and multi-select retention repairs from the Reddit pilot, with regression coverage.
-- Verify meaningful backend regressions, complete browser flow, keyboard/mobile/dark states, lint, typecheck, production build and secret scan before publishing through the existing private repository and production target. Preserve rollback history.
+- Verify meaningful backend regressions, complete browser flow, keyboard/mobile/dark states, lint, typecheck, production build and secret scan before publishing through the existing repository and production target. Preserve rollback history.
 
 Implementation notes: reuse existing catalogue, MatchDecision, Application, AiReview/AiCvDraft, AiGeneration/DocumentDraft and answer-memory services. Keep application materials in properly scoped existing document/generation records rather than adding infrastructure. Use the committed Achromatic Ledger interface direction.
 

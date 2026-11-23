@@ -5,7 +5,7 @@ The catalogue contains public employer data only. `CatalogBoard`, `CatalogJob` a
 ## Initialise
 
 1. Apply committed migrations with `npm run db:migrate`.
-2. Generate a random secret of at least 32 characters. Store it as the **production Secret** `CATALOG_REFRESH_SECRET` on Vercel and as an Actions secret with the same name in the private repository. Do not commit the value.
+2. Generate a random secret of at least 32 characters. Store it as the **production Secret** `CATALOG_REFRESH_SECRET` on Vercel and as an Actions secret with the same name in the GitHub repository. Do not commit the value.
 3. Set the Actions variable `CATALOG_REFRESH_URL` to the canonical production origin plus `/api/catalog/refresh`.
 4. Deploy, then manually run **Refresh job catalogue** in GitHub Actions. It registers the curated boards and indexes their first complete snapshots. Subsequent scheduled runs poll due feeds. Initial results are not treated as newly posted.
 
@@ -13,7 +13,7 @@ The scheduler has no database credential, Vercel token or user session. Its key 
 
 ## Cadence and resource use
 
-The GitHub workflow requests runs at minutes 13 and 43, avoiding the busy top of the hour. This is a requested cadence, not a delivery guarantee: observed runs in the November 2026 investigation were several hours apart. The shared workflow has a twelve-minute timeout and can also check/process an explicitly authorised application before the employer-feed step. Worker dependencies are installed only when that separate application task is pending. Scheduled Actions on private repositories consume the owner's runner-minute allowance. Monitor actual usage and the owner's budget; no spending limit is raised by this release.
+The GitHub workflow requests runs at minutes 13 and 43, avoiding the busy top of the hour. This is a requested cadence, not a delivery guarantee: observed runs in the November 2026 investigation were several hours apart. The workflow has a twelve-minute timeout and only refreshes employer feeds. Scheduled Actions minutes are free on public repositories under GitHub's current terms; on private repositories they consume the owner's allowance. Monitor actual usage and the owner's budget; no spending limit is raised by this release.
 
 Each refresh uses four source workers and a shared lease. It pages through due boards within its existing 160-second start-work deadline rather than stopping after the first 120 boards. Feeds have adaptive due times; failures back off for 30 minutes to six hours. A killed process cannot overlap a new refresh until its lease expires. Complete snapshots commit atomically per board. HTTP `304` advances the board's confirmation time without rewriting jobs. Content hashes avoid unchanged updates. Large boards are accepted up to 48 MB; unsupported or truncated responses leave the prior snapshot intact.
 
