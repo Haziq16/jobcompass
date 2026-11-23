@@ -6,10 +6,16 @@ import { AppError } from "./contracts";
 import { workspaceId } from "./workspace-context";
 import {
   reviewInput,
-  reviewOutput,
   validateReview,
   type ReviewInput,
 } from "./resume-review-contracts";
+import {
+  buildVerdict,
+  reviewWithVerdictOutput,
+  verdictColumns,
+  type VerdictRecord,
+} from "./apply-verdict";
+import { declaredFacts, listingFreshness } from "./apply-verdict-context";
 import { resumeChecks } from "./resume-checks";
 import { REVIEW_INTERRUPTED_AFTER_MS } from "./personal-ai-timing";
 import { ownedCvSource } from "./cv-source";
@@ -109,7 +115,7 @@ export async function createPersonalReview(
         resume: input.resumeText,
         provider: input.provider,
         model: input.model,
-        prompt: 1,
+        prompt: 2,
         ...(keywordEvidence.length ? { keywordEvidence } : {}),
         ...(sourceAsset
           ? { sourceAssetId: sourceAsset.id, sourceSha256: sourceAsset.sha256 }
@@ -117,6 +123,11 @@ export async function createPersonalReview(
       }),
     )
     .digest("hex");
+  // Server-side verdict inputs. Neither is sent to the provider.
+  const [declared, freshness] = await Promise.all([
+    declaredFacts(),
+    listingFreshness(input.source, input.jobId),
+  ]);
   await expireReviews();
   const reservation = await db.$transaction(
     async (tx) => {
@@ -195,16 +206,30 @@ export async function createPersonalReview(
     );
     inputTokens = result.inputTokens;
     outputTokens = result.outputTokens;
+    const { verdict: verdictOutput, ...reviewOnly } =
+      reviewWithVerdictOutput.parse(result.output);
     const report = validateReview(
-      reviewOutput.parse(result.output),
+      reviewOnly,
       input.resumeText,
       job.description,
     );
+    const verdict: VerdictRecord = verdictOutput
+      ? buildVerdict(
+          verdictOutput,
+          report,
+          input.resumeText,
+          job.description,
+          declared,
+          freshness,
+        )
+      : { version: 1, state: "missing" };
     return await db.aiReview.update({
       where: { id: reservation.run.id },
       data: {
         state: "succeeded",
         report: json(report),
+        verdict: json(verdict),
+        ...verdictColumns(verdict),
         inputTokens,
         outputTokens,
         completedAt: new Date(),

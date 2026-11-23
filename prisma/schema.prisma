@@ -384,6 +384,10 @@ model AiReview {
   state String @default("pending")
   error String?
   report Json?
+  // "Should I apply?" verdict produced with the review (see src/lib/apply-verdict.ts).
+  verdict Json?
+  verdictDecision String?
+  verdictScore Float?
   checks Json
   inputTokens Int?
   outputTokens Int?

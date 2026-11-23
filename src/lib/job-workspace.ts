@@ -2,6 +2,7 @@ import { z } from "./zod";
 import { db } from "./db";
 import { matchCollection, matchDeck, matchSettings } from "./matches";
 import { safeUrl } from "./contracts";
+import type { VerdictRecord } from "./apply-verdict";
 
 export const jobWorkspaceTabs = [
   "matching",
@@ -25,7 +26,47 @@ export type WorkspaceOpportunity = {
   detail?: string | null;
   applicationId?: string | null;
   match?: Awaited<ReturnType<typeof matchDeck>>["jobs"][number];
+  verdict?: RowVerdict | null;
 };
+export type RowVerdict = {
+  reviewId: string;
+  decision: "apply" | "maybe" | "skip" | null;
+  score: number | null;
+  record: VerdictRecord | null;
+  reviewedAt: string;
+};
+export const verdictFilters = ["apply", "maybe", "skip", "none"] as const;
+const pageSize = 30;
+// Latest succeeded review per job decides the badge, even when it has no verdict.
+async function latestVerdicts() {
+  const reviews = await db.aiReview.findMany({
+    where: { state: "succeeded" },
+    select: {
+      id: true,
+      jobSnapshot: true,
+      verdict: true,
+      verdictDecision: true,
+      verdictScore: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+  const latest = new Map<string, RowVerdict>();
+  for (const review of reviews) {
+    const job = review.jobSnapshot as { source?: string; id?: string };
+    const key = `${job.source}:${job.id}`;
+    if (latest.has(key)) continue;
+    latest.set(key, {
+      reviewId: review.id,
+      decision: review.verdictDecision as RowVerdict["decision"],
+      score: review.verdictScore,
+      record: (review.verdict as VerdictRecord | null) || null,
+      reviewedAt: review.createdAt.toISOString(),
+    });
+  }
+  return latest;
+}
 export async function jobWorkspace(
   params: URLSearchParams,
   matchingAvailable: boolean,
@@ -54,44 +95,56 @@ export async function jobWorkspace(
     interviews: statusCount("Interview"),
     offers: statusCount("Offer"),
   };
-  let rows: WorkspaceOpportunity[] = [],
-    total = 0;
-  if (tab === "matching" && matchingAvailable && settings?.preferences) {
-    const result = await matchDeck(params);
-    total = result.total;
-    rows = result.jobs.map((job) => ({
-      id: job.id,
-      source: "catalog",
-      title: job.title,
-      employer: job.employer,
-      location: job.location,
-      status: "matching",
-      applyUrl: safeUrl(job.applyUrl),
-      description: job.summary,
-      match: job,
-    }));
-  } else if (["queued", "saved", "passed"].includes(tab)) {
-    const result = await matchCollection(tab, page);
-    total = result.total;
-    rows = result.rows.map((row) => {
-      const snapshot = row.snapshot as {
-        title: string;
-        employer: string;
-        location?: string | null;
-        applyUrl: string;
-      };
+  async function loadPage(
+    pageNumber: number,
+  ): Promise<{ rows: WorkspaceOpportunity[]; total: number }> {
+    if (tab === "matching") {
+      if (!matchingAvailable || !settings?.preferences)
+        return { rows: [], total: 0 };
+      const deckParams = new URLSearchParams(params);
+      deckParams.set("page", String(pageNumber));
+      deckParams.delete("verdict");
+      deckParams.delete("sort");
+      const result = await matchDeck(deckParams);
       return {
-        id: row.catalogId,
-        source: "catalog",
-        title: snapshot.title,
-        employer: snapshot.employer,
-        location: snapshot.location || null,
-        applyUrl: row.available ? safeUrl(snapshot.applyUrl) : null,
-        status: row.application?.status || row.state,
-        applicationId: row.application?.id,
+        total: result.total,
+        rows: result.jobs.map((job) => ({
+          id: job.id,
+          source: "catalog",
+          title: job.title,
+          employer: job.employer,
+          location: job.location,
+          status: "matching",
+          applyUrl: safeUrl(job.applyUrl),
+          description: job.summary,
+          match: job,
+        })),
       };
-    });
-  } else if (["applied", "interviews", "offers"].includes(tab)) {
+    }
+    if (["queued", "saved", "passed"].includes(tab)) {
+      const result = await matchCollection(tab, pageNumber);
+      return {
+        total: result.total,
+        rows: result.rows.map((row) => {
+          const snapshot = row.snapshot as {
+            title: string;
+            employer: string;
+            location?: string | null;
+            applyUrl: string;
+          };
+          return {
+            id: row.catalogId,
+            source: "catalog" as const,
+            title: snapshot.title,
+            employer: snapshot.employer,
+            location: snapshot.location || null,
+            applyUrl: row.available ? safeUrl(snapshot.applyUrl) : null,
+            status: row.application?.status || row.state,
+            applicationId: row.application?.id,
+          };
+        }),
+      };
+    }
     const status = {
       applied: "Applied",
       interviews: "Interview",
@@ -111,28 +164,75 @@ export async function jobWorkspace(
         },
       },
       orderBy: { updatedAt: "desc" },
-      take: 30,
-      skip: (page - 1) * 30,
+      take: pageSize,
+      skip: (pageNumber - 1) * pageSize,
     });
-    total = statusCount(status);
-    rows = applications.map((app) => ({
-      id: app.job.id,
-      source: "workspace",
-      title: app.job.title,
-      employer: app.job.employer,
-      location: app.job.location,
-      description: app.job.description || "",
-      applyUrl: null,
-      status: app.status,
-      applicationId: app.id,
-    }));
+    return {
+      total: statusCount(status),
+      rows: applications.map((app) => ({
+        id: app.job.id,
+        source: "workspace" as const,
+        title: app.job.title,
+        employer: app.job.employer,
+        location: app.job.location,
+        description: app.job.description || "",
+        applyUrl: null,
+        status: app.status,
+        applicationId: app.id,
+      })),
+    };
+  }
+  const verdictFilter = params.get("verdict")
+    ? z.enum(verdictFilters).parse(params.get("verdict"))
+    : null;
+  const sortByVerdict = params.get("sort") === "verdict";
+  const verdicts = await latestVerdicts();
+  const withVerdict = (row: WorkspaceOpportunity) => ({
+    ...row,
+    verdict: verdicts.get(`${row.source}:${row.id}`) || null,
+  });
+  let rows: WorkspaceOpportunity[] = [],
+    total = 0,
+    capped = false;
+  if (!verdictFilter && !sortByVerdict) {
+    const result = await loadPage(page);
+    rows = result.rows.map(withVerdict);
+    total = result.total;
+  } else {
+    // Filtering or sorting by verdict needs the whole (bounded) collection first.
+    const maxPages = tab === "matching" ? 5 : 20;
+    let collected: WorkspaceOpportunity[] = [];
+    let available = 0;
+    for (let p = 1; p <= maxPages; p++) {
+      const result = await loadPage(p);
+      available = result.total;
+      collected.push(...result.rows);
+      if (!result.rows.length || collected.length >= result.total) break;
+    }
+    capped = collected.length < available;
+    collected = collected.map(withVerdict);
+    if (verdictFilter)
+      collected = collected.filter((row) =>
+        verdictFilter === "none"
+          ? !row.verdict?.decision
+          : row.verdict?.decision === verdictFilter,
+      );
+    if (sortByVerdict)
+      collected.sort(
+        (a, b) => (b.verdict?.score ?? -1) - (a.verdict?.score ?? -1),
+      );
+    total = collected.length;
+    rows = collected.slice((page - 1) * pageSize, page * pageSize);
   }
   return {
     tab,
     page,
-    pageSize: 30,
+    pageSize,
     rows,
     total,
+    capped,
+    verdictFilter,
+    sortByVerdict,
     counts,
     settings,
     matchingAvailable,

@@ -51,6 +51,8 @@ export function GET(req: Request) {
           model: true,
           state: true,
           error: true,
+          verdictDecision: true,
+          verdictScore: true,
           jobSnapshot: true,
           createdAt: true,
         },

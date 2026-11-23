@@ -8,9 +8,9 @@ import { REVIEW_PROVIDER_TIMEOUT_MS } from "./personal-ai-timing";
 import {
   credentials,
   evidenceBlocks,
-  reviewOutput,
   reviewSystem,
 } from "./resume-review-contracts";
+import { reviewWithVerdictOutput, verdictSystem } from "./apply-verdict";
 
 export type PersonalCredentials = z.infer<typeof credentials>;
 const hosts = {
@@ -106,13 +106,16 @@ export const runPersonalReview: ReviewProvider = async (
 ) => {
   const result = await generateText({
     model: personalModel(config),
-    system: reviewSystem,
+    // One request returns the review and the apply verdict. Job and resume text
+    // stay in data fields; the system prompt marks them as untrusted data.
+    system: `${reviewSystem}
+${verdictSystem}`,
     prompt: JSON.stringify({
       resumeBlocks: evidenceBlocks(resume),
       jobText: jobText.replace(/\s+/g, " ").trim(),
     }),
-    output: Output.object({ schema: reviewOutput }),
-    maxOutputTokens: 5500,
+    output: Output.object({ schema: reviewWithVerdictOutput }),
+    maxOutputTokens: 8000,
     maxRetries: 0,
     ...(config.provider === "openai"
       ? { providerOptions: { openai: { store: false } } }
