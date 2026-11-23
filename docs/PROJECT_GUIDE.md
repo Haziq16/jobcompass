@@ -10,7 +10,7 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 ## Features
 
-- **My jobs:** one list-and-detail workspace for matching jobs, queued applications, saved and skipped roles, interviews, offers and issues requiring attention.
+- **My jobs:** one list-and-detail workspace for matching jobs, queued applications, saved and skipped roles, interviews and offers.
 - **Guided preparation:** choose a CV, confirm supporting experience for missing keywords, review a tailored Word CV, edit a cover letter and confirm screening answers before applying. AI preparation remains an owner preview using the saved personal provider connection.
 - **Traceable CV checks:** inspect PDF/DOCX parser candidates and reading-order risks, compare required and preferred job qualifications, and follow fixes to source text. Tailored Word files are read back before download or application-library use to detect lost, added or reordered body text. Checks need no model request; see the [benchmark and limits](ats-benchmark.md).
 
@@ -26,11 +26,13 @@ Discover jobs from company boards, build a shortlist, and keep applications movi
 
 **Optional AI studio:** résumé text checks, job-keyword coverage, evidence-linked AI reviews and full tailored CV drafts using the user's own provider key. Compare rewritten wording with original sources, edit private versions, and download a reviewed Word or text CV. The initial release is an owner-only preview; `AI_MODE=off` removes the feature, and `AI_MODE=byok` enables it for signed-in users with their own keys. See [personal-key AI](personal-ai.md) and [research notes](ai-research.md).
 
-The legacy gateway tools remain disabled. The owner-only **Fill application** preview connects queued Greenhouse, Lever and Ashby jobs to a desktop Chrome companion, uses confirmed profile/answer memory, uploads the selected original or explicitly reviewed tailored CV unchanged, and reports missing or rejected values. Install it once from the queue setup screen. Submission is separately authorized and receipt checked. Offline processing is available through explicit owner rules; it starts paused. See [automatic applications](automatic-applications.md). See [application filling](application-filling.md). Public accounts do not use the shared paid JSearch connection.
+The owner-only **Fill application** preview connects queued Greenhouse, Lever and Ashby jobs to a desktop Chrome companion, uses confirmed profile/answer memory, uploads the selected original or explicitly reviewed tailored CV unchanged, and reports missing or rejected values. It never clicks Submit: you review the filled form and submit it yourself, then mark the job Applied. Install it once from the queue setup screen. See [application filling](application-filling.md). Public accounts do not use the shared paid JSearch connection.
+
+**JobCompass never submits applications for you. You review and submit every application yourself.**
 
 ## How discovery works
 
-The owner-only **Swipe** preview adds a personalised card deck, three-step preference setup, explicit match reasons, pass feedback, undo and a persistent application queue. Right swipe queues a listing. When the owner enables automatic rules, supported cards name the recipient and CV. A right swipe authorises that specific application for offline processing. Old queued jobs are not silently released. Queue priorities, saved-for-later and passed collections remain private to the account. Other accounts retain List discovery. `MATCH_MODE=owner` is the default; `off` disables matching and `all` explicitly opens it to signed-in accounts. See [swipe matching](swipe-matching.md) for filters and unknown-data handling.
+The owner-only **Swipe** preview adds a personalised card deck, three-step preference setup, explicit match reasons, pass feedback, undo and a persistent application queue. Right swipe only adds a listing to your application queue; nothing is sent to the employer. Queue priorities, saved-for-later and passed collections remain private to the account. Other accounts retain List discovery. `MATCH_MODE=owner` is the default; `off` disables matching and `all` explicitly opens it to signed-in accounts. See [swipe matching](swipe-matching.md) for filters and unknown-data handling.
 
 The owner preview also includes a verified application profile, conservative CV extraction, a contextual answer library and an inbox for missing or stale questions. Original CV files stay unchanged; only explicitly confirmed facts supply answers. See [application memory](application-memory.md) for expiry and account controls.
 
@@ -126,7 +128,6 @@ Set these values in the hosting environment, keeping credentials server-side:
 | `APP_URL`             | Exact public HTTPS application origin                               |
 | `BETTER_AUTH_SECRET`  | Strong authentication signing secret, at least 32 characters        |
 | `PUBLIC_SIGNUP=false` | Close registration and restrict hosted access to the verified owner |
-| `ENABLE_AI=false`     | Keep deferred tools disabled                                        |
 | `OWNER_EMAIL`         | Only email allowed to sign in when public signup is disabled        |
 
 Keep the signing secret stable between releases. Review and apply migrations before promoting a new build. Configure production-domain access separately from repository visibility; a private GitHub repository does not make the hosted website private.
@@ -155,7 +156,7 @@ npm run test:browser
 
 The browser suite uses two fictional accounts and a dedicated test database. It mocks the direct-import response and checks real account sessions, stored workflows and mobile layout. Configure `CHROME_EXECUTABLE_PATH` if Chrome is installed outside the default Windows location.
 
-The current release passed **150 fixture/database tests**, **45 browser acceptance checks**, **5 real-extension flow checks** and **14 offline-worker/browser checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks. See [application processing and recovery](application-reliability.md) for screening, answer reuse, form compatibility, worker availability and verification limits.
+The Phase 1 release branch passed **140 fixture/database tests**, **46 browser acceptance checks**, **5 real-extension filling checks** and **14 job-workspace browser checks** locally. CI verifies each new push and pull request; its results are separate from those recorded local checks. See [application filling and recovery](application-reliability.md) for screening, answer reuse, form compatibility and verification limits.
 
 ## Project layout
 
@@ -172,8 +173,8 @@ extension/                Owner-only companion and shared browser form engine
 
 See [architecture](architecture.md) for the data flows and account boundaries, [security](../SECURITY.md) for credential handling, and [changelog](../CHANGELOG.md) for the release history.
 
-## Repository access
+## Repository contents
 
-This repository is private and intended for explicitly invited collaborators. Environment files, production administration notes, databases, credentials, browser sessions and test output are excluded from Git. The checked-in `.env.example` contains placeholders and development-only defaults.
+Environment files, production administration notes, databases, credentials, browser sessions and test output are excluded from Git. The checked-in `.env.example` contains placeholders and development-only defaults. Run `npm run check:secrets` before pushing.
 
-Access can be managed by the owner under **Settings → Collaborators**. No public redistribution license is granted by repository access.
+No open-source licence has been chosen yet; until a `LICENSE` file is added, default copyright applies.

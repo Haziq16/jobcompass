@@ -15,7 +15,7 @@ Run `npm run check:secrets` before pushing. It scans the Git index for private/g
 
 Hosted private data requires an application session and an account-scoped database context. Composite database relationships prevent records from linking across accounts. Private reads, mutations, exports and deletion paths have isolation tests.
 
-Public signup does not imply public workspace data. Local mode is restricted to loopback and must not be enabled on a hosted deployment. Optional personal-key AI has a separate `off` / `owner` / `byok` policy enforced on every operation. Legacy shared-key AI and assisted form filling remain disabled.
+Public signup does not imply public workspace data. Local mode is restricted to loopback and must not be enabled on a hosted deployment. Optional personal-key AI has a separate `off` / `owner` / `byok` policy enforced on every operation; there is no shared server-side AI key. The owner-preview form-filling companion only fills forms: it has no submit path, and its API accepts requests only from the published extension ID with a short-lived, job-bound grant.
 
 User-supplied AI keys are held in tab memory and forwarded only to the selected fixed HTTPS provider endpoint for an explicit request. They are never written to database records, exports, browser storage or application logs. AI source text and reports are private account records; users explicitly consent before sending inputs to a provider and can remove their stored reviews. Redirects, arbitrary provider URLs and automatic retries are refused. See [personal AI](docs/personal-ai.md) for the data flow and its limits.
 
