@@ -39,8 +39,13 @@ type Context = {
 };
 export type CandidateResult = Awaited<ReturnType<typeof getCandidate>>;
 export function sectionHash(v: CandidateValues, s: CandidateSection) {
+  // An empty timezone (added later) must not invalidate earlier confirmations.
+  const values =
+    s === "preferences" && !v.preferences.timezone
+      ? (({ timezone, ...rest }) => (void timezone, rest))(v.preferences)
+      : v[s];
   return hash({
-    values: v[s],
+    values,
     nothing: v.nothingToDeclare.includes(s as "skills"),
   });
 }

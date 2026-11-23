@@ -134,6 +134,9 @@ export const candidateValuesSchema = z
         availability: text(1000),
         noticePeriod: text(500),
         relocation: z.enum(["unknown", "yes", "no"]),
+        // IANA zone ("Asia/Kuala_Lumpur") or a fixed offset ("UTC+8"). Used only
+        // for the server-side timezone check in the apply verdict.
+        timezone: text(80).default(""),
       })
       .strict(),
     nothingToDeclare: z
@@ -187,6 +190,7 @@ export const emptyCandidate: CandidateValues = {
     availability: "",
     noticePeriod: "",
     relocation: "unknown",
+    timezone: "",
   },
   nothingToDeclare: [],
   cvSource: null,

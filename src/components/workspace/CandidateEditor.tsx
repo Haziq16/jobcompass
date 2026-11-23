@@ -662,6 +662,11 @@ export default function CandidateEditor({
                     key: "salaryCountry",
                     label: "Country for this salary expectation",
                   },
+                  {
+                    key: "timezone",
+                    label: "Your timezone",
+                    hint: "For example Asia/Kuala_Lumpur or UTC+8. Used only to compare with working hours a job states.",
+                  },
                 ]}
                 onChange={(k, v) =>
                   update("preferences", { ...values.preferences, [k]: v })
