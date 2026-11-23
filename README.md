@@ -6,6 +6,8 @@
 
 Discover opportunities from employer boards, build a shortlist, prepare application materials and track progress in a personal workspace.
 
+**JobCompass never submits applications for you. You review and submit every application yourself.**
+
 [Features](#features) · [Local setup](#local-setup) · [Architecture](docs/architecture.md) · [Detailed guide](docs/PROJECT_GUIDE.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ![JobCompass discovery workspace with fictional demonstration data](docs/images/discovery.png)
@@ -17,7 +19,7 @@ Discover opportunities from employer boards, build a shortlist, prepare applicat
 | Discover | Employer-board catalogue, filtering, personal matching and optional single-board import |
 | Shortlist | Saved roles, private notes, tags, and skip/restore controls |
 | Prepare | Original CV handling, structural checks, keyword evidence and reviewed tailored documents |
-| Apply | Owner-preview companion and explicitly authorized application processing |
+| Apply | Owner-preview companion that fills supported forms; you review and press Submit yourself |
 | Track | Application stages, dates, notes, event history and recovery information |
 
 The product distinguishes jobs merely opened on an employer site from applications actually submitted. Private account data is scoped to its owner.
@@ -26,9 +28,9 @@ The product distinguishes jobs merely opened on an employer site from applicatio
 
 **Core workspace:** employer feeds from Greenhouse, Lever, Ashby, Workable and Recruitee; discovery; saved jobs; application tracking; and hosted account sessions.
 
-**Optional previews:** personal-key AI, guided application preparation, swipe matching, browser-assisted filling and offline application rules. These features have separate access controls and configuration. They are not universally enabled for every account. See the [detailed project guide](docs/PROJECT_GUIDE.md) for limits, rollout flags and operational behavior.
+**Optional previews:** personal-key AI, guided application preparation, swipe matching and browser-assisted form filling (never submission). These features have separate access controls and configuration. They are not universally enabled for every account. See the [detailed project guide](docs/PROJECT_GUIDE.md) for limits, rollout flags and operational behavior.
 
-The current hosted deployment is an owner workspace. Repository access does not grant access to that deployment.
+The current hosted deployment is an owner workspace. The public source code does not grant access to that deployment or its data.
 
 ## Stack
 
@@ -83,6 +85,8 @@ Browser acceptance checks require a built app, Chrome and the dedicated test env
 
 ```sh
 npm run test:browser
+npm run test:filling
+npm run test:workspace
 ```
 
 The [detailed guide](docs/PROJECT_GUIDE.md#verification) preserves the previously recorded local test counts and their scope. Those historical results are not a claim that the checks ran again for this README update.
@@ -106,11 +110,11 @@ Read [architecture](docs/architecture.md) for data flows and account boundaries.
 - [Discovery](docs/discovery.md) and [catalogue provenance](docs/catalog-candidates.md).
 - [CV checks and benchmark limits](docs/ats-benchmark.md).
 - [Personal-key AI](docs/personal-ai.md) and [application memory](docs/application-memory.md).
-- [Application filling](docs/application-filling.md), [automatic applications](docs/automatic-applications.md), and [processing/recovery](docs/application-reliability.md).
+- [Application filling](docs/application-filling.md) and [filling/recovery](docs/application-reliability.md).
 - [Swipe matching](docs/swipe-matching.md).
 
 ## Access and limits
 
-This repository is private and intended for invited collaborators; no public redistribution license is granted by repository access. Credentials, CVs, browser sessions and production data belong outside commits.
+No open-source licence has been chosen yet; until a `LICENSE` file is added, default copyright applies. Credentials, CVs, browser sessions and production data belong outside commits; run `npm run check:secrets` before pushing.
 
 Employer feed coverage and polling are bounded. Missing source data remains unknown, and remote roles do not imply worldwide eligibility. CV checks describe observable document and keyword findings rather than a guaranteed employer ATS outcome. See the linked guides for the implementation's detailed limits.

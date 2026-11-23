@@ -42,7 +42,7 @@ Set `AI_MODE` in the **production** Vercel environment and redeploy:
 | `owner`        | Only the signed-in account matching `OWNER_EMAIL` can use the studio. All other accounts retain normal discovery and tracking. |
 | `byok`         | All signed-in accounts can use their own API key. No user can invoke someone else's stored review.                             |
 
-The initial release uses `owner`. Keep `ENABLE_AI=false`: that older flag controls the separate legacy gateway/companion implementation, which stays disabled. The new module does not enable employer form filling or submissions.
+The initial release uses `owner`. The AI module does not fill employer forms or submit applications.
 
 Turning the mode off preserves jobs and review history. Users can still export their own stored reviews through workspace export, or remove them with profile clearing. To delete code entirely, the new feature lives in `src/lib/personal-ai*`, `src/lib/resume-*`, `src/lib/ai-access.ts`, `src/app/api/ai`, the assistant page, and its context/UI/CSS. Remove the small navigation/settings/job-link integrations at the same time; keep the database table if historical exports are needed. Reverting the additive migration is not required to disable AI.
 

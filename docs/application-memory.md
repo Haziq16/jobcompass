@@ -27,4 +27,4 @@ The authenticated `/api/application-profile` routes reject anonymous, non-owner-
 
 ## Deferred
 
-The owner-only [application filling preview](application-filling.md) now detects questions and fills supported native Greenhouse controls through the desktop Chrome companion. Manual question paste remains available. Employer submission, offline workers and outcome learning remain deferred. Learned answers mean explicitly confirmed stored answers, not background inference. CV import does not publish a new AI Studio profile or replace discovery preferences.
+The owner-only [application filling preview](application-filling.md) now detects questions and fills supported native Greenhouse controls through the desktop Chrome companion. Manual question paste remains available. JobCompass never submits applications; you submit every application yourself. Outcome learning remains deferred. Learned answers mean explicitly confirmed stored answers, not background inference. CV import does not publish a new AI Studio profile or replace discovery preferences.

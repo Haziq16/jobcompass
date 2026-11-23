@@ -27,4 +27,4 @@ Matching settings, decisions and history are included in account exports. Cleari
 
 ## Explicitly deferred
 
-No automatic application submission, background browser worker, persistent answer memory, new paid AI use or native mobile application is enabled. The website supports small screens, but this is not a native app release. Existing personal-key AI consent and original-DOCX safeguards remain unchanged.
+JobCompass never submits applications for you: a right swipe only adds the job to your queue, and you review and submit every application yourself. No background browser worker, new paid AI use or native mobile application is enabled. The website supports small screens, but this is not a native app release. Existing personal-key AI consent and original-DOCX safeguards remain unchanged.

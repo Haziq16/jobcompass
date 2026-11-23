@@ -10,7 +10,7 @@ JobCompass is a Next.js application backed by PostgreSQL. Prisma handles databas
 
 **Browsing:** Jobs, Saved and Applications query stored data. Local filters and navigation do not call job providers. Common list queries paginate in PostgreSQL; deterministic match ranking currently runs in application memory.
 
-**Tracking:** Saved notes, application stages and timeline events are private records. Opening an employer application URL never marks an application submitted. Users record outcomes manually, or authorized owner automation records Applied after a same-job employer receipt.
+**Tracking:** Saved notes, application stages and timeline events are private records. Opening an employer application URL never marks an application submitted. A job becomes Applied only when the user explicitly confirms it. JobCompass never submits applications.
 
 **Optional AI:** `AI_MODE` controls an independent personal-key studio. A server-side policy gates both the UI and API. Provider adapters receive request-local keys and fixed endpoints, never owner credentials. Structured responses are checked against the source résumé/job before workspace-scoped `AiReview` snapshots and reports are stored. Text/keyword checks are separate heuristics. See [personal AI](personal-ai.md).
 
@@ -35,8 +35,8 @@ Authentication tables and the public catalogue use an explicitly unscoped client
 
 ## Current limits
 
-The curated catalogue is weighted toward technology employers, with worldwide roles across departments. It is not the entire worldwide job market. Refreshes are polling, not real-time employer webhooks; source delays and GitHub schedule delays affect discovery latency. Missing provider values remain unknown. Personal-key AI is optional; legacy gateway tools remain disabled. See [discovery operations](discovery.md), [README.md](../README.md) and [SECURITY.md](../SECURITY.md).
+The curated catalogue is weighted toward technology employers, with worldwide roles across departments. It is not the entire worldwide job market. Refreshes are polling, not real-time employer webhooks; source delays and GitHub schedule delays affect discovery latency. Missing provider values remain unknown. Personal-key AI is optional. See [discovery operations](discovery.md), [README.md](../README.md) and [SECURITY.md](../SECURITY.md).
 
-## Automatic application processing
+## Application filling
 
-Owner-only rules enroll deliberate queue decisions into leased tasks. The existing scheduler runs the standalone browser worker, sharing the companion engine for Greenhouse, Lever/EU and Ashby forms. Submission authorization is serialized in a workspace/job ledger; employer receipts or explicit owner resolution determine outcomes. Uncertain attempts cannot automatically retry. Profile clearing preserves this application-history ledger. See [automatic applications](automatic-applications.md).
+The owner-only Chrome companion fills supported Greenhouse, Lever/EU and Ashby forms from confirmed profile facts and saved answers, using a short-lived, job-bound grant. It never submits: the user reviews the form and presses Submit, then marks the job Applied. There is no background worker or automatic submission. See [application filling](application-filling.md).

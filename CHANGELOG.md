@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-23 - Remove automatic applications
+
+JobCompass never submits applications for you. You review and submit every application yourself.
+
+- Removed the automatic application system: application rules, the offline worker and local watcher, the worker API, the Automatic applications page, swipe-to-authorise consent and the queue's processing states and "Needs attention" tab.
+- Removed the automatic-submission option from Fill application. Companion 2.2.0 fills forms only and has no submit or outcome path; the website requires 2.2.0.
+- Removed the scheduled worker steps from the catalogue workflow; catalogue refresh is unchanged.
+- Removed the disabled legacy AI gateway (`ENABLE_AI`) and its companion. Personal-key AI Studio is unchanged.
+- Removed `AUTOMATION_MODE`, `AUTOMATION_WORKER_SECRET`, `ENABLE_AI`, `AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL`, `AI_DAILY_LIMIT`, `AI_INPUT_USD_PER_MILLION`, `AI_OUTPUT_USD_PER_MILLION` and `COMPANION_EXTENSION_ID`.
+- Migration `202611230001_remove_automatic_applications` drops `AutomationEvent`, `AutomationTask`, `AutomationSettings`, `ApplicationSubmission` and `ApplicationFillSession.submissionAllowed`/`taskId`. Back up the database first.
+
 ## 2026-11-03 - Private owner workspace
 
 - Close production signup and restrict the hosted workspace to the configured verified owner, including previously issued non-owner sessions.

@@ -15,10 +15,9 @@ The screen renders existing account-scoped catalogue and matching data:
 - Real eligibility/readiness findings and any requirements needing attention.
 - Current undecided count and queued count, derived from existing services.
 - Optional pass reasons using the existing explicit-feedback behavior.
-- Exact CV, recipient and submission disclosure when automatic processing is authorized.
 
 The role is the largest surface and the first substantive content. Search and matching explanations use native disclosures. Decision buttons stay reachable while reading on desktop and phone; touch targets, labelled icons, focus, busy states, reduced-motion behavior, failed-save recovery, undo and keyboard shortcuts are preserved. Keyboard arrows on a disclosure must never create an application decision.
 
-The redesign does not add model calls, change matching weights, grant employer permissions, alter queue semantics or mark applications submitted. The existing private-account, owner-preview and uncertain-outcome safeguards remain authoritative.
+The redesign does not add model calls, change matching weights, grant employer permissions, alter queue semantics or mark applications submitted. The existing private-account and owner-preview safeguards remain authoritative.
 
 Browser verification uses the existing fictional Example Labs and other release fixtures. These are test data, never production claims. The source lint and rendered Taste inspector are checked alongside the actual desktop, tablet, phone and dark screenshots. No visual check spends provider credits or submits a real employer application.
