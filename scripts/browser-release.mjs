@@ -1228,6 +1228,41 @@ try {
   check(
     "Unverified model quotes are omitted and flagged for manual review without discarding verified results or retrying inference",
   );
+  const verdictPanel = page.locator(".ai-report .verdict-panel");
+  await verdictPanel.waitFor();
+  const verdictText = await verdictPanel.innerText();
+  assert.match(verdictText, /Should I apply\?/);
+  assert.match(verdictText, /Maybe · 3\.1/);
+  assert.match(verdictText, /No CV evidence supports a ready answer/);
+  assert.doesNotMatch(verdictText, /probabilit|ATS score|guarantee/i);
+  check(
+    "The review shows a grounded Should I apply? verdict with an honest interview-risk answer",
+  );
+  const jobsPage = await page.context().newPage();
+  jobsPage.on("pageerror", (e) => errors.push(e.message));
+  await jobsPage.goto(origin + "/my-jobs?tab=queued&sort=verdict");
+  const badge = jobsPage.locator(".job-workspace-row .verdict-badge").first();
+  await badge.waitFor();
+  assert.match(await badge.innerText(), /Maybe · 3\.1/);
+  await jobsPage
+    .locator(".job-workspace-row")
+    .filter({ has: jobsPage.locator(".verdict-badge") })
+    .first()
+    .click();
+  await jobsPage
+    .locator(".job-workspace-detail .verdict-panel")
+    .getByText("Should I apply?", { exact: true })
+    .waitFor();
+  await jobsPage
+    .getByLabel("Filter by verdict", { exact: true })
+    .selectOption("skip");
+  await jobsPage
+    .getByRole("heading", { name: "No jobs with this verdict", exact: true })
+    .waitFor();
+  await jobsPage.close();
+  check(
+    "My Jobs shows the verdict badge and detail, and filters and sorts by verdict",
+  );
   await page
     .getByRole("button", { name: "Overview & action plan", exact: true })
     .click();

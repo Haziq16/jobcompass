@@ -8,6 +8,7 @@ import "./application-profile.css";
 import "./application-fill.css";
 import "./ai-studio.css";
 import "./job-workspace.css";
+import "./verdict.css";
 export const metadata: Metadata = {
   title: "JobCompass — Your next chapter",
   description:

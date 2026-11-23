@@ -3,6 +3,7 @@ import type {
   ReviewOutput,
   ValidatedReview,
 } from "@/lib/resume-review-contracts";
+import type { VerdictRecord } from "@/lib/apply-verdict";
 export type Job = {
   id: string;
   title: string;
@@ -18,6 +19,7 @@ export type Run = {
   error: string | null;
   report: (ReviewOutput & Partial<Pick<ValidatedReview, "validation">>) | null;
   checks: ResumeChecks;
+  verdict?: VerdictRecord | null;
   jobSnapshot: Job;
   resumeSnapshot: string;
   inputTokens: number | null;

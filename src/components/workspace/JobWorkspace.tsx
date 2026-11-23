@@ -16,6 +16,7 @@ import MatchPreferences from "./MatchPreferences";
 import type { MatchSettings } from "./match-types";
 import type { jobWorkspace } from "@/lib/job-workspace";
 import { opportunityStatusLabel } from "@/lib/application-progress";
+import VerdictPanel, { VerdictBadge, VerdictEmpty } from "./VerdictPanel";
 
 type Data = Awaited<ReturnType<typeof jobWorkspace>>;
 const tabs = [
@@ -31,10 +32,14 @@ export default function JobWorkspace() {
   const router = useRouter(),
     params = useSearchParams();
   const tab = params.get("tab") || "matching";
+  const verdictFilter = params.get("verdict") || "";
+  const verdictSort = params.get("sort") === "verdict";
   const query = new URLSearchParams({
     tab,
     page: params.get("page") || "1",
     q: params.get("q") || "",
+    ...(verdictFilter ? { verdict: verdictFilter } : {}),
+    ...(verdictSort ? { sort: "verdict" } : {}),
   });
   const resource = useResource<Data>(`job-workspace?${query}`);
   const refresh = resource.refresh;
@@ -162,6 +167,45 @@ export default function JobWorkspace() {
           <small>Choose Matching jobs to search the catalogue.</small>
         )}
       </form>
+      <div className="job-workspace-verdict-tools">
+        <label>
+          Verdict
+          <select
+            aria-label="Filter by verdict"
+            value={verdictFilter}
+            onChange={(e) =>
+              navigate({
+                verdict: e.target.value || null,
+                page: "1",
+                selected: null,
+              })
+            }
+          >
+            <option value="">All jobs</option>
+            <option value="apply">Apply</option>
+            <option value="maybe">Maybe</option>
+            <option value="skip">Skip</option>
+            <option value="none">No verdict yet</option>
+          </select>
+        </label>
+        <label>
+          Order
+          <select
+            aria-label="Order jobs"
+            value={verdictSort ? "verdict" : ""}
+            onChange={(e) =>
+              navigate({
+                sort: e.target.value || null,
+                page: "1",
+                selected: null,
+              })
+            }
+          >
+            <option value="">Default order</option>
+            <option value="verdict">Verdict score, highest first</option>
+          </select>
+        </label>
+      </div>
       {(error || resource.error) && (
         <div role="alert" className="job-workspace-message">
           {error || "Your jobs could not be loaded."}
@@ -202,14 +246,22 @@ export default function JobWorkspace() {
             {tab === "matching" ? "matching opportunities" : "jobs"}
             {tab === "matching" &&
               " · Based on your CV, preferences and explicit feedback"}
+            {data.capped &&
+              " · Verdict filtering covers the first part of this list only"}
           </p>
           {!data.rows.length ? (
             <section className="job-workspace-empty">
-              <h2>No jobs here yet</h2>
+              <h2>
+                {verdictFilter
+                  ? "No jobs with this verdict"
+                  : "No jobs here yet"}
+              </h2>
               <p>
-                {tab === "matching"
-                  ? "Try broader preferences or a different search. Your requirements remain yours to control."
-                  : "Jobs appear here as you save them, apply and record outcomes."}
+                {verdictFilter
+                  ? "Verdicts come from AI reviews you run in AI Studio. Choose All jobs to see everything in this list."
+                  : tab === "matching"
+                    ? "Try broader preferences or a different search. Your requirements remain yours to control."
+                    : "Jobs appear here as you save them, apply and record outcomes."}
               </p>
               <Link href="/my-jobs">Find matching jobs</Link>
             </section>
@@ -232,6 +284,10 @@ export default function JobWorkspace() {
                       {row.match?.recommendation.label ||
                         opportunityStatusLabel(row.status)}
                     </small>
+                    <VerdictBadge
+                      decision={row.verdict?.decision}
+                      score={row.verdict?.score}
+                    />
                   </button>
                 ))}
               </section>
@@ -248,6 +304,16 @@ export default function JobWorkspace() {
                       <p>{selected.match.salaryText}</p>
                     )}
                   </header>
+                  {selected.verdict?.record ? (
+                    <VerdictPanel
+                      record={selected.verdict.record}
+                      reviewedAt={selected.verdict.reviewedAt}
+                    />
+                  ) : (
+                    <VerdictEmpty
+                      studioHref={`/assistant?source=${selected.source}&jobId=${encodeURIComponent(selected.id)}`}
+                    />
+                  )}
                   {selected.match && (
                     <>
                       <section>

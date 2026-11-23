@@ -1,0 +1,130 @@
+/* "Should I apply?" verdict: neutral surfaces, green only for the Apply status. */
+.verdict-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 1px solid var(--release-line);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--release-ink);
+  background: var(--release-surface);
+  white-space: nowrap;
+}
+.verdict-badge.verdict-apply {
+  border-color: var(--release-accent);
+  color: var(--release-accent);
+}
+.verdict-badge.verdict-skip {
+  color: var(--release-muted);
+}
+.verdict-panel {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--release-line);
+  border-radius: 8px;
+  background: var(--release-surface);
+  color: var(--release-ink);
+}
+.verdict-panel h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.verdict-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.verdict-reason {
+  margin: 10px 0 4px;
+  font-size: 15px;
+}
+.verdict-note,
+.verdict-disclaimer {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--release-muted);
+}
+.verdict-facts {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+.verdict-facts > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--release-line);
+}
+.verdict-facts dt {
+  font-weight: 600;
+  font-size: 14px;
+}
+.verdict-facts dd {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.verdict-quote {
+  color: var(--release-muted);
+}
+.verdict-evidence {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--release-muted);
+}
+.verdict-risks {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--release-line);
+}
+.verdict-risks h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.verdict-risks ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+}
+.verdict-risks p {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.verdict-empty a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 6px;
+}
+.job-workspace-verdict-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 8px 0;
+}
+.job-workspace-verdict-tools label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--release-muted);
+}
+.job-workspace-verdict-tools select {
+  min-height: 44px;
+}
+.job-workspace-row .verdict-badge {
+  justify-self: start;
+  margin-top: 4px;
+}
+@media (max-width: 640px) {
+  .verdict-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}

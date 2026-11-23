@@ -1012,11 +1012,12 @@ export default function AiStudio() {
                   review
                 </h2>
                 <p>
-                  Get matching experience, gaps to clarify and a CV action plan.
-                  Your CV and this job are sent to{" "}
-                  <strong>{config.provider}</strong> using your own key. The
-                  provider may charge you. Inputs and results are saved
-                  privately in JobCompass.
+                  Get matching experience, gaps to clarify, a CV action plan and
+                  a “Should I apply?” verdict. Your CV and this job text are
+                  sent to <strong>{config.provider}</strong> using your own key;
+                  your timezone and work-authorization answers are not sent and
+                  are only compared on JobCompass. The provider may charge you.
+                  Inputs and results are saved privately in JobCompass.
                 </p>
                 {!providerReady && (
                   <div className="ai-connect-prompt">

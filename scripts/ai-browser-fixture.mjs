@@ -150,6 +150,34 @@ globalThis.fetch = async (input, options) => {
                   excerpts: [{ blockId: block.id, quote: block.text }],
                 },
               ],
+              verdict: {
+                score: 3.1,
+                reason:
+                  "Your Kotlin evidence matches the main requirement. Accessibility is not shown in your CV.",
+                seniority: {
+                  posting: "unclear",
+                  jobQuote: "",
+                  candidate: "unclear",
+                  evidence: [],
+                },
+                workplace: { arrangement: "unclear", quote: "" },
+                timezone: {
+                  requirement: "",
+                  quote: "",
+                  utcOffsetMin: null,
+                  utcOffsetMax: null,
+                },
+                workCountry: { country: "", quote: "" },
+                sponsorship: { stance: "unmentioned", quote: "" },
+                interviewRisks: [
+                  {
+                    jobQuote: "Accessibility experience is required.",
+                    question: "Tell us about accessibility work you have done.",
+                    answer: "",
+                    evidence: [],
+                  },
+                ],
+              },
             };
     await delay(1600);
     return Response.json({

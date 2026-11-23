@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { Run } from "./ai-studio-types";
 import { Checks } from "./AiReviewChecks";
+import VerdictPanel from "./VerdictPanel";
 
 const labels = {
   supported: "Matching experience",
@@ -135,6 +136,9 @@ export function ReviewResult({
         </div>
       ) : (
         <>
+          {run.verdict && (
+            <VerdictPanel record={run.verdict} reviewedAt={run.createdAt} />
+          )}
           {Boolean(run.report?.validation?.omittedEvidence) && (
             <div className="ai-validation-warning" role="status">
               <strong>Some evidence needs your review</strong>
