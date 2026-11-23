@@ -51,9 +51,9 @@ function connect(id: string, message: unknown) {
 }
 const errors: Record<string, string> = {
   cv_under_2mb_required:
-    "Choose an original PDF or DOCX of 2 MB or less for automatic upload. Larger CVs can be attached manually on the employer page.",
+    "Choose an original PDF or DOCX of 2 MB or less for the companion to upload. Larger CVs can be attached manually on the employer page.",
   companion_missing:
-    "Install or reload JobCompass Companion 2.1.1 in Chrome, then try again. No filling was started.",
+    "Install or reload JobCompass Companion 2.2.0 in Chrome, then try again. No filling was started.",
   confirmed_contact_required:
     "Confirm the Contact section in your application profile first.",
   listing_unavailable:
@@ -63,20 +63,12 @@ const errors: Record<string, string> = {
     "Your profile changed. Confirm it and start a fresh connection.",
   unsupported_form:
     "This application platform is not supported yet. Use the employer posting to apply manually.",
-  submission_requires_resolution:
-    "An application attempt is already recorded. Check its outcome in Automatic applications before opening another form.",
   revision_conflict:
-    "This application changed in another tab. Refresh before authorizing it again.",
-  recipient_authorization_required:
-    "Your CV or profile changed. Review and authorize the current details for this employer.",
-  automation_paused:
-    "Automatic processing is paused. Enable your application rules before resuming.",
+    "This application changed in another tab. Refresh and try again.",
   eligibility_confirmation_required:
-    "Confirm the employer's eligibility requirements in this job's answer inbox before authorizing processing.",
+    "Confirm the employer's eligibility requirements in this job's answer inbox before filling.",
   eligibility_conflict:
     "A confirmed fact conflicts with an employer requirement. Review this job's eligibility before continuing.",
-  application_consent_stale:
-    "Your CV, profile or rules changed. Refresh this page and authorize the current details.",
 };
 export default function ApplicationFill({
   catalogId,
@@ -113,59 +105,11 @@ function Workspace({
     [resume, setResume] = useState(preferredResumeId || ""),
     [country, setCountry] = useState(""),
     [consent, setConsent] = useState(false),
-    [submit, setSubmit] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const data = resource.data,
     latest = data?.sessions[0];
-  const authorization = useResource<{
-    applicationConsent: {
-      token: string;
-      cvName: string;
-      submit: boolean;
-      recipient: string;
-    } | null;
-  }>(
-    "automation/consent?job=" +
-      catalogId +
-      (resume ? "&resumeId=" + encodeURIComponent(resume) : "") +
-      (submit ? "" : "&mode=fill"),
-  );
-  async function authorizeAutomatic() {
-    if (!data || !authorization.data?.applicationConsent) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await api<{
-        processing?: { id?: string; state?: string };
-      }>("matches/decision", "POST", {
-        requestId: crypto.randomUUID(),
-        catalogId,
-        state: "queued",
-        expectedRevision: data.decision.revision,
-        applicationConsent: authorization.data.applicationConsent.token,
-      });
-      if (
-        result.processing?.id &&
-        ["needs_input", "failed", "filled", "cancelled"].includes(
-          result.processing.state || "",
-        )
-      )
-        await api("automation/retry", "POST", { id: result.processing.id });
-      setNotice(
-        "This employer is authorized to receive the shown CV and confirmed answers. Check Automatic applications for progress.",
-      );
-      refresh();
-      authorization.refresh();
-    } catch (e) {
-      setError(errors[(e as Error).message] || (e as Error).message);
-      refresh();
-      authorization.refresh();
-    } finally {
-      setBusy(false);
-    }
-  }
   const active =
     latest &&
     !latest.revokedAt &&
@@ -183,17 +127,16 @@ function Workspace({
     let grant: Grant | null = null;
     try {
       const extension = await connect(data.companionId, { action: "jc-ping" });
-      if (extension.version !== "2.1.1") throw new Error("companion_missing");
+      if (extension.version !== "2.2.0") throw new Error("companion_missing");
       grant = await api<Grant>("application-fill/start", "POST", {
         catalogId,
         resumeAssetId: resume || data.resumes[0]?.id,
         country: country || data.country,
         consent,
-        submit,
       });
       await connect(data.companionId, { action: "jc-connect-fill", ...grant });
       setNotice(
-        "Employer form opened in the companion. Return here for its latest report. Only a separately authorised submission can be sent.",
+        "Employer form opened in the companion. Review every field there and press the employer's Submit button yourself when ready.",
       );
       setConsent(false);
       refresh();
@@ -253,7 +196,8 @@ function Workspace({
           <p className="fill-intro">
             Use confirmed facts and your selected CV on the employer form.
             Missing answers return to your inbox; existing entries are
-            preserved. Submission requires your explicit authorisation.
+            preserved. JobCompass never submits the form: you review it and
+            press Submit yourself.
           </p>
           {data.readiness && (
             <section className="application-readiness">
@@ -268,42 +212,6 @@ function Workspace({
                 Check screening answers for this job
               </Link>
             </section>
-          )}
-          {data.submission &&
-          data.submission.state !== "resolved_not_submitted" ? (
-            <p role="status">
-              An application attempt is already recorded:{" "}
-              {data.submission.state}. Check the outcome in{" "}
-              <Link href="/automation">Automatic applications</Link> before
-              another attempt.
-            </p>
-          ) : (
-            authorization.data?.applicationConsent && (
-              <section className="application-authorization">
-                <h2>Start automatic processing</h2>
-                <p>
-                  Authorize sending{" "}
-                  <strong>
-                    {authorization.data.applicationConsent.cvName}
-                  </strong>
-                  , your confirmed contact details and application answers to{" "}
-                  <strong>{data.decision.employer}</strong>
-                  {authorization.data.applicationConsent.submit
-                    ? ", including final submission when all checks pass."
-                    : " to fill the form only."}{" "}
-                  Missing facts and human verification pause processing.
-                </p>
-                <button
-                  className="primary"
-                  disabled={busy}
-                  onClick={() => void authorizeAutomatic()}
-                >
-                  {busy
-                    ? "Saving authorization..."
-                    : "Authorize & process this application"}
-                </button>
-              </section>
-            )
           )}
           <div className="fill-layout">
             <div>
@@ -418,18 +326,6 @@ function Workspace({
                     Use my confirmed profile and matching saved answers for this
                     employer, and upload the CV selected above.
                   </label>
-                  <label className="candidate-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={submit}
-                      onChange={(e) => {
-                        setSubmit(e.target.checked);
-                        setConsent(false);
-                      }}
-                    />
-                    Submit this application automatically when its answers and
-                    CV pass checks. Pause for missing input or CAPTCHA.
-                  </label>
                   <button
                     className="primary"
                     type="submit"
@@ -439,8 +335,6 @@ function Workspace({
                       !data.profileReady ||
                       !data.resumes.length ||
                       !data.supported ||
-                      (Boolean(data.submission) &&
-                        data.submission?.state !== "resolved_not_submitted") ||
                       data.decision.state !== "queued"
                     }
                   >
@@ -494,7 +388,7 @@ function Workspace({
                       <ApplicationRecovery
                         catalogId={catalogId}
                         progress={progress}
-                        state={data.submission?.state || latest.state}
+                        state={latest.state}
                       />
                     ) : (
                       <p className="candidate-help">
@@ -514,8 +408,8 @@ function Workspace({
                       </button>
                     )}
                     <p className="candidate-help">
-                      Filling alone does not mark this job Applied. An
-                      authorized submission requires an employer confirmation.
+                      Filling does not mark this job Applied. After you submit
+                      on the employer site, mark it Applied in My Jobs.
                     </p>
                   </>
                 )}
@@ -533,7 +427,7 @@ function Workspace({
                 download
               >
                 <Download size={16} />
-                Download Companion 2.1.1
+                Download Companion 2.2.0
               </a>
               <ol>
                 <li>Extract the downloaded ZIP into a folder you will keep.</li>

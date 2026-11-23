@@ -17,11 +17,8 @@ const env = {
   DATABASE_URL: source.toString(),
   JOBCOMPASS_TEST: "true",
   PUBLIC_SIGNUP: "false",
-  ENABLE_AI: "false",
   JSEARCH_API_KEY: "",
   JSEARCH_PLAN_CONFIRMED: "false",
-  AI_GATEWAY_API_KEY: "",
-  AI_GATEWAY_MODEL: "",
   PERSONAL_AI_ENCRYPTION_KEY: "11".repeat(32),
 };
 execFileSync(
@@ -43,7 +40,6 @@ execFileSync(
     "tests/matches.test.ts",
     "tests/application-memory.test.ts",
     "tests/application-filling.test.ts",
-    "tests/automation.test.ts",
     "tests/personal-ai.test.ts",
     "tests/cv-personalization.test.ts",
     "tests/job-workspace.test.ts",

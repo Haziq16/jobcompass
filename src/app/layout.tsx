@@ -6,7 +6,6 @@ import "./matches.css";
 import "./swipe.css";
 import "./application-profile.css";
 import "./application-fill.css";
-import "./automation.css";
 import "./ai-studio.css";
 import "./job-workspace.css";
 export const metadata: Metadata = {

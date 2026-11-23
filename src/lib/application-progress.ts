@@ -46,19 +46,15 @@ export function applicationProgress(value: unknown) {
   };
 }
 
-export function applicationTaskLabel(state: string) {
+export function opportunityStatusLabel(state: string) {
   return (
     (
       {
-        queued: "Waiting for worker",
-        leased: "Processing employer form",
-        needs_input: "Needs your action",
-        filled: "Form prepared; not submitted",
-        submitting: "Submission in progress",
-        confirmed: "Application confirmed",
-        uncertain: "Outcome uncertain; do not retry",
-        cancelled: "Processing stopped",
-        failed: "Processing failed",
+        matching: "Matching",
+        queued: "Queued for review",
+        saved: "Saved for later",
+        passed: "Skipped",
+        removed: "Removed",
       } as Record<string, string>
     )[state] || state.replaceAll("_", " ")
   );

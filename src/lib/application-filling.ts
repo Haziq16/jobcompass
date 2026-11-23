@@ -82,10 +82,6 @@ export async function fillSetup(catalogId: string) {
     sessions,
     companionId,
     country: applicationHiringCountry(catalog || {}),
-    submission: await db.applicationSubmission.findFirst({
-      where: { catalogId },
-      select: { state: true },
-    }),
     readiness: catalog
       ? await resolvedApplicationReadiness(catalog, catalogId, false, profile)
       : null,
@@ -99,8 +95,6 @@ export async function startFill(input: unknown) {
   if (!setup.supported) throw new AppError("unsupported_form", 400);
   if (!setup.profileReady)
     throw new AppError("confirmed_contact_required", 409);
-  if (setup.submission && setup.submission.state !== "resolved_not_submitted")
-    throw new AppError("submission_requires_resolution", 409);
   const catalog = await authDb.catalogJob.findUnique({
     where: { id: data.catalogId },
     include: { board: true },
@@ -144,7 +138,6 @@ export async function startFill(input: unknown) {
         resumeHash: cv.sha256,
         profileRevision: setup.profileRevision,
         country: data.country,
-        submissionAllowed: data.submit,
         grantHash: hash(token),
         expiresAt: new Date(Date.now() + 30 * 60000),
       },
@@ -155,7 +148,6 @@ export async function startFill(input: unknown) {
       targetUrl: session.targetUrl,
       expiresAt: session.expiresAt,
       companionId,
-      autoSubmit: data.submit,
     };
   });
 }
@@ -163,7 +155,6 @@ export async function withFillGrant<T>(
   token: string,
   targetUrl: string,
   action: (id: string) => Promise<T>,
-  receipt = false,
 ) {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token))
     throw new AppError("invalid_grant", 401);
@@ -185,7 +176,6 @@ export async function withFillGrant<T>(
   if (!canUseFilling(user || undefined))
     throw new AppError("filling_unavailable", 403);
   return inWorkspace(session.workspaceId, async () => {
-    if (receipt) return action(session.id);
     const profile = await getCandidate();
     if (profile.revision !== session.profileRevision)
       throw new AppError("profile_changed", 409);
@@ -419,7 +409,6 @@ export async function planFill(id: string, input: unknown) {
     revision: session.revision + 1,
     fields,
     blockers: scan.blockers,
-    autoSubmit: session.submissionAllowed,
     resume: { filename: cv.name, sha256: cv.sha256 },
     document: fields.some((f) => f.status === "file")
       ? {

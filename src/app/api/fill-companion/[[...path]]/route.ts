@@ -1,4 +1,3 @@
-﻿import { reserveSubmission, recordOutcome } from "@/lib/automation";
 import { AppError } from "@/lib/contracts";
 import { apiError, readJson } from "@/lib/http";
 import { companionId } from "@/lib/application-fill-contracts";
@@ -23,31 +22,16 @@ async function handler(
     return new Response(null, { status: 204, headers: cors });
   try {
     const [id, action, ...rest] = (await ctx.params).path || [];
-    if (
-      !id ||
-      rest.length ||
-      !["scan", "report", "submit", "outcome"].includes(action)
-    )
+    if (!id || rest.length || !["scan", "report"].includes(action))
       throw new AppError("not_found", 404);
     const token =
         req.headers.get("authorization")?.replace(/^Bearer /, "") || "",
       target = req.headers.get("x-target-url") || "";
     const input = await readJson(req);
-    const result = await withFillGrant(
-      token,
-      target,
-      async (grantedId) => {
-        if (id !== grantedId) throw new AppError("invalid_grant", 401);
-        return action === "scan"
-          ? planFill(id, input)
-          : action === "report"
-            ? reportFill(id, input)
-            : action === "submit"
-              ? reserveSubmission(id, input)
-              : recordOutcome(id, input);
-      },
-      action === "outcome",
-    );
+    const result = await withFillGrant(token, target, async (grantedId) => {
+      if (id !== grantedId) throw new AppError("invalid_grant", 401);
+      return action === "scan" ? planFill(id, input) : reportFill(id, input);
+    });
     return Response.json(result, { headers: cors });
   } catch (e) {
     const response = apiError(e);

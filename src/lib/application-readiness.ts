@@ -8,7 +8,6 @@ export type ApplicationReadiness = {
   label: string;
   reasons: string[];
   questions: { question: string; country: string; expected: "Yes" | "No" }[];
-  automatic: boolean;
   action: string;
 };
 export type ReadinessJob = {
@@ -244,11 +243,10 @@ export function applicationReadiness(
         : "No detected requirement conflict",
     reasons,
     questions,
-    automatic: supported && status === "compatible",
     action: !supported
-      ? "Manual application: this form is not supported."
+      ? "Manual application: this form is not supported by Fill application."
       : status !== "compatible"
-        ? "Check eligibility before automatic processing."
+        ? "Check eligibility before you apply."
         : "Supported form; missing employer questions may still need your answers.",
   };
 }
@@ -296,7 +294,6 @@ export async function resolvedApplicationReadiness(
       : unresolved.length
         ? "Eligibility needs confirmation"
         : "Confirmed screening answers",
-    automatic: Boolean(targetInfo(job.applyUrl)) && status === "compatible",
     reasons: declined
       ? [
           ...result.reasons,

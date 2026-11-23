@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { authDb, db } from "./db";
+import { db } from "./db";
 import { matchCollection, matchDeck, matchSettings } from "./matches";
 import { safeUrl } from "./contracts";
 
@@ -11,7 +11,6 @@ export const jobWorkspaceTabs = [
   "applied",
   "interviews",
   "offers",
-  "attention",
 ] as const;
 export type JobWorkspaceTab = (typeof jobWorkspaceTabs)[number];
 export type WorkspaceOpportunity = {
@@ -27,7 +26,6 @@ export type WorkspaceOpportunity = {
   applicationId?: string | null;
   match?: Awaited<ReturnType<typeof matchDeck>>["jobs"][number];
 };
-const issueStates = ["needs_input", "failed", "uncertain"];
 export async function jobWorkspace(
   params: URLSearchParams,
   matchingAvailable: boolean,
@@ -39,10 +37,9 @@ export async function jobWorkspace(
     .min(1)
     .max(10000)
     .parse(params.get("page") || 1);
-  const [pipeline, decisions, issueCount, settings] = await Promise.all([
+  const [pipeline, decisions, settings] = await Promise.all([
     db.application.groupBy({ by: ["status"], _count: true }),
     db.matchDecision.groupBy({ by: ["state"], _count: true }),
-    db.automationTask.count({ where: { state: { in: issueStates } } }),
     matchingAvailable ? matchSettings() : null,
   ]);
   const statusCount = (status: string) =>
@@ -56,7 +53,6 @@ export async function jobWorkspace(
     applied: statusCount("Applied"),
     interviews: statusCount("Interview"),
     offers: statusCount("Offer"),
-    attention: issueCount,
   };
   let rows: WorkspaceOpportunity[] = [],
     total = 0;
@@ -91,34 +87,8 @@ export async function jobWorkspace(
         employer: snapshot.employer,
         location: snapshot.location || null,
         applyUrl: row.available ? safeUrl(snapshot.applyUrl) : null,
-        status: row.processing?.state || row.application?.status || row.state,
-        detail: row.processing?.detail,
+        status: row.application?.status || row.state,
         applicationId: row.application?.id,
-      };
-    });
-  } else if (tab === "attention") {
-    const tasks = await db.automationTask.findMany({
-      where: { state: { in: issueStates } },
-      orderBy: { updatedAt: "desc" },
-      take: 30,
-      skip: (page - 1) * 30,
-    });
-    const jobs = await authDb.catalogJob.findMany({
-      where: { id: { in: tasks.map((task) => task.catalogId) } },
-      select: { id: true, title: true, employer: true, location: true },
-    });
-    total = issueCount;
-    rows = tasks.map((task) => {
-      const job = jobs.find((job) => job.id === task.catalogId);
-      return {
-        id: task.catalogId,
-        source: "catalog",
-        title: job?.title || "Application",
-        employer: job?.employer || "Employer",
-        location: job?.location || null,
-        applyUrl: safeUrl(task.targetUrl),
-        status: task.state,
-        detail: task.detail,
       };
     });
   } else if (["applied", "interviews", "offers"].includes(tab)) {

@@ -481,10 +481,8 @@ function Preparation({
       {step === "apply" && (
         <section className="preparation-stage">
           <p>
-            Preparation does not authorize sending documents to an employer.
-            Review the selected CV, recipient and submission rules below.
-            Automatic rules keep their configured CV until you deliberately
-            change them.
+            Preparation never sends documents to an employer. Review the
+            selected CV below, then fill and submit the employer form yourself.
           </p>
           {source === "catalog" ? (
             <QueueForApplication

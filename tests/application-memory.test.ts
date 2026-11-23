@@ -70,8 +70,11 @@ test("screening separates confirmed conflicts, unknown citizenship and supported
     applyUrl: "https://job-boards.greenhouse.io/example/jobs/123",
   };
   assert.equal(applicationReadiness(job, profile).status, "unknown");
-  assert.equal(applicationReadiness(job, profile).automatic, false);
   assert.equal(
+    applicationReadiness(job, profile).action,
+    "Check eligibility before you apply.",
+  );
+  assert.match(
     applicationReadiness(
       {
         ...job,
@@ -79,8 +82,8 @@ test("screening separates confirmed conflicts, unknown citizenship and supported
         applyUrl: "https://example.com/apply",
       },
       profile,
-    ).automatic,
-    false,
+    ).action,
+    /^Manual application: this form is not supported/,
   );
   const confirmed = {
     ...profile,

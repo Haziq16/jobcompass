@@ -64,7 +64,6 @@ const env = {
   APP_ACCESS: "hosted",
   APP_URL: origin,
   PUBLIC_SIGNUP: "true",
-  ENABLE_AI: "false",
   AI_MODE: "owner",
   OWNER_EMAIL: "alex@release.example",
   JOBCOMPASS_TEST: "false",
@@ -72,7 +71,6 @@ const env = {
     "local-browser-release-secret-with-more-than-32-characters",
   JOBCOMPASS_BROWSER_CHECK_ID: randomUUID(),
   JSEARCH_API_KEY: "",
-  AI_GATEWAY_API_KEY: "",
   PERSONAL_AI_ENCRYPTION_KEY: "22".repeat(32),
 };
 execFileSync(
@@ -82,7 +80,7 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: source.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE TABLE "AutomationEvent", "AutomationTask", "AutomationSettings", "ApplicationSubmission", "ApplicationFillSession", "RateLimit", "CandidateProfile", "ApplicationAnswer", "ApplicationQuestion", "MatchPreferences", "MatchDecision", "MatchAction", "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
+  'TRUNCATE TABLE "ApplicationFillSession", "RateLimit", "CandidateProfile", "ApplicationAnswer", "ApplicationQuestion", "MatchPreferences", "MatchDecision", "MatchAction", "AiConnection", "AiReview", "CatalogBoard", "CatalogJob", "CatalogSync", "User", "Job", "Profile", "Settings", "SearchRun", "ApiRequestLedger", "ProfileVersion", "ResumeAsset" CASCADE',
 );
 const catalogNow = new Date();
 await db.catalogBoard.createMany({
@@ -349,7 +347,10 @@ try {
   await page.keyboard.press("ArrowRight");
   await page
     .getByRole("status")
-    .filter({ hasText: "Queued Kotlin Platform Engineer for review only" })
+    .filter({
+      hasText:
+        "Queued Kotlin Platform Engineer. Nothing was sent to the employer.",
+    })
     .waitFor();
   await page.unroute("**/api/matches/decision");
   await page.goto(origin + "/queue");
@@ -449,7 +450,7 @@ try {
     .getByRole("button", { name: "Use light theme", exact: true })
     .click();
   check(
-    "Swipe keyboard shortcuts, readable queue titles and light/dark responsive layouts work without automatic applications",
+    "Swipe keyboard shortcuts, readable queue titles and light/dark responsive layouts work",
   );
   await page.goto(origin + "/application-profile");
   await page.getByLabel("Full name", { exact: true }).fill("Alex Sample");
@@ -874,7 +875,7 @@ try {
   );
   assert.equal(
     (await page.request.get(origin + "/api/workspace/generations")).status(),
-    410,
+    404,
   );
   assert.equal(
     (

@@ -59,37 +59,10 @@
     root.append(section);
     document.documentElement.append(host);
   }
-  async function outcome(id) {
-    panel(
-      "Checking the employer confirmation. This will not click Submit again.",
-    );
-    const result = await globalThis.JobCompassEngine.observeOutcome();
-    await message("jc-outcome", { submissionId: id, ...result });
-    panel(
-      result.outcome === "confirmed"
-        ? "Employer confirmation observed. Your application tracker is updated."
-        : result.outcome === "failed"
-          ? "The employer rejected a validation check. Review it in JobCompass; no automatic retry will be made."
-          : "The outcome is uncertain. Check the employer before retrying. JobCompass will not submit again automatically.",
-    );
-  }
   async function run() {
     if (busy) return;
     busy = true;
     try {
-      const status = await message("jc-status");
-      if (status.finalOutcome) {
-        panel(
-          "Recorded outcome: " +
-            status.finalOutcome +
-            ". No repeat submission will be made.",
-        );
-        return;
-      }
-      if (status.pendingSubmissionId) {
-        await outcome(status.pendingSubmissionId);
-        return;
-      }
       panel("Reading the employer form and confirmed answers…");
       await globalThis.JobCompassEngine.openApplication();
       let plan, result, report;
@@ -117,38 +90,12 @@
         break;
       }
       lastReport = report.report;
-      if (
-        plan.autoSubmit &&
-        report.state === "filled" &&
-        result.auditClean &&
-        result.uploadVerified
-      ) {
-        panel(
-          "Verified form ready. Sending the application you authorised for this job.",
-        );
-        const permission = await message("jc-submit", {
-          fingerprint: result.fingerprint,
-        });
-        try {
-          await globalThis.JobCompassEngine.clickSubmit(result.fingerprint);
-        } catch (e) {
-          await message("jc-outcome", {
-            submissionId: permission.submissionId,
-            outcome: "failed",
-            url: location.href,
-            marker: e.message,
-            proof: "validation_rejection",
-          });
-          throw e;
-        }
-        await outcome(permission.submissionId);
-      } else
-        panel(
-          report.state === "filled"
-            ? `${report.report.filled} fields filled; ${report.report.preserved} existing entries preserved. ${plan.autoSubmit ? "Upload or final validation still needs attention; nothing was submitted." : "Automatic submission was not authorised. Submit yourself when ready."}`
-            : `${report.report.requiredMissing} required fields need attention. ${result.blockers.join(" ")} Nothing was submitted.`,
-          lastReport,
-        );
+      panel(
+        report.state === "filled"
+          ? `${report.report.filled} fields filled; ${report.report.preserved} existing entries preserved. Review every field, then press the employer's Submit button yourself. JobCompass never submits for you.`
+          : `${report.report.requiredMissing} required fields need attention. ${result.blockers.join(" ")} Nothing was submitted.`,
+        lastReport,
+      );
     } catch (e) {
       panel(e.message, lastReport);
     } finally {

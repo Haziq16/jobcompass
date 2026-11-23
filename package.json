@@ -21,8 +21,7 @@
     "test:browser": "node --env-file=.env scripts/browser-release.mjs",
     "extension:id": "node scripts/companion-key.mjs",
     "package:companion": "node scripts/package-companion.mjs",
-    "test:filling": "node --env-file=.env scripts/browser-filling.mjs",
-    "test:automation": "node --env-file=.env scripts/browser-automation.mjs"
+    "test:filling": "node --env-file=.env scripts/browser-filling.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.85",

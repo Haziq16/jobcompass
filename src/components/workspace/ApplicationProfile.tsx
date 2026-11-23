@@ -69,8 +69,7 @@ function Profile() {
       </nav>
       <p className="candidate-help">
         Private owner preview. Only confirmed facts and reviewed answers can be
-        reused. Automatic processing requires separate employer-specific
-        authorization.
+        reused. JobCompass never submits an application for you.
       </p>
       {notice && (
         <p className="candidate-notice" role="status">

@@ -28,7 +28,6 @@ const navigation = [
   ["/jobs", "Job library", Search],
   ["/profile", "Profile", UserRound],
   ["/application-profile", "Application profile", UserRound],
-  ["/automation", "Automatic applications", BriefcaseBusiness],
   ["/settings", "Settings", Settings],
 ] as const;
 export default function Shell({
@@ -93,9 +92,7 @@ export default function Shell({
           {navigation
             .filter(
               ([href]) =>
-                !["/queue", "/application-profile", "/automation"].includes(
-                  href,
-                ) || matches,
+                !["/queue", "/application-profile"].includes(href) || matches,
             )
             .map(([href, label, Icon]) => (
               <Link

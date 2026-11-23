@@ -1,9 +1,3 @@
-import {
-  swipeApplicationContext,
-  swipeApplicationConsent,
-  verifySwipeApplicationConsent,
-} from "./swipe-application-consent";
-import { enqueueAutomation } from "./automation";
 import { Prisma } from "@prisma/client";
 import { getCandidate } from "./application-memory";
 import { applicationReadiness } from "./application-readiness";
@@ -266,7 +260,6 @@ export async function matchDeck(params: URLSearchParams) {
   const decisions = await db.matchDecision.findMany({
     where: { catalogId: { in: result.jobs.map((j) => j.id) } },
   });
-  const applicationContext = await swipeApplicationContext();
   const candidate = await getCandidate();
   return {
     ...result,
@@ -334,9 +327,6 @@ export async function matchDeck(params: URLSearchParams) {
           requirements,
           warnings,
           readiness,
-          applicationConsent: readiness.automatic
-            ? swipeApplicationConsent(j, applicationContext)
-            : null,
           decisionRevision:
             decisions.find((d) => d.catalogId === j.id)?.revision || 0,
         };
@@ -391,10 +381,6 @@ export async function decideMatch(input: unknown) {
         job.board.lastSuccessAt.valueOf() > Date.now() - 48 * 3600000;
       if (!available && data.state === "queued")
         throw new AppError("listing_unavailable", 409);
-      const applicationAuthorization =
-        data.applicationConsent && data.state === "queued" && job
-          ? await verifySwipeApplicationConsent(data.applicationConsent, job)
-          : null;
       const snapshot = job
         ? json({
             id: job.id,
@@ -407,7 +393,6 @@ export async function decideMatch(input: unknown) {
             sourceUrl: job.sourceUrl,
             firstSeen: job.firstSeen,
             publishedAt: job.publishedAt,
-            ...(applicationAuthorization ? { applicationAuthorization } : {}),
           })
         : (old!.snapshot as Prisma.InputJsonValue);
       const decision = await tx.matchDecision.upsert({
@@ -450,9 +435,7 @@ export async function decideMatch(input: unknown) {
     },
     { timeout: 15000 },
   );
-  const processing =
-    data.state === "queued" ? await enqueueAutomation(data.catalogId) : null;
-  return { ...result, processing };
+  return result;
 }
 export async function undoMatch(actionId: string) {
   return db.$transaction(async (tx) => {
@@ -518,18 +501,13 @@ export async function matchCollection(state: string, page = 1) {
       job: { select: { application: { select: { id: true, status: true } } } },
     },
   });
-  const tasks = await db.automationTask.findMany({
-    where: { catalogId: { in: rows.map((r) => r.catalogId) } },
-    select: { catalogId: true, state: true, detail: true },
-  });
   return {
     rows: rows.map((row) => {
       const job = jobs.find((j) => j.id === row.catalogId);
       const source = sources.find((s) => s.providerId === row.providerId);
       return {
         ...row,
-        processing: tasks.find((t) => t.catalogId === row.catalogId) || null,
-        automaticSupported: Boolean(fillTarget(row.applyUrl)),
+        fillSupported: Boolean(fillTarget(row.applyUrl)),
         available: Boolean(
           job?.active &&
           job.board.enabled &&

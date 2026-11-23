@@ -502,6 +502,33 @@ test("companion API denies arbitrary website origins and token/session mismatch"
     401,
   );
 });
+test("companion API has no submission or outcome actions and the plan never asks to submit", async () => {
+  const grant = await start();
+  for (const action of ["submit", "outcome"]) {
+    const response = await POST(
+      new Request(
+        "http://127.0.0.1:3000/api/fill-companion/" + grant.id + "/" + action,
+        {
+          method: "POST",
+          headers: {
+            origin: "chrome-extension://" + companionId,
+            authorization: "Bearer " + grant.token,
+            "x-target-url": target,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ fingerprint: "0".repeat(64) }),
+        },
+      ),
+      { params: Promise.resolve({ path: [grant.id, action] }) },
+    );
+    assert.equal(response.status, 404);
+  }
+  assert.equal("autoSubmit" in grant, false);
+  const plan = await run(() =>
+    planFill(grant.id, { fields: [field("first", "First name")] }),
+  );
+  assert.equal("autoSubmit" in plan, false);
+});
 
 test("a country mismatch is flagged per field and cannot stop independent confirmed contact filling", async () => {
   const grant = await start();

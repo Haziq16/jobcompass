@@ -15,7 +15,6 @@ import { savePreparedCv } from "../src/lib/prepared-cv";
 import { cvHash } from "../src/lib/tailored-cv";
 import { jobWorkspace } from "../src/lib/job-workspace";
 import { applicationHiringCountry } from "../src/lib/application-country";
-import { automaticApplicationChoice } from "../src/lib/swipe-application-consent";
 import { saveApplicationAnswer } from "../src/lib/application-memory";
 if (
   process.env.JOBCOMPASS_TEST !== "true" ||
@@ -37,7 +36,7 @@ const originalLimit = process.env.BYOK_DAILY_LIMIT;
 beforeEach(async () => {
   process.env.BYOK_DAILY_LIMIT = "20";
   await authDb.$executeRawUnsafe(
-    'TRUNCATE "AiReview","Job","ProfileVersion","ResumeAsset","MatchDecision","AutomationTask","CandidateProfile","ApplicationAnswer","ApplicationQuestion" CASCADE',
+    'TRUNCATE "AiReview","Job","ProfileVersion","ResumeAsset","MatchDecision","CandidateProfile","ApplicationAnswer","ApplicationQuestion" CASCADE',
   );
 });
 after(async () => {
@@ -216,12 +215,6 @@ test("application materials persist private editable documents and replay withou
     scope(() => createApplicationMaterials(input, config, provider), "bob"),
   );
   assert.equal(
-    await authDb.applicationSubmission.count({
-      where: { workspaceId: "alice" },
-    }),
-    0,
-  );
-  assert.equal(
     (await authDb.application.findUniqueOrThrow({ where: { jobId: job.id } }))
       .status,
     "Preparing",
@@ -397,38 +390,5 @@ test("country comes from explicit listing evidence; ambiguous worldwide location
   assert.equal(
     applicationHiringCountry({ country: "Singapore", location: "Remote" }),
     "Singapore",
-  );
-});
-test("per-job CV approval can select a tailored CV without changing default rules or promoting fill into submission", () => {
-  const rules = { resumeAssetId: "original", submit: true };
-  assert.deepEqual(
-    automaticApplicationChoice(
-      {
-        snapshot: {
-          applicationAuthorization: {
-            selection: "job",
-            assetId: "tailored",
-            submit: false,
-          },
-        },
-      },
-      rules,
-    ),
-    { resumeAssetId: "tailored", submit: false },
-  );
-  assert.deepEqual(
-    automaticApplicationChoice(
-      {
-        snapshot: {
-          applicationAuthorization: {
-            selection: "rules",
-            assetId: "old",
-            submit: true,
-          },
-        },
-      },
-      rules,
-    ),
-    rules,
   );
 });

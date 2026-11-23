@@ -330,15 +330,6 @@
 .swipe-discovery .match-learning-settings {
   margin-top: 28px;
 }
-.swipe-discovery .match-application-consent {
-  margin: 0 6px 14px;
-  padding: 12px 14px;
-  font-size: 13px;
-  line-height: 1.6;
-  border: 1px solid var(--release-line);
-  border-radius: 8px;
-  background: var(--release-surface);
-}
 .swipe-discovery .match-swipe-stamp {
   font-size: 20px;
   left: 12%;
@@ -500,10 +491,6 @@
   }
   .swipe-discovery .match-shortcuts {
     text-align: left;
-  }
-  .swipe-discovery .match-application-consent {
-    margin-inline: 0;
-    padding: 10px 12px;
   }
   .swipe-discovery .match-card-footer {
     align-items: center;

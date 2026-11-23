@@ -79,7 +79,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
   }
   if (!workspaces.includes(origin) || sender.frameId !== 0) return false;
   if (message.action === "jc-ping") {
-    respond({ ok: true, version: "2.1.1" });
+    respond({ ok: true, version: "2.2.0" });
     return false;
   }
   if (message.action !== "jc-connect-fill") return false;
@@ -105,7 +105,6 @@ chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
       origin,
       expiresAt: expiry,
       workspaceTab: sender.tab?.id,
-      autoSubmit: message.autoSubmit === true,
     });
     await chrome.tabs.update(tab.id, { url: message.targetUrl });
     return { ok: true, tabId: tab.id };
@@ -131,10 +130,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       "jc-scan",
       "jc-report",
       "jc-rescan",
-      "jc-status",
       "jc-inbox",
-      "jc-submit",
-      "jc-outcome",
       "jc-native-dropdown",
     ].includes(message.action)
   )
@@ -186,15 +182,6 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       }
       return { ok: true };
     }
-    if (message.action === "jc-status")
-      return {
-        ok: true,
-        connected: true,
-        error: session.error || null,
-        pendingSubmissionId: session.pendingSubmissionId,
-        finalOutcome: session.finalOutcome,
-        autoSubmit: session.autoSubmit,
-      };
     if (message.action === "jc-rescan") {
       await inject(tabId);
       return { ok: true };
@@ -211,26 +198,9 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     const result = await apiFor(
       tab,
       session,
-      message.action === "jc-scan"
-        ? "scan"
-        : message.action === "jc-report"
-          ? "report"
-          : message.action === "jc-submit"
-            ? "submit"
-            : "outcome",
+      message.action === "jc-scan" ? "scan" : "report",
       message.payload,
     );
-    if (message.action === "jc-submit")
-      await saveSession(tabId, {
-        ...session,
-        pendingSubmissionId: result.submissionId,
-      });
-    if (message.action === "jc-outcome")
-      await saveSession(tabId, {
-        ...session,
-        pendingSubmissionId: null,
-        finalOutcome: result.state,
-      });
     if (message.action === "jc-scan")
       return {
         ...result,

@@ -38,14 +38,9 @@ const env = {
   AI_MODE: "owner",
   MATCH_MODE: "owner",
   FILL_MODE: "owner",
-  AUTOMATION_MODE: "owner",
-  ENABLE_AI: "false",
   JSEARCH_API_KEY: "",
-  AI_GATEWAY_API_KEY: "",
   PERSONAL_AI_ENCRYPTION_KEY: "22".repeat(32),
   BETTER_AUTH_SECRET: "workspace-fixture-auth-secret-over-32-characters",
-  AUTOMATION_WORKER_SECRET:
-    "workspace-fixture-worker-secret-over-32-characters",
   JOBCOMPASS_BROWSER_CHECK_ID: randomUUID(),
 };
 execFileSync(
@@ -55,7 +50,7 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: url.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE "Profile","User","Job","CatalogBoard","ResumeAsset","CandidateProfile","MatchDecision","AutomationTask","AutomationEvent","ApplicationSubmission","AiReview","AiGeneration","ProfileVersion","RateLimit" CASCADE',
+  'TRUNCATE "Profile","User","Job","CatalogBoard","ResumeAsset","CandidateProfile","MatchDecision","AiReview","AiGeneration","ProfileVersion","RateLimit" CASCADE',
 );
 await db.catalogBoard.create({
   data: {
@@ -505,7 +500,7 @@ try {
   check(
     "Preparation hands the exact selected CV to the real queued application flow",
   );
-  assert.equal(await db.applicationSubmission.count(), 0);
+  assert.equal(await db.application.count({ where: { status: "Applied" } }), 0);
   assert.equal(paidRequests, 1);
   check("Preparation never submits or starts an unrequested provider call");
   await page.setViewportSize({ width: 390, height: 844 });
@@ -542,12 +537,6 @@ try {
   await visitorPage
     .getByRole("heading", { name: "Find your next opportunity" })
     .waitFor();
-  assert.equal(
-    await visitorPage
-      .getByRole("link", { name: "Application rules", exact: true })
-      .count(),
-    0,
-  );
   await visitorPage.getByRole("link", { name: /^Applied/ }).click();
   await visitorPage
     .getByRole("heading", { name: "No jobs here yet" })
@@ -555,7 +544,7 @@ try {
   assert.equal(await visitorPage.locator(".job-workspace-row").count(), 0);
   await visitor.close();
   check(
-    "Public accounts get catalogue and private pipeline access without owner-only automation controls",
+    "Public accounts get catalogue and private pipeline access",
   );
   assert.deepEqual(errors, []);
   await writeFile(

@@ -59,9 +59,7 @@ const env = {
   OWNER_EMAIL: "fill-owner@release.example",
   MATCH_MODE: "owner",
   FILL_MODE: "owner",
-  ENABLE_AI: "false",
   AI_MODE: "off",
-  AI_GATEWAY_API_KEY: "",
   JSEARCH_API_KEY: "",
   BETTER_AUTH_SECRET: "filling-fixture-only-secret-over-32-characters",
   JOBCOMPASS_BROWSER_CHECK_ID: randomUUID(),
@@ -73,7 +71,7 @@ execFileSync(
 );
 const db = new PrismaClient({ datasourceUrl: source.toString() });
 await db.$executeRawUnsafe(
-  'TRUNCATE "AutomationEvent","AutomationTask","AutomationSettings","ApplicationSubmission","ApplicationFillSession","CandidateProfile","ApplicationAnswer","ApplicationQuestion","MatchDecision","CatalogBoard","ResumeAsset","User","RateLimit","Profile","Settings","Job" CASCADE',
+  'TRUNCATE "ApplicationFillSession","CandidateProfile","ApplicationAnswer","ApplicationQuestion","MatchDecision","CatalogBoard","ResumeAsset","User","RateLimit","Profile","Settings","Job" CASCADE',
 );
 await db.catalogBoard.create({
   data: {

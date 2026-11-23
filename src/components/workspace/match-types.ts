@@ -1,12 +1,6 @@
 import type { MatchPreferences } from "@/lib/match-contracts";
 export type MatchListing = {
   readiness?: import("@/lib/application-readiness").ApplicationReadiness;
-  applicationConsent?: {
-    token: string;
-    cvName: string;
-    submit: boolean;
-    recipient: string;
-  } | null;
   id: string;
   title: string;
   employer: string;
@@ -39,8 +33,7 @@ export type MatchSettings = {
   };
 };
 export type MatchRow = {
-  processing?:{state:string;detail:string|null}|null;
-  automaticSupported?:boolean;
+  fillSupported?: boolean;
   id: string;
   catalogId: string;
   state: string;

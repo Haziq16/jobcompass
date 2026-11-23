@@ -646,83 +646,10 @@
     }));
     return digest(new TextEncoder().encode(JSON.stringify(data)));
   }
-  function submitButton() {
-    if (!form) return null;
-    const candidates = [
-      ...form.querySelectorAll("button,input[type=submit]"),
-    ].filter(
-      (e) =>
-        visible(e) &&
-        (e.type === "submit" ||
-          /^(submit application|submit|send application|apply now)$/i.test(
-            (e.textContent || e.value || "").trim(),
-          )),
-    );
-    return candidates.length === 1 ? candidates[0] : null;
-  }
-  async function clickSubmit(expected) {
-    if ((await fingerprintNow()) !== expected)
-      throw new Error(
-        "The form changed after verification. No click was made.",
-      );
-    if (blockers().length || entries.some((e) => e.required && !has(e)))
-      throw new Error("Required input or CAPTCHA remains. No click was made.");
-    const button = submitButton();
-    if (!button)
-      throw new Error(
-        "A unique submission button was not found. No click was made.",
-      );
-    button.click();
-    return { clicked: true };
-  }
-  async function observeOutcome() {
-    for (let i = 0; i < 50; i++) {
-      const nodes = [
-        ...document.querySelectorAll(
-          '#application_confirmation,.application--confirmation,.application-confirmation,.application-success,#application-success,[data-testid="application-confirmation"],[data-testid="application-success"],main [role=status]',
-        ),
-      ].filter(visible);
-      const node = nodes.find(
-        (e) =>
-          /thank you for (applying|your application)|application (has been |was )?(successfully )?(submitted|received)|we.ve received your application/i.test(
-            e.textContent,
-          ) && !e.querySelector("form"),
-      );
-      const active = findForms().some(visible);
-      if (node && !active)
-        return {
-          outcome: "confirmed",
-          url: location.href,
-          marker: node.textContent.trim().slice(0, 300),
-          proof: "platform_confirmation",
-        };
-      const errors = [
-        ...document.querySelectorAll(
-          "form [role=alert],form [aria-invalid=true],form .error-message",
-        ),
-      ].filter(visible);
-      if (errors.length && active)
-        return {
-          outcome: "failed",
-          url: location.href,
-          marker: "Employer validation rejected the submitted form.",
-          proof: "validation_rejection",
-        };
-      await wait(300);
-    }
-    return {
-      outcome: "uncertain",
-      url: location.href,
-      marker: "No reliable employer receipt was observed.",
-      proof: "no_receipt",
-    };
-  }
   globalThis.JobCompassEngine = {
     scan,
     fill,
     openApplication,
     fingerprintNow,
-    clickSubmit,
-    observeOutcome,
   };
 })();

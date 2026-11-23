@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -15,7 +15,7 @@ import { api, useResource } from "./client";
 import MatchPreferences from "./MatchPreferences";
 import type { MatchSettings } from "./match-types";
 import type { jobWorkspace } from "@/lib/job-workspace";
-import { applicationTaskLabel } from "@/lib/application-progress";
+import { opportunityStatusLabel } from "@/lib/application-progress";
 
 type Data = Awaited<ReturnType<typeof jobWorkspace>>;
 const tabs = [
@@ -26,7 +26,6 @@ const tabs = [
   ["offers", "Offers"],
   ["saved", "Saved"],
   ["passed", "Skipped"],
-  ["attention", "Needs attention"],
 ] as const;
 export default function JobWorkspace() {
   const router = useRouter(),
@@ -56,13 +55,6 @@ export default function JobWorkspace() {
       else next.set(key, value);
     router.push(`/my-jobs?${next}`, { scroll: false });
   }
-  useEffect(() => {
-    if (!["queued", "attention"].includes(tab)) return;
-    const timer = setInterval(() => {
-      if (!document.hidden) refresh();
-    }, 15000);
-    return () => clearInterval(timer);
-  }, [tab, refresh]);
   async function decide(state: "queued" | "saved" | "passed") {
     if (!selected?.match || busy) return;
     const job = selected.match,
@@ -73,36 +65,25 @@ export default function JobWorkspace() {
     setError("");
     setNotice("");
     try {
-      const result = await api<{ processing?: { enqueued: boolean } }>(
-        "matches/decision",
-        "POST",
-        {
-          requestId: request.current.id,
-          catalogId: job.id,
-          state,
-          reason: null,
-          expectedRevision: job.decisionRevision,
-          ...(state === "queued" && job.applicationConsent
-            ? { applicationConsent: job.applicationConsent.token }
-            : {}),
-        },
-      );
+      await api("matches/decision", "POST", {
+        requestId: request.current.id,
+        catalogId: job.id,
+        state,
+        reason: null,
+        expectedRevision: job.decisionRevision,
+      });
       setNotice(
         state === "queued"
-          ? result.processing?.enqueued
-            ? "Application authorized and queued. Track its actual progress in Queue."
-            : "Added to Queue. Preparation or approval is still required before automatic processing."
+          ? "Added to Queue. Prepare and submit the application yourself when ready."
           : state === "saved"
             ? "Saved for later."
             : "Skipped. You can find this job in Skipped.",
       );
       request.current = null;
       refresh();
-    } catch (e) {
+    } catch {
       setError(
-        (e as Error).message === "application_consent_stale"
-          ? "Your profile, CV or rules changed. Refresh the list before authorizing this employer."
-          : "Could not confirm this change. Refresh to check the saved state before trying again.",
+        "Could not confirm this change. Refresh to check the saved state before trying again.",
       );
     } finally {
       setBusy(false);
@@ -132,7 +113,6 @@ export default function JobWorkspace() {
           {data?.matchingAvailable ? (
             <>
               <Link href="/discover?view=swipe">Swipe jobs</Link>
-              <Link href="/automation">Application rules</Link>
               <button
                 onClick={() => setPreferences(true)}
                 disabled={!data.settings}
@@ -225,11 +205,7 @@ export default function JobWorkspace() {
           </p>
           {!data.rows.length ? (
             <section className="job-workspace-empty">
-              <h2>
-                {tab === "attention"
-                  ? "No applications need attention"
-                  : "No jobs here yet"}
-              </h2>
+              <h2>No jobs here yet</h2>
               <p>
                 {tab === "matching"
                   ? "Try broader preferences or a different search. Your requirements remain yours to control."
@@ -254,7 +230,7 @@ export default function JobWorkspace() {
                     <span>{row.location || "Location not specified"}</span>
                     <small>
                       {row.match?.recommendation.label ||
-                        applicationTaskLabel(row.status)}
+                        opportunityStatusLabel(row.status)}
                     </small>
                   </button>
                 ))}
@@ -322,7 +298,7 @@ export default function JobWorkspace() {
                     </Link>
                     {selected.source === "catalog" && tab !== "matching" && (
                       <Link href={`/apply/${selected.id}`}>
-                        Open application & recovery
+                        Fill application
                       </Link>
                     )}
                     {selected.applicationId && (
@@ -333,19 +309,6 @@ export default function JobWorkspace() {
                   </div>
                   {selected.match && (
                     <section className="job-workspace-decision">
-                      {selected.match.applicationConsent && (
-                        <p>
-                          Authorize sending{" "}
-                          <strong>
-                            {selected.match.applicationConsent.cvName}
-                          </strong>{" "}
-                          and your confirmed contact details and answers to{" "}
-                          <strong>{selected.employer}</strong> for this role.{" "}
-                          {selected.match.applicationConsent.submit
-                            ? "Submit when all required checks pass."
-                            : "Fill only; do not submit."}
-                        </p>
-                      )}
                       <div>
                         <button
                           onClick={() => decide("passed")}
@@ -360,13 +323,7 @@ export default function JobWorkspace() {
                           onClick={() => decide("queued")}
                           disabled={busy}
                         >
-                          {busy
-                            ? "Saving…"
-                            : selected.match.applicationConsent
-                              ? selected.match.applicationConsent.submit
-                                ? "Authorize & apply"
-                                : "Authorize & fill"
-                              : "Add to queue"}
+                          {busy ? "Saving…" : "Add to queue"}
                         </button>
                       </div>
                     </section>

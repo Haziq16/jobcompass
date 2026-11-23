@@ -1,5 +1,4 @@
 "use client";
-import { applicationTaskLabel } from "@/lib/application-progress";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -30,8 +29,6 @@ import { useMatchAccess } from "./MatchAccess";
 type Deck = { jobs: MatchListing[]; total: number };
 const errorText = (e: unknown) => {
   const text = (e as Error).message;
-  if (text === "application_consent_stale")
-    return "Your CV, profile or processing rules changed. Refresh the deck before authorising this application.";
   return text === "revision_conflict"
     ? "This changed in another tab. Reload to use the latest version."
     : text === "listing_unavailable"
@@ -86,31 +83,24 @@ function Deck({
     if (pending.current?.key !== key)
       pending.current = { key, id: crypto.randomUUID() };
     try {
-      const result = await api<{
-        actionId: string;
-        processing?: { enqueued: boolean; state?: string };
-      }>("matches/decision", "POST", {
-        requestId: pending.current.id,
-        catalogId: target.id,
-        state,
-        reason: state === "passed" ? reason : null,
-        expectedRevision: target.decisionRevision,
-        ...(state === "queued" && target.applicationConsent
-          ? { applicationConsent: target.applicationConsent.token }
-          : {}),
-      });
+      const result = await api<{ actionId: string }>(
+        "matches/decision",
+        "POST",
+        {
+          requestId: pending.current.id,
+          catalogId: target.id,
+          state,
+          reason: state === "passed" ? reason : null,
+          expectedRevision: target.decisionRevision,
+        },
+      );
       pending.current = null;
       setHidden((v) => [...v, target.id]);
       setSelected(null);
       onDecided(
         result.actionId,
         state === "queued"
-          ? target.applicationConsent
-            ? result.processing?.enqueued &&
-              (!result.processing.state || result.processing.state === "queued")
-              ? `Authorised ${target.employer}. Automatic processing queued; follow progress in Automatic applications.`
-              : `Authorised ${target.employer}. Review this application's current status before continuing; it was not automatically restarted.`
-            : `Queued ${target.title} for review only. Automatic processing was not started. Open the application to check eligibility and form support.`
+          ? `Queued ${target.title}. Nothing was sent to the employer. Open the application to prepare it and submit it yourself.`
           : state === "saved"
             ? `Saved ${target.title} for later.`
             : `Passed ${target.title}.`,
@@ -455,9 +445,9 @@ function Collection({
       </nav>
       {state === "queued" && (
         <p className="match-context-note">
-          Your interested jobs, ready for your next step. Nothing is
-          automatically submitted. Opening an employer page does not mark a job
-          applied.
+          Your interested jobs, ready for your next step. JobCompass never
+          submits an application for you. Opening an employer page does not mark
+          a job applied.
         </p>
       )}
       {(failure || error) && (
@@ -507,17 +497,15 @@ function Collection({
                   <span>
                     {row.application?.status === "Applied"
                       ? "Applied"
-                      : row.processing
-                        ? applicationTaskLabel(row.processing.state)
-                        : row.state === "queued"
-                          ? row.automaticSupported === false
-                            ? "Manual application: unsupported form"
-                            : "Queued for review; automatic authorization required"
-                          : row.state === "saved"
-                            ? "Saved for later"
-                            : row.state === "passed"
-                              ? "Passed"
-                              : "Removed"}
+                      : row.state === "queued"
+                        ? row.fillSupported === false
+                          ? "Queued; apply on the employer site"
+                          : "Queued for review"
+                        : row.state === "saved"
+                          ? "Saved for later"
+                          : row.state === "passed"
+                            ? "Passed"
+                            : "Removed"}
                   </span>
                   {!row.available && (
                     <span className="match-error-text">
@@ -526,9 +514,6 @@ function Collection({
                   )}
                   {row.reason && <span>Reason: {row.reason}</span>}
                 </div>
-                {row.processing?.detail && (
-                  <p className="candidate-help">{row.processing.detail}</p>
-                )}
               </div>
               <div className="match-queue-actions">
                 {row.state === "queued" && (
@@ -825,10 +810,9 @@ function EnabledMatchWorkspace() {
       {isQueue && (
         <div className="match-toolbar">
           <span className="swipe-toolbar-help">
-            Right swipe queues a job. Automatic processing follows your saved
-            rules.
+            Right swipe queues a job. You review and submit every application
+            yourself.
           </span>
-          <Link href="/automation">Automatic application rules</Link>
           <div>
             {!isQueue && settings.data?.preferences && (
               <button onClick={() => setSetup(true)}>
