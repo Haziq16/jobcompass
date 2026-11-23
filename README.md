@@ -28,7 +28,7 @@ The product distinguishes jobs merely opened on an employer site from applicatio
 
 **Core workspace:** employer feeds from Greenhouse, Lever, Ashby, Workable and Recruitee; discovery; saved jobs; application tracking; and hosted account sessions.
 
-**Optional previews:** personal-key AI, guided application preparation, swipe matching and browser-assisted form filling (never submission). These features have separate access controls and configuration. They are not universally enabled for every account. See the [detailed project guide](docs/PROJECT_GUIDE.md) for limits, rollout flags and operational behavior.
+**Optional previews:** personal-key AI (evidence-quoted reviews, a "Should I apply?" verdict and tailored CVs), guided application preparation, swipe matching and browser-assisted form filling (never submission). These features have separate access controls and configuration. They are not universally enabled for every account. See the [detailed project guide](docs/PROJECT_GUIDE.md) for limits, rollout flags and operational behavior.
 
 The current hosted deployment is an owner workspace. The public source code does not grant access to that deployment or its data.
 

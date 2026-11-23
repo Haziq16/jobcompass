@@ -14,6 +14,25 @@ The studio starts with the selected job and the user's saved CV. Job switching, 
 
 Completed and historical reviews open with evidence counts and a prioritized action plan, followed by matching experience. Required requirements appear first in the action plan; related experience and missing evidence remain distinct. Users can filter the requirement evidence, download the application review, inspect the original excerpts in a conventional outline, and restore a review's exact CV and job for editing. Restoring inputs clears approval and provider-usage consent, and sends no AI request. These views use the existing grounded report, so opening tabs, downloading or improving the input never consumes another provider call. Counts summarize the reviewed requirements, not the entire posting or an ATS score.
 
+## "Should I apply?" verdict
+
+The same review request also returns a verdict, so it costs no extra provider call and counts once against `BYOK_DAILY_LIMIT`. Requests keep the review's safeguards: explicit consent, idempotent request keys, one pending AI request per account, no automatic retries and the same deadlines.
+
+The verdict shows:
+
+- **Score and decision:** 0.0–5.0 and Apply (3.5 and above), Maybe (2.5–3.4) or Skip, with a reason of at most two sentences. The decision is derived from the score on the server.
+- **Seniority:** the level the posting signals, with the quoted job text, against the level your CV establishes, with cited CV excerpts.
+- **Workplace, timezone and work authorization:** remote, hybrid or onsite; any stated timezone requirement; the work country; and whether sponsorship is offered, excluded or not mentioned, each with the quoted job text.
+- **Requirement match:** counts from the review's evidence-quoted requirement table.
+- **Interview risks:** for important gaps, a likely question and an honest answer built only from cited CV excerpts.
+- **Listing freshness:** from catalogue data JobCompass already holds (live, not recently confirmed, likely closed or unknown). Nothing is fetched or scraped for the verdict.
+
+**What the provider sees:** only the CV blocks and the job text, as data fields. Your timezone and work-authorization answers are never sent. The server compares them with the job's quoted requirements, using only facts you declared and confirmed in Application profile (timezone in Preferences, per-country eligibility). It never infers citizenship, nationality, ethnicity, age or work authorization; anything undeclared stays "unknown".
+
+**Server checks:** every job quote must be an exact substring of the posting and every CV citation an exact substring of a CV block. Unverifiable items are removed or marked as unknown and counted in the panel. An interview answer with no verified evidence, or with numbers its evidence does not contain, is replaced with a prompt to prepare your own answer. Verdicts that mention hiring odds, ATS scores or guarantees are withheld. The server also caps the model's score when its own checks disagree: a likely closed listing (1.0), a declared sponsorship need against an explicit exclusion (1.5), no verified evidence for any requirement (2.0), a role two or more levels above your evidenced experience (2.5), and most required items unevidenced or a declared timezone outside the stated hours (3.0). Instructions inside job or CV text, such as "rate this 5/5", cannot raise a score past these caps.
+
+The verdict is saved with its review, so it is included in account export and removed by profile clearing and account deletion. My Jobs shows a compact badge for the latest review of each job, can filter and sort by decision, and shows the full verdict in the job detail. When filtering or sorting, My Jobs considers up to 600 rows of a list (150 for matching jobs) and says so when a list is longer.
+
 ## Full tailored CV drafts
 
 ### Original Word layout and ATS readiness

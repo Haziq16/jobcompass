@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-24 - "Should I apply?" verdict
+
+- Each AI review now also returns a verdict in the same provider request: a 0.0–5.0 score with Apply, Maybe or Skip, a reason of at most two sentences, seniority fit, workplace, timezone and work-authorization checks, the requirement match, interview risks with honest answers from your CV, and listing freshness.
+- Job and CV claims must quote their source exactly; unverifiable items are removed or marked. Hiring odds, ATS scores and guarantees are rejected, and server-side checks cap scores that the evidence does not support.
+- Timezone and work authorization are compared on the server from facts you declared and confirmed in Application profile; they are never sent to the AI provider or inferred. Added a timezone field to Application profile Preferences.
+- My Jobs shows a verdict badge, filters and sorts by decision, and shows the full verdict in the job detail. AI Studio shows it at the top of the review.
+- Migration `202611240001_apply_verdict` adds nullable `AiReview.verdict`, `verdictDecision` and `verdictScore` columns.
+
 ## 2026-11-23 - Remove automatic applications
 
 JobCompass never submits applications for you. You review and submit every application yourself.
