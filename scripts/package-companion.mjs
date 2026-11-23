@@ -1,4 +1,4 @@
-﻿import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
 import JSZip from "jszip";
 const files = [
   "manifest.json",
@@ -10,8 +10,6 @@ const files = [
   "popup.html",
   "popup.js",
   "popup.css",
-  "content.js",
-  "form-core.js",
 ];
 const zip = new JSZip();
 for (const name of files)

@@ -418,28 +418,22 @@ test("private mode rejects registration, non-owner login and previously issued f
   }
 });
 
-test("deferred AI is refused server-side and anonymous users cannot import jobs", async () => {
-  const testFlag = process.env.JOBCOMPASS_TEST;
-  process.env.JOBCOMPASS_TEST = "false";
-  try {
-    const request = new NextRequest(
-      "http://localhost:3000/api/workspace/generations",
-      { headers: { host: "localhost:3000" } },
-    );
-    assert.equal((await workspaceGet(request, ctx("generations"))).status, 410);
-    const post = new NextRequest(
-      "http://localhost:3000/api/workspace/generations",
-      {
-        method: "POST",
-        headers: { host: "localhost:3000", origin: "http://localhost:3000" },
-        body: "{}",
-      },
-    );
-    assert.equal((await workspacePost(post, ctx("generations"))).status, 410);
-    assert.equal(await db.aiGeneration.count(), 0);
-  } finally {
-    process.env.JOBCOMPASS_TEST = testFlag;
-  }
+test("removed legacy AI gateway endpoints are gone and anonymous users cannot import jobs", async () => {
+  const request = new NextRequest(
+    "http://localhost:3000/api/workspace/generations",
+    { headers: { host: "localhost:3000" } },
+  );
+  assert.equal((await workspaceGet(request, ctx("generations"))).status, 404);
+  const post = new NextRequest(
+    "http://localhost:3000/api/workspace/generations",
+    {
+      method: "POST",
+      headers: { host: "localhost:3000", origin: "http://localhost:3000" },
+      body: "{}",
+    },
+  );
+  assert.equal((await workspacePost(post, ctx("generations"))).status, 404);
+  assert.equal(await db.aiGeneration.count(), 0);
   const denied = await directPost(
     new NextRequest("http://public.example/api/direct-discovery", {
       method: "POST",

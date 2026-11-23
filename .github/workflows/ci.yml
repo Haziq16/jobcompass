@@ -34,10 +34,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://jobcompass:ci-only-password@127.0.0.1:54329/jobcompass?schema=public
       APP_ACCESS: local
-      ENABLE_AI: "false"
       PUBLIC_SIGNUP: "false"
       JSEARCH_API_KEY: ""
-      AI_GATEWAY_API_KEY: ""
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

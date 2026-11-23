@@ -1,11 +1,3 @@
-export function companionOrigin(headers: Headers) {
-  const id = process.env.COMPANION_EXTENSION_ID;
-  return Boolean(
-    id &&
-    /^[a-p]{32}$/.test(id) &&
-    headers.get("origin") === `chrome-extension://${id}`,
-  );
-}
 export function accessAllowed(
   headers: Headers,
   method: string,
