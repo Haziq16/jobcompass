@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { catalogCapacity } from "./catalog-retention";
 import { createHash } from "node:crypto";
 import candidates from "../data/catalog-candidates.json";
 import { authDb } from "./db";
@@ -57,24 +58,8 @@ export async function seedCatalogCandidates() {
   });
 }
 
-export function catalogStorageBudget() {
-  const configured = Number(process.env.CATALOG_DATABASE_BUDGET_MB || 750);
-  return (
-    Math.max(
-      32,
-      Math.min(750, Number.isFinite(configured) ? configured : 750),
-    ) *
-    1024 *
-    1024
-  );
-}
-export async function catalogDatabaseBytes() {
-  const rows = await authDb.$queryRaw<
-    { bytes: bigint }[]
-  >`SELECT pg_database_size(current_database()) AS bytes`;
-  return Number(rows[0].bytes);
-}
-
+// Storage budget and capacity live in catalog-retention.ts so refreshes and
+// admissions share one guard.
 /** Candidates are never visible until a complete employer feed has been validated.
  * This owns a separate lease; normal refreshes continue even when growth is paused. */
 export async function expandCatalog(
@@ -140,10 +125,7 @@ export async function expandCatalog(
             Math.min(120000, options.timeBudgetMs || 75000)
           )
             break;
-          if (
-            (await catalogDatabaseBytes()) + 8 * 1024 * 1024 >=
-            catalogStorageBudget()
-          ) {
+          if (!(await catalogCapacity()).insertsAllowed) {
             capacityPaused = true;
             break;
           }
@@ -164,9 +146,10 @@ export async function expandCatalog(
               const reserve =
                 Buffer.byteLength(JSON.stringify(snapshot.jobs)) * 2 +
                 8 * 1024 * 1024;
+              const capacity = await catalogCapacity();
               if (
-                (await catalogDatabaseBytes()) + reserve >
-                catalogStorageBudget()
+                !capacity.insertsAllowed ||
+                capacity.usedBytes + reserve > capacity.budgetBytes
               ) {
                 deferred++;
                 await authDb.catalogBoard.update({

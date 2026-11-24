@@ -4,6 +4,7 @@ import {
   catalogSkillKeys,
   CATALOG_SKILL_VERSION,
 } from "../src/lib/catalog-skill-signals";
+import { catalogSearchText } from "../src/lib/catalog-text";
 async function main() {
   if (!process.argv.includes("--execute"))
     throw new Error("Review the environment and pass --execute");
@@ -18,15 +19,24 @@ async function main() {
         >`SELECT pg_database_size(current_database()) AS bytes`;
         if (Number(size[0].bytes) > 900 * 1024 * 1024)
           throw new Error("Cache maintenance storage reserve reached");
+        // Text is derived from the columns; "searchText" is no longer stored.
         const rows = await authDb.$queryRaw<
-          { id: string; searchText: string; hash: string }[]
-        >`SELECT id,"searchText",hash FROM "CatalogJob" WHERE "skillKeysVersion"<${CATALOG_SKILL_VERSION} OR "skillKeysHash" IS DISTINCT FROM hash ORDER BY id LIMIT 500`;
+          {
+            id: string;
+            hash: string;
+            title: string;
+            employer: string;
+            location: string | null;
+            department: string | null;
+            description: string | null;
+          }[]
+        >`SELECT id,hash,title,employer,location,department,left(description,6000) AS description FROM "CatalogJob" WHERE "skillKeysVersion"<${CATALOG_SKILL_VERSION} OR "skillKeysHash" IS DISTINCT FROM hash ORDER BY id LIMIT 500`;
         if (!rows.length) break;
         const data = JSON.stringify(
           rows.map((row) => ({
             id: row.id,
             hash: row.hash,
-            keys: catalogSkillKeys(row.searchText),
+            keys: catalogSkillKeys(catalogSearchText(row)),
           })),
         );
         updated +=

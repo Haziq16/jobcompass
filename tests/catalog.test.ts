@@ -104,8 +104,8 @@ test("cached and legacy recommendation rows rank consistently and cache-only upd
   assert.equal(after.skillKeysHash, after.hash);
   // A request served by an older deployment may change public content without
   // updating its derived keys. Such a row must use exact fallback checks.
-  await authDb.$executeRaw`UPDATE "CatalogJob" SET "searchText"='Java only',hash='changed-public-content' WHERE id=${jobs[0].id}`;
-  await authDb.$executeRaw`UPDATE "CatalogJob" SET "searchText"='React Native',hash='changed-second-content' WHERE id=${jobs[1].id}`;
+  await authDb.$executeRaw`UPDATE "CatalogJob" SET description='Java only',hash='changed-public-content' WHERE id=${jobs[0].id}`;
+  await authDb.$executeRaw`UPDATE "CatalogJob" SET description='React Native',hash='changed-second-content' WHERE id=${jobs[1].id}`;
   const changed = await inWorkspace("signals", () =>
     listCatalog(new URLSearchParams("forYou=true")),
   );
@@ -379,7 +379,10 @@ test("catalogue handles thousands with database pagination, keyword/location fil
       rawJob(i + 1, i === 42 ? "Rare Kotlin Architect" : "Platform Engineer"),
     ),
   );
-  await publishCatalogBoard(fixture.id, jobs);
+  // Pagination is tested beyond the default 500-job per-board cap.
+  await publishCatalogBoard(fixture.id, jobs, undefined, undefined, {
+    perBoardCap: 5000,
+  });
   const result = await inWorkspace("alice", () =>
     listCatalog(new URLSearchParams("page=101&sort=found")),
   );
@@ -527,12 +530,17 @@ test("refresh drains multiple oldest-due pages without duplicate requests and re
     releaseFirst();
     result = await running;
   }
-  assert.deepEqual(result, {
+  const { storage, ...summary } = result as typeof result & {
+    storage: { insertsPaused: boolean; pruned: { total: number } };
+  };
+  assert.deepEqual(summary, {
     status: "completed",
     checked: 245,
     succeeded: 244,
     failed: 1,
   });
+  assert.equal(storage.insertsPaused, false);
+  assert.equal(storage.pruned.total, 0);
   assert.equal(calls.size, 245);
   assert.equal(peak, 4);
   assert.equal(await authDb.catalogJob.count({ where: { active: true } }), 1);

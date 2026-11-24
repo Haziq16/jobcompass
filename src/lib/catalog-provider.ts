@@ -1,4 +1,5 @@
 import { z } from "./zod";
+import { catalogSearchText } from "./catalog-text";
 import { createHash } from "node:crypto";
 import { AppError, plainText, safeUrl } from "./contracts";
 import { parseBoardResponse } from "./direct-provider";
@@ -206,21 +207,15 @@ export function parseCatalog(data: unknown, board: PublicBoard): PublicJob[] {
       ...row,
       title: row.title.slice(0, 500),
       location: row.location?.slice(0, 2000) || null,
-      description: row.description?.slice(0, 30000) || null,
+      // 0.02% of measured postings exceed 20,000 characters.
+      description: row.description?.slice(0, 20000) || null,
     };
     const id = createHash("sha256").update(row.providerId).digest("hex");
     const hash = createHash("sha256")
       .update(JSON.stringify(fields))
       .digest("hex");
-    const searchText = [
-      fields.title,
-      fields.employer,
-      fields.location,
-      fields.department,
-      fields.description?.slice(0, 6000),
-    ]
-      .filter(Boolean)
-      .join("\n");
+    // Used in memory for skill keys; not stored (see catalog-text.ts).
+    const searchText = catalogSearchText(fields);
     unique.set(id, { ...fields, id, hash, searchText });
   }
   return [...unique.values()];

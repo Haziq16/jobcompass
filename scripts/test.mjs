@@ -37,6 +37,7 @@ execFileSync(
     "tests/direct.test.ts",
     "tests/accounts.test.ts",
     "tests/catalog.test.ts",
+    "tests/catalog-retention.test.ts",
     "tests/matches.test.ts",
     "tests/application-memory.test.ts",
     "tests/application-filling.test.ts",

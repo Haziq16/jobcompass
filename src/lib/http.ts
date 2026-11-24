@@ -1,4 +1,5 @@
 import { z } from "./zod";
+import { errorCode, isStorageFull } from "./db-errors";
 import { Prisma } from "@prisma/client";
 import { AppError } from "./contracts";
 export async function boundedBytes(req: Request, limit = 400000) {
@@ -33,5 +34,9 @@ export function apiError(e: unknown) {
     return Response.json({ error: "invalid_input" }, { status: 400 });
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025")
     return Response.json({ error: "not_found" }, { status: 404 });
+  // Log only a code, never the message, query or data.
+  console.error("api_database_error", errorCode(e));
+  if (isStorageFull(e))
+    return Response.json({ error: "database_storage_full" }, { status: 507 });
   return Response.json({ error: "database_unavailable" }, { status: 503 });
 }

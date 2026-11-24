@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { catalogSearchText, catalogTextSql } from "./catalog-text";
 import { getCandidate } from "./application-memory";
 import { applicationReadiness } from "./application-readiness";
 import { fillTarget } from "./application-fill-contracts";
@@ -113,7 +114,7 @@ export function preferenceWhere(p: MatchPreferences, profile: SearchProfile) {
       )})`,
     );
   for (const term of p.excluded)
-    clauses.push(Prisma.sql`NOT (j."searchText" ~* ${rx(term)})`);
+    clauses.push(Prisma.sql`NOT (${catalogTextSql("j")} ~* ${rx(term)})`);
   if (p.roleStrict && p.titles.length)
     clauses.push(
       Prisma.sql`(${Prisma.join(
@@ -133,11 +134,11 @@ export function preferenceWhere(p: MatchPreferences, profile: SearchProfile) {
       p.arrangement === "remote"
         ? Prisma.sql`j.remote=true`
         : p.arrangement === "hybrid"
-          ? Prisma.sql`j."searchText" ~* ${rx("hybrid")}`
-          : Prisma.sql`j."searchText" ~* ${"(^|[^a-z0-9])on.?site($|[^a-z0-9])"}`;
+          ? Prisma.sql`${catalogTextSql("j")} ~* ${rx("hybrid")}`
+          : Prisma.sql`${catalogTextSql("j")} ~* ${"(^|[^a-z0-9])on.?site($|[^a-z0-9])"}`;
     clauses.push(
       p.allowUnknown
-        ? Prisma.sql`(${known}) OR (j.remote IS NULL AND j."searchText" !~* ${"(^|[^a-z0-9])(hybrid|on.?site|remote)($|[^a-z0-9])"})`
+        ? Prisma.sql`(${known}) OR (j.remote IS NULL AND ${catalogTextSql("j")} !~* ${"(^|[^a-z0-9])(hybrid|on.?site|remote)($|[^a-z0-9])"})`
         : known,
     );
   }
@@ -157,7 +158,7 @@ export function preferenceWhere(p: MatchPreferences, profile: SearchProfile) {
     );
   if (p.needsSponsorship && p.excludeNoSponsorship)
     clauses.push(
-      Prisma.sql`j."searchText" !~* '(no (visa )?sponsorship|cannot (provide|offer|sponsor)|unable to (provide|offer) (visa )?sponsorship|will not sponsor)'`,
+      Prisma.sql`${catalogTextSql("j")} !~* '(no (visa )?sponsorship|cannot (provide|offer|sponsor)|unable to (provide|offer) (visa )?sponsorship|will not sponsor)'`,
     );
   if (p.salaryStrict && p.salaryMinimum !== null) clauses.push(salarySql(p));
   // A personalised deck may contain broad matches, but never an all-zero random fallback.
@@ -250,8 +251,11 @@ export async function matchDeck(params: URLSearchParams) {
     where: { id: { in: result.jobs.map((j) => j.id) } },
     select: {
       id: true,
+      title: true,
+      employer: true,
+      location: true,
+      department: true,
       description: true,
-      searchText: true,
       salaryText: true,
       country: true,
     },
@@ -270,7 +274,7 @@ export async function matchDeck(params: URLSearchParams) {
           { ...j, description: r.description, country: r.country },
           candidate,
         );
-        const otherSkills = catalogSkillKeys(r.searchText)
+        const otherSkills = catalogSkillKeys(catalogSearchText(r))
           .filter(
             (t) =>
               !profile.skills.some((s) => s.term.toLowerCase() === t) &&

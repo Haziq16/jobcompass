@@ -1,4 +1,16 @@
 import { createHash } from "node:crypto";
+import {
+  catalogBudget,
+  catalogCapacity,
+  pruneCatalog,
+  referencedCatalogIds,
+} from "./catalog-retention";
+import { errorCode, isStorageFull } from "./db-errors";
+import {
+  catalogFtsSql,
+  catalogSearchText,
+  catalogTextSql,
+} from "./catalog-text";
 import { Prisma } from "@prisma/client";
 import { authDb, db } from "./db";
 import { catalogBoards, type CatalogPlatform } from "./catalog-boards";
@@ -39,7 +51,9 @@ export async function seedCatalog() {
   });
 }
 
-/** Publish a complete, validated snapshot atomically. Failed fetches never close jobs. */
+/** Publish a complete, validated snapshot atomically. Failed fetches never close jobs.
+ * Stores at most perBoardCap of the board's newest postings (plus any job a
+ * user refers to), and inserts new jobs only when the storage budget allows. */
 export async function publishCatalogBoard(
   boardId: string,
   jobs: PublicJob[],
@@ -49,21 +63,50 @@ export async function publishCatalogBoard(
     etag: string | null;
     modified: string | null;
   },
+  options: { allowNew?: boolean; perBoardCap?: number } = {},
 ) {
-  return authDb.$transaction(
+  const allowNew = options.allowNew ?? true;
+  const cap = options.perBoardCap ?? catalogBudget().perBoardCap;
+  const existing = new Map(
+    (
+      await authDb.catalogJob.findMany({
+        where: { boardId },
+        select: { id: true, firstSeen: true },
+      })
+    ).map((j) => [j.id, j.firstSeen.valueOf()]),
+  );
+  const referenced = await referencedCatalogIds(jobs);
+  const posted = (job: PublicJob) =>
+    job.publishedAt
+      ? new Date(job.publishedAt).valueOf()
+      : (existing.get(job.id) ?? now.valueOf());
+  const newestFirst = [...jobs].sort(
+    (a, b) => posted(b) - posted(a) || a.id.localeCompare(b.id),
+  );
+  const keep = new Set([
+    ...newestFirst.slice(0, cap).map((j) => j.id),
+    ...referenced,
+  ]);
+  let stored = newestFirst.filter((j) => keep.has(j.id));
+  const skippedNew = allowNew
+    ? 0
+    : stored.filter((j) => !existing.has(j.id)).length;
+  if (!allowNew) stored = stored.filter((j) => existing.has(j.id));
+  await authDb.$transaction(
     async (tx) => {
       const board = await tx.catalogBoard.findUniqueOrThrow({
         where: { id: boardId },
       });
       const baseline = Boolean(board.initialIndexedAt);
-      for (let start = 0; start < jobs.length; start += 100) {
+      for (let start = 0; start < stored.length; start += 100) {
         const json = JSON.stringify(
-          jobs.slice(start, start + 100).map((job) => ({
+          stored.slice(start, start + 100).map(({ searchText, ...job }) => ({
             ...job,
-            skillKeys: catalogSkillKeys(job.searchText),
+            skillKeys: catalogSkillKeys(searchText),
             skillKeysVersion: CATALOG_SKILL_VERSION,
           })),
         );
+        // "searchText" is no longer stored (see catalog-text.ts); always ''.
         await tx.$executeRaw`
         INSERT INTO "CatalogJob" (
           "id","boardId","providerId","title","employer","location","country","remote",
@@ -71,21 +114,22 @@ export async function publishCatalogBoard(
           "publishedAt","firstSeen","lastChangedAt","discoveredAfterBaseline","active","hash","searchText","skillKeys","skillKeysVersion","skillKeysHash"
         ) SELECT j.id,${boardId},j."providerId",j.title,j.employer,j.location,j.country,j.remote,
           j."employmentType",j.department,j.description,j."salaryText",j."sourceUrl",j."applyUrl",
-          j."publishedAt",${now.toISOString()}::timestamp,${now.toISOString()}::timestamp,${baseline},true,j.hash,j."searchText",j."skillKeys",j."skillKeysVersion",j.hash
+          j."publishedAt",${now.toISOString()}::timestamp,${now.toISOString()}::timestamp,${baseline},true,j.hash,'',j."skillKeys",j."skillKeysVersion",j.hash
         FROM jsonb_to_recordset(${json}::jsonb) AS j(
           id text,"providerId" text,title text,employer text,location text,country text,remote boolean,
           "employmentType" text,department text,description text,"salaryText" text,"sourceUrl" text,
-          "applyUrl" text,"publishedAt" timestamp,hash text,"searchText" text,"skillKeys" text[],"skillKeysVersion" int
+          "applyUrl" text,"publishedAt" timestamp,hash text,"skillKeys" text[],"skillKeysVersion" int
         ) ON CONFLICT ("id") DO UPDATE SET
           "title"=EXCLUDED."title","employer"=EXCLUDED."employer","location"=EXCLUDED."location",
           "country"=EXCLUDED."country","remote"=EXCLUDED."remote","employmentType"=EXCLUDED."employmentType",
           "department"=EXCLUDED."department","description"=EXCLUDED."description","salaryText"=EXCLUDED."salaryText",
           "sourceUrl"=EXCLUDED."sourceUrl","applyUrl"=EXCLUDED."applyUrl","publishedAt"=EXCLUDED."publishedAt",
           "lastChangedAt"=CASE WHEN "CatalogJob"."hash" IS DISTINCT FROM EXCLUDED."hash" OR NOT "CatalogJob"."active" THEN EXCLUDED."lastChangedAt" ELSE "CatalogJob"."lastChangedAt" END,
-          "active"=true,"hash"=EXCLUDED."hash","searchText"=EXCLUDED."searchText","skillKeys"=EXCLUDED."skillKeys","skillKeysVersion"=EXCLUDED."skillKeysVersion","skillKeysHash"=EXCLUDED."hash"
+          "active"=true,"hash"=EXCLUDED."hash","searchText"='',"skillKeys"=EXCLUDED."skillKeys","skillKeysVersion"=EXCLUDED."skillKeysVersion","skillKeysHash"=EXCLUDED."hash"
         WHERE "CatalogJob"."hash" IS DISTINCT FROM EXCLUDED."hash" OR NOT "CatalogJob"."active" OR "CatalogJob"."skillKeysVersion"<EXCLUDED."skillKeysVersion" OR "CatalogJob"."skillKeysHash" IS DISTINCT FROM EXCLUDED."hash"
       `;
       }
+      // Jobs missing from the complete snapshot have closed.
       await tx.catalogJob.updateMany({
         where: { boardId, active: true, id: { notIn: jobs.map((j) => j.id) } },
         data: { active: false, lastChangedAt: now },
@@ -102,18 +146,23 @@ export async function publishCatalogBoard(
           ...(admission
             ? {
                 enabled: admission.activate,
-                etag: admission.etag,
-                modified: admission.modified,
+                // A partial import must be fetched again in full later.
+                etag: skippedNew ? null : admission.etag,
+                modified: skippedNew ? null : admission.modified,
               }
             : {}),
           failures: 0,
-          error: null,
+          error: skippedNew ? "catalog_budget_reached" : null,
         },
       });
-      return jobs.length;
     },
     { timeout: 90_000, maxWait: 10_000 },
   );
+  return {
+    stored: stored.length,
+    skippedNew,
+    trimmed: jobs.length - stored.length - skippedNew,
+  };
 }
 
 export async function refreshCatalog(request: typeof fetch = fetch) {
@@ -140,8 +189,12 @@ export async function refreshCatalog(request: typeof fetch = fetch) {
     };
   let checked = 0,
     succeeded = 0,
-    failed = 0;
+    failed = 0,
+    insertsPaused = false;
+  let pruned = { retired: 0, boardOverflow: 0, globalOverflow: 0, total: 0 };
   try {
+    // Retention first: frees reusable space before this run inserts anything.
+    pruned = await pruneCatalog({ deadline: now.valueOf() + 20_000 });
     // Refill small oldest-due pages instead of stopping after the first 120 boards.
     // lastAttemptAt is a run marker: advancing nextFetchAt cannot skip another
     // board through OFFSET pagination or make an attempted board run twice.
@@ -164,13 +217,15 @@ export async function refreshCatalog(request: typeof fetch = fetch) {
             const board = pending.shift();
             if (!board) break;
             checked++;
-            await authDb.catalogBoard.update({
-              where: { id: board.id },
-              data: {
-                lastAttemptAt: new Date(Math.max(Date.now(), now.valueOf())),
-              },
-            });
             try {
+              // Inside the try: a write failure here (for example a full
+              // database) is recorded for this board, not thrown as a 503.
+              await authDb.catalogBoard.update({
+                where: { id: board.id },
+                data: {
+                  lastAttemptAt: new Date(Math.max(Date.now(), now.valueOf())),
+                },
+              });
               const result = await fetchCatalogBoard(
                 {
                   platform: board.platform as CatalogPlatform,
@@ -196,30 +251,50 @@ export async function refreshCatalog(request: typeof fetch = fetch) {
                   },
                 });
               } else {
-                await publishCatalogBoard(board.id, result.jobs);
+                const capacity = await catalogCapacity();
+                const published = await publishCatalogBoard(
+                  board.id,
+                  result.jobs,
+                  undefined,
+                  undefined,
+                  { allowNew: capacity.insertsAllowed },
+                );
+                if (published.skippedNew) insertsPaused = true;
+                // Keep validators only after a complete import, so skipped
+                // jobs are fetched again once space is available.
                 await authDb.catalogBoard.update({
                   where: { id: board.id },
-                  data: { etag: result.etag, modified: result.modified },
+                  data: published.skippedNew
+                    ? { etag: null, modified: null }
+                    : { etag: result.etag, modified: result.modified },
                 });
               }
               succeeded++;
             } catch (error) {
               failed++;
+              const storage = isStorageFull(error);
+              if (storage || !(error instanceof AppError))
+                console.error("catalog_board_failed", errorCode(error));
               const backoff = Math.min(
                 360,
                 30 * 2 ** Math.min(board.failures, 4),
               );
-              await authDb.catalogBoard.update({
-                where: { id: board.id },
-                data: {
-                  failures: { increment: 1 },
-                  error:
-                    error instanceof AppError
-                      ? error.code
-                      : "source_unavailable",
-                  nextFetchAt: new Date(Date.now() + backoff * 60_000),
-                },
-              });
+              await authDb.catalogBoard
+                .update({
+                  where: { id: board.id },
+                  data: {
+                    failures: { increment: 1 },
+                    error: storage
+                      ? "database_storage_full"
+                      : error instanceof AppError
+                        ? error.code
+                        : "source_unavailable",
+                    nextFetchAt: new Date(Date.now() + backoff * 60_000),
+                  },
+                })
+                .catch((e) =>
+                  console.error("catalog_board_update_failed", errorCode(e)),
+                );
             }
           }
         }),
@@ -231,7 +306,21 @@ export async function refreshCatalog(request: typeof fetch = fetch) {
       data: { leaseUntil: new Date(), finishedAt: new Date() },
     });
   }
-  return { status: "completed" as const, checked, succeeded, failed };
+  const capacity = await catalogCapacity();
+  return {
+    status: "completed" as const,
+    checked,
+    succeeded,
+    failed,
+    storage: {
+      budgetMb: Math.round(capacity.budgetBytes / 1048576),
+      usedMb: Math.round(capacity.usedBytes / 1048576),
+      activeJobs: capacity.activeJobs,
+      maxJobs: capacity.maxJobs,
+      insertsPaused: insertsPaused || !capacity.insertsAllowed,
+      pruned,
+    },
+  };
 }
 
 export function catalogFilters(params: URLSearchParams) {
@@ -247,7 +336,7 @@ export function catalogFilters(params: URLSearchParams) {
   ];
   if (q)
     clauses.push(
-      Prisma.sql`to_tsvector('simple',j."searchText") @@ websearch_to_tsquery('simple',${smartQuery(q)})`,
+      Prisma.sql`${catalogFtsSql("j")} @@ websearch_to_tsquery('simple',${smartQuery(q)})`,
     );
   for (const [term, pattern] of [
     ["C++", "(^|[^a-z0-9])c\\+\\+($|[^a-z0-9])"],
@@ -255,7 +344,7 @@ export function catalogFilters(params: URLSearchParams) {
     [".NET", "(^|[^a-z0-9])\\.net($|[^a-z0-9])"],
   ])
     if (!/["|():]|\bOR\b|(?:^|\s)-\w/.test(q) && hasTerm(q, term))
-      clauses.push(Prisma.sql`j."searchText" ~* ${pattern}`);
+      clauses.push(Prisma.sql`${catalogTextSql("j")} ~* ${pattern}`);
   if (location)
     clauses.push(
       Prisma.sql`j.location ILIKE ${"%" + location.replace(/[\\%_]/g, "\\$&") + "%"}`,
@@ -343,7 +432,8 @@ export async function listCatalog(
     select: {
       id: true,
       providerId: true,
-      searchText: true,
+      department: true,
+      description: true,
       title: true,
       employer: true,
       location: true,
@@ -376,11 +466,14 @@ export async function listCatalog(
     jobs: ids.map(({ id }) => {
       const j = rowsById.get(id)!;
       const p = personalById.get(j.providerId);
-      const { searchText, ...listing } = j;
+      const { description, department, ...listing } = j;
       return {
         ...listing,
         recommendation: recommendationReasons(
-          { ...j, searchText },
+          {
+            ...listing,
+            searchText: catalogSearchText({ ...j, description, department }),
+          },
           personalization,
         ),
         personalJobId: p?.id || null,

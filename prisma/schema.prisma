@@ -47,7 +47,8 @@ model CatalogJob {
   discoveredAfterBaseline Boolean @default(false)
   active Boolean @default(true)
   hash String
-  searchText String
+  // No longer populated: text is derived from the columns (src/lib/catalog-text.ts).
+  searchText String @default("")
   skillKeys String[] @default([])
   skillKeysVersion Int @default(0)
   skillKeysHash String?

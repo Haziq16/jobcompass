@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { catalogTextSql } from "./catalog-text";
 import { db } from "./db";
 import { cvSkillSignals } from "./resume-checks";
 import { hasTerm } from "./matching";
@@ -78,8 +79,8 @@ const rx = (s: string) =>
   `(^|[^a-z0-9])${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`;
 function catalogMention(term: string) {
   return cachedCatalogSkills.has(term.toLowerCase())
-    ? Prisma.sql`CASE WHEN j."skillKeysVersion"=${CATALOG_SKILL_VERSION} AND j."skillKeysHash"=j.hash THEN ${term.toLowerCase()}=ANY(j."skillKeys") ELSE j."searchText" ~* ${rx(term)} END`
-    : Prisma.sql`j."searchText" ~* ${rx(term)}`;
+    ? Prisma.sql`CASE WHEN j."skillKeysVersion"=${CATALOG_SKILL_VERSION} AND j."skillKeysHash"=j.hash THEN ${term.toLowerCase()}=ANY(j."skillKeys") ELSE ${catalogTextSql("j")} ~* ${rx(term)} END`
+    : Prisma.sql`${catalogTextSql("j")} ~* ${rx(term)}`;
 }
 export function recommendationSql(p: SearchProfile) {
   const terms: Prisma.Sql[] = [Prisma.sql`CAST(0 AS double precision)`];
