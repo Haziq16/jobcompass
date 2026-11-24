@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-25 - Catalogue storage budget
+
+- Refreshes now enforce the storage budget for all catalogue growth, not just new boards. Retired jobs and jobs on feeds unconfirmed for 14 days are deleted in small batches; each board keeps its newest 500 postings; the catalogue keeps its newest postings up to a job cap derived from `CATALOG_DATABASE_BUDGET_MB`. Jobs referenced by any account are never deleted.
+- Search text is no longer stored twice. A compact full-text index over title, company, location, department and the first 6,000 description characters replaces the old one with identical search results; stored descriptions are capped at 20,000 characters. Measured on production data: about 58 MB per 10,000 jobs instead of 87 MB.
+- A full database returns `507 database_storage_full`, and refresh failures are logged by code only. A per-board write failure no longer aborts the whole refresh.
+- Migration `202611250001_catalog_compact_search` sets an empty default for `CatalogJob.searchText`, replaces the full-text index and adds a retention index. No row data is changed.
+
 ## 2026-11-24 - "Should I apply?" verdict
 
 - Each AI review now also returns a verdict in the same provider request: a 0.0–5.0 score with Apply, Maybe or Skip, a reason of at most two sentences, seniority fit, workplace, timezone and work-authorization checks, the requirement match, interview risks with honest answers from your CV, and listing freshness.
